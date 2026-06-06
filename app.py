@@ -6,7 +6,7 @@ import qrcode
 from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file
 from dotenv import load_dotenv
 
-# ReportLab imports for PDF [cite: 1]
+# ReportLab imports for PDF
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib import colors
@@ -17,7 +17,7 @@ app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY")
 
 # ==========================================
-# Database Connection [cite: 1, 2]
+# Database Connection
 # ==========================================
 def get_db_connection():
     try:
@@ -33,12 +33,12 @@ def get_db_connection():
         return None
 
 def initialize_database():
-    """Database tables setup exactly as your original logic[cite: 3, 4, 7, 9, 10]."""
+    """Database tables setup"""
     db = get_db_connection()
     if not db: return
     cursor = db.cursor()
     
-    # Active Stock [cite: 4, 5]
+    # Active Stock
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS active_stock (
             id INT AUTO_INCREMENT PRIMARY KEY, reel_no VARCHAR(50) UNIQUE, size VARCHAR(50), gsm VARCHAR(50),
@@ -46,7 +46,7 @@ def initialize_database():
             sr_no VARCHAR(50) DEFAULT '-', status VARCHAR(20) DEFAULT 'Active', is_viscor_issued INT DEFAULT 0
         )
     """)
-    # Return Log [cite: 6, 7]
+    # Return Log
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS return_reel_log (
             id INT AUTO_INCREMENT PRIMARY KEY, reel_no VARCHAR(50), size VARCHAR(50), gsm VARCHAR(50), type VARCHAR(50), 
@@ -54,7 +54,7 @@ def initialize_database():
             store_location VARCHAR(50), sr_no VARCHAR(50), returned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
-    # Usage Log [cite: 9, 10]
+    # Usage Log
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS usage_reel_log (
             id INT AUTO_INCREMENT PRIMARY KEY, reel_no VARCHAR(50), size VARCHAR(50), gsm VARCHAR(50), type VARCHAR(50), 
@@ -62,17 +62,20 @@ def initialize_database():
             action_type VARCHAR(20), logged_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
-    # Users [cite: 10, 11]
+    # Users
     cursor.execute("CREATE TABLE IF NOT EXISTS users (username VARCHAR(50) PRIMARY KEY, password VARCHAR(50), role VARCHAR(40))")
     cursor.execute("INSERT IGNORE INTO users VALUES ('admin', 'admin@0123', 'Admin')")
     cursor.execute("INSERT IGNORE INTO users VALUES ('dataop1', 'viscor@1234', 'Data Operator 1')")
     cursor.execute("INSERT IGNORE INTO users VALUES ('dataop2', 'packwell@5678', 'Data Operator 2')")
-    cursor.execute("INSERT IGNORE INTO users VALUES ('super1', 'super@0000', 'Supervisor 1')") # Read Only [cite: 11]
-    cursor.execute("INSERT IGNORE INTO users VALUES ('super2', 'super@1111', 'Supervisor 2')") # Read Only [cite: 11]
+    cursor.execute("INSERT IGNORE INTO users VALUES ('super1', 'super@0000', 'Supervisor 1')") 
+    cursor.execute("INSERT IGNORE INTO users VALUES ('super2', 'super@1111', 'Supervisor 2')") 
     
     db.commit()
     cursor.close()
     db.close()
+
+# Render එකේදී Database Tables ස්වයංක්‍රීයව හැදෙන්න මෙතනදී Run කරනවා
+initialize_database()
 
 # ==========================================
 # Helpers
@@ -85,7 +88,7 @@ def generate_qr(reel_no):
     return path
 
 def is_readonly():
-    """Check if the user is a Supervisor (Read Only Access) [cite: 63, 64]"""
+    """Check if the user is a Supervisor (Read Only Access)"""
     return 'Supervisor' in session.get('role', '')
 
 # ==========================================
@@ -104,7 +107,7 @@ def login():
             session['role'] = user['role']
             return redirect(url_for('dashboard'))
         else:
-            flash("Invalid Credentials!", "danger") [cite: 28]
+            flash("Invalid Credentials!", "danger")
     return render_template('login.html')
 
 @app.route('/dashboard')
@@ -114,7 +117,6 @@ def dashboard():
     db = get_db_connection()
     cursor = db.cursor(dictionary=True)
     
-    # Load data for all tabs exactly as the desktop app [cite: 61, 75, 89, 96, 103, 105]
     cursor.execute("SELECT * FROM active_stock WHERE status='Active' ORDER BY id DESC")
     active_stock = cursor.fetchall()
     
@@ -144,14 +146,13 @@ def add_stock():
     db = get_db_connection()
     cursor = db.cursor()
     try:
-        # Check duplicate [cite: 55, 56]
         cursor.execute("SELECT COUNT(*) FROM active_stock WHERE reel_no = %s", (request.form['reel_no'],))
         if cursor.fetchone()[0] > 0:
             flash("Reel Number already exists!", "warning")
             return redirect(url_for('dashboard'))
 
         sql = """INSERT INTO active_stock (store_location, reel_no, size, gsm, type, supplier, weight, gate_pass, status) 
-                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'Active')""" [cite: 56, 57]
+                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'Active')"""
         cursor.execute(sql, (request.form['store_location'], request.form['reel_no'], request.form['size'], request.form['gsm'], 
                              request.form['type'], request.form['supplier'], float(request.form['weight']), request.form['gate_pass']))
         db.commit()
@@ -163,7 +164,7 @@ def add_stock():
 
 @app.route('/issue_stock/<int:id>', methods=['POST'])
 def issue_stock(id):
-    if is_readonly(): return redirect(url_for('dashboard')) [cite: 63, 64]
+    if is_readonly(): return redirect(url_for('dashboard'))
     
     num_val = request.form['issue_number']
     is_viscor = request.form.get('is_viscor', 0)
@@ -172,9 +173,9 @@ def issue_stock(id):
     db = get_db_connection()
     cursor = db.cursor()
     if issue_type == "SR":
-        cursor.execute("UPDATE active_stock SET status='Issued', sr_no=%s, is_viscor_issued=%s WHERE id=%s", (num_val, is_viscor, id)) [cite: 65, 66]
+        cursor.execute("UPDATE active_stock SET status='Issued', sr_no=%s, is_viscor_issued=%s WHERE id=%s", (num_val, is_viscor, id))
     else:
-        cursor.execute("UPDATE active_stock SET status='Issued', gate_pass=%s, is_viscor_issued=%s WHERE id=%s", (num_val, is_viscor, id)) [cite: 66]
+        cursor.execute("UPDATE active_stock SET status='Issued', gate_pass=%s, is_viscor_issued=%s WHERE id=%s", (num_val, is_viscor, id))
     db.commit()
     flash("Reel Issued successfully!", "success")
     return redirect(url_for('dashboard'))
@@ -188,22 +189,22 @@ def process_return():
     
     db = get_db_connection()
     cursor = db.cursor()
-    cursor.execute("SELECT id, size, gsm, type, supplier, weight, gate_pass, store_location, sr_no FROM active_stock WHERE reel_no=%s AND status='Issued'", (reel,)) [cite: 78, 79]
+    cursor.execute("SELECT id, size, gsm, type, supplier, weight, gate_pass, store_location, sr_no FROM active_stock WHERE reel_no=%s AND status='Issued'", (reel,))
     res = cursor.fetchone()
     
     if res:
         r_id, size, gsm, r_type, supp, old_w, gp, loc, sr = res
-        consumption = float(old_w) - new_weight [cite: 79]
+        consumption = float(old_w) - new_weight
         
-        cursor.execute("UPDATE active_stock SET weight=%s, status='Active' WHERE id=%s", (new_weight, r_id)) [cite: 80]
-        cursor.execute("INSERT INTO return_reel_log(reel_no, size, gsm, type, supplier, previous_weight, returned_weight, consumption, gate_pass, store_location, sr_no) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)", (reel, size, gsm, r_type, supp, old_w, new_weight, consumption, gp, loc, sr)) [cite: 80, 81]
-        cursor.execute("INSERT INTO usage_reel_log(reel_no, size, gsm, type, supplier, used_weight, gate_pass, store_location, sr_no, action_type) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,'PARTIAL_RETURN')", (reel, size, gsm, r_type, supp, consumption, gp, loc, sr)) [cite: 81, 82]
+        cursor.execute("UPDATE active_stock SET weight=%s, status='Active' WHERE id=%s", (new_weight, r_id))
+        cursor.execute("INSERT INTO return_reel_log(reel_no, size, gsm, type, supplier, previous_weight, returned_weight, consumption, gate_pass, store_location, sr_no) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)", (reel, size, gsm, r_type, supp, old_w, new_weight, consumption, gp, loc, sr))
+        cursor.execute("INSERT INTO usage_reel_log(reel_no, size, gsm, type, supplier, used_weight, gate_pass, store_location, sr_no, action_type) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,'PARTIAL_RETURN')", (reel, size, gsm, r_type, supp, consumption, gp, loc, sr))
         
-        db.commit() [cite: 82]
+        db.commit()
         generate_qr(reel)
         flash("Reel returned successfully.", "success")
     else:
-        flash("Reel not found in Issued pool.", "warning") [cite: 84, 85]
+        flash("Reel not found in Issued pool.", "warning")
     return redirect(url_for('dashboard'))
 
 @app.route('/finish_stock/<int:row_id>', methods=['POST'])
@@ -212,59 +213,58 @@ def finish_stock(row_id):
     
     db = get_db_connection()
     cursor = db.cursor()
-    cursor.execute("SELECT reel_no, size, gsm, type, supplier, weight, gate_pass, store_location, sr_no FROM active_stock WHERE id=%s", (row_id,)) [cite: 85, 86]
+    cursor.execute("SELECT reel_no, size, gsm, type, supplier, weight, gate_pass, store_location, sr_no FROM active_stock WHERE id=%s", (row_id,))
     res = cursor.fetchone()
     if res:
         reel, size, gsm, r_type, supp, w, gp, loc, sr = res
-        cursor.execute("UPDATE active_stock SET status='Finished' WHERE id=%s", (row_id,)) [cite: 86]
-        cursor.execute("INSERT INTO usage_reel_log(reel_no, size, gsm, type, supplier, used_weight, gate_pass, store_location, sr_no, action_type) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,'FINISHED')", (reel, size, gsm, r_type, supp, w, gp, loc, sr)) [cite: 86, 87]
-        db.commit() [cite: 87]
+        cursor.execute("UPDATE active_stock SET status='Finished' WHERE id=%s", (row_id,))
+        cursor.execute("INSERT INTO usage_reel_log(reel_no, size, gsm, type, supplier, used_weight, gate_pass, store_location, sr_no, action_type) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,'FINISHED')", (reel, size, gsm, r_type, supp, w, gp, loc, sr))
+        db.commit()
         flash("Reel marked as Finished.", "success")
     return redirect(url_for('dashboard'))
 
 @app.route('/delete_stock/<int:id>')
 def delete_stock(id):
-    if is_readonly(): return redirect(url_for('dashboard')) [cite: 67, 68]
+    if is_readonly(): return redirect(url_for('dashboard'))
     db = get_db_connection()
     cursor = db.cursor()
-    cursor.execute("DELETE FROM active_stock WHERE id=%s", (id,)) [cite: 68]
+    cursor.execute("DELETE FROM active_stock WHERE id=%s", (id,))
     db.commit()
     flash("Stock deleted.", "info")
     return redirect(url_for('dashboard'))
 
 @app.route('/download_pdf/<report_type>', methods=['GET'])
 def download_pdf(report_type):
-    """Dynamic PDF Generation using ReportLab [cite: 1, 106, 107, 108, 109, 110, 111, 112]"""
     db = get_db_connection()
     cursor = db.cursor()
     
     if report_type == 'live':
         title_txt = "Live Stock Report"
-        cursor.execute("SELECT store_location, reel_no, size, gsm, type, weight FROM active_stock WHERE status='Active'") [cite: 106, 107]
+        cursor.execute("SELECT store_location, reel_no, size, gsm, type, weight FROM active_stock WHERE status='Active'")
     else:
         title_txt = "Usage History Report"
-        cursor.execute("SELECT store_location, reel_no, size, gsm, type, used_weight FROM usage_reel_log") [cite: 107, 108]
+        cursor.execute("SELECT store_location, reel_no, size, gsm, type, used_weight FROM usage_reel_log")
         
     db_data = cursor.fetchall()
     
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4) [cite: 1, 108]
+    doc = SimpleDocTemplate(buffer, pagesize=A4)
     story = []
-    styles = getSampleStyleSheet() [cite: 1, 108]
+    styles = getSampleStyleSheet()
     
-    story.append(Paragraph(f"<b>VISCOR LANKA: {title_txt}</b>", styles['Heading1'])) [cite: 109]
-    story.append(Spacer(1, 15)) [cite: 1, 109]
+    story.append(Paragraph(f"<b>VISCOR LANKA: {title_txt}</b>", styles['Heading1']))
+    story.append(Spacer(1, 15))
     
-    table_content = [["Location", "Reel No", "Size", "GSM", "Type", "Weight"]] [cite: 110]
-    for r in db_data: table_content.append([str(r[0]), str(r[1]), str(r[2]), str(r[3]), str(r[4]), f"{r[5]:.1f}"]) [cite: 110, 111]
+    table_content = [["Location", "Reel No", "Size", "GSM", "Type", "Weight"]]
+    for r in db_data: table_content.append([str(r[0]), str(r[1]), str(r[2]), str(r[3]), str(r[4]), f"{r[5]:.1f}"])
         
-    report_table = Table(table_content, colWidths=[110, 100, 50, 50, 80, 80]) [cite: 1, 111]
-    report_table.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,0), colors.grey), ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke), ('GRID', (0,0), (-1,-1), 0.5, colors.black), ('ALIGN', (0,0), (-1,-1), 'CENTER')])) [cite: 1, 111, 112]
-    story.append(report_table) [cite: 112]
-    doc.build(story) [cite: 112]
+    report_table = Table(table_content, colWidths=[110, 100, 50, 50, 80, 80])
+    report_table.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,0), colors.grey), ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke), ('GRID', (0,0), (-1,-1), 0.5, colors.black), ('ALIGN', (0,0), (-1,-1), 'CENTER')]))
+    story.append(report_table)
+    doc.build(story)
     
     buffer.seek(0)
-    filename = f"VISCOR_{title_txt.replace(' ', '_')}_{datetime.datetime.now().strftime('%Y%m%d')}.pdf" [cite: 108]
+    filename = f"VISCOR_{title_txt.replace(' ', '_')}_{datetime.datetime.now().strftime('%Y%m%d')}.pdf"
     return send_file(buffer, as_attachment=True, download_name=filename, mimetype='application/pdf')
 
 @app.route('/logout')
@@ -273,5 +273,4 @@ def logout():
     return redirect(url_for('login'))
 
 if __name__ == '__main__':
-    initialize_database()
     app.run(debug=True)
