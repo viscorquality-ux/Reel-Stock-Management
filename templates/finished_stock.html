@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+<h3>Finished/Consumed Reels Pool</h3>
+<div class="table-responsive bg-white p-3 rounded shadow-sm mt-3">
+    <table class="table table-striped">
+        <thead class="table-danger">
+            <tr>
+                <th>Reel No</th><th>Location</th><th>Material Spec</th><th>Supplier</th><th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for stock in stocks %}
+            <tr>
+                <td><del>{{ stock.reel_no }}</del></td>
+                <td>{{ stock.store_location }}</td>
+                <td>{{ stock.size }}mm / {{ stock.gsm }}GSM</td>
+                <td>{{ stock.supplier }}</td>
+                <td><span class="badge bg-danger">Completely Finished</span></td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" class="text-center text-muted">No finished records in this life-cycle session.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

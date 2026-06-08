@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card mb-4 shadow-sm border-0">
+    <div class="card-header bg-warning text-dark fw-bold">📊 Analytics Report Filters</div>
+    <div class="card-body">
+        <form method="GET" action="/usage_logs" class="row g-3">
+            <div class="col-md-3">
+                <label>Store Location:</label>
+                <select name="location" class="form-select">
+                    <option value="">-- All Locations --</option>
+                    {% for loc in locations %}
+                    <option value="{{ loc }}" {% if f_location == loc %}selected{% endif %}>{{ loc }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3"><label>Paper Type:</label><input type="text" name="type" value="{{ f_type }}" class="form-control" placeholder="e.g. Kraft"></div>
+            <div class="col-md-3"><label>Supplier:</label><input type="text" name="supplier" value="{{ f_supplier }}" class="form-control" placeholder="Supplier name"></div>
+            <div class="col-md-3 d-flex align-items-end gap-2">
+                <button type="submit" class="btn btn-dark w-50">Filter Table</button>
+                <a href="/export_pdf?location={{ f_location }}" class="btn btn-danger w-50"><i class="bi bi-file-pdf"></i> Download PDF</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<h3>Production Consumption Logs</h3>
+<div class="table-responsive bg-white p-3 rounded shadow-sm">
+    <table class="table table-striped table-bordered">
+        <thead class="table-secondary">
+            <tr>
+                <th>Timestamp</th><th>Reel ID</th><th>Location</th><th>Net Used (kg)</th><th>System Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for log in logs %}
+            <tr>
+                <td>{{ log.logged_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                <td><b>{{ log.reel_no }}</b></td>
+                <td>{{ log.store_location }}</td>
+                <td class="text-danger fw-bold">{{ log.used_weight }} kg</td>
+                <td><span class="badge {% if log.action_type=='FINISHED' %}bg-dark{% else %}bg-primary{% endif %}">{{ log.action_type }}</span></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
