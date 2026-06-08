@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3>Active Production Inventory</h3>
+    <button class="btn btn-primary shadow-sm fw-bold" onclick="window.print()"><i class="bi bi-printer"></i> Print</button>
+</div>
+
+<!-- Mini Tabs Navigation -->
+<ul class="nav nav-tabs mb-3" id="stockTabs" role="tablist">
+  <li class="nav-item" role="presentation">
+    <button class="nav-link active fw-bold text-success" id="full-tab" data-bs-toggle="tab" data-bs-target="#full" type="button" role="tab">Full Reels</button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link fw-bold text-warning" id="used-tab" data-bs-toggle="tab" data-bs-target="#used" type="button" role="tab">Used Reels</button>
+  </li>
+</ul>
+
+<div class="tab-content bg-white p-3 rounded shadow-sm" id="stockTabsContent">
+  <!-- FULL REELS TAB -->
+  <div class="tab-pane fade show active" id="full" role="tabpanel">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="table-success">
+                <tr>
+                    <th>Date & Time</th><th>Location</th><th>Reel ID</th><th>Paper Name</th><th>Specs (cm/GSM)</th><th>Weight</th><th>Gate Pass</th>
+                    {% if session['role'] not in ['Super 1', 'Super 2'] %}<th>Action</th>{% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for stock in stocks %}{% if stock.reel_condition == 'Full' or not stock.reel_condition %}
+                <tr>
+                    <td><small>{{ stock.created_at.strftime('%Y-%m-%d %I:%M %p') }}</small></td>
+                    <td><span class="badge bg-secondary">{{ stock.store_location }}</span></td>
+                    <td><b class="text-primary">{{ stock.reel_no }}</b><br>
+                        <button onclick="printQR('{{ stock.reel_no }}')" class="btn btn-xs btn-outline-dark mt-1" style="font-size: 0.7rem;"><i class="bi bi-qr-code"></i> QR</button>
+                    </td>
+                    <td><b>{{ stock.paper_name }}</b></td>
+                    <td>{{ stock.size }} cm / {{ stock.gsm }} GSM</td>
+                    <td><b>{{ stock.weight }} kg</b></td>
+                    <td>{{ stock.gate_pass }}</td>
+                    
+                    {% if session['role'] not in ['Super 1', 'Super 2'] %}
+                    <td>
+                        <div class="d-flex gap-1 flex-wrap">
+                            <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#issue{{ stock.id }}">Issue</button>
+                            <button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#updateLoc{{ stock.id }}"><i class="bi bi-geo-alt"></i> Loc</button>
+                            {% if session['role'] in ['Admin', 'Data Operator 1', 'Data Operator 2'] %}
+                            <form action="/delete_stock/{{ stock.id }}" method="POST" style="display:inline;" onsubmit="return confirm('Delete?');"><button type="submit" class="btn btn-sm btn-danger"><i class="bi bi-trash"></i></button></form>
+                            {% endif %}
+                        </div>
+                    </td>
+                    {% include 'partials/stock_modals.html' %}
+                    {% endif %}
+                </tr>
+                {% endif %}{% endfor %}
+            </tbody>
+        </table>
+    </div>
+  </div>
+
+  <!-- USED REELS TAB -->
+  <div class="tab-pane fade" id="used" role="tabpanel">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="table-warning">
+                <tr>
+                    <th>Date & Time</th><th>Location</th><th>Reel ID</th><th>Paper Name</th><th>Specs (cm/GSM)</th><th>Balance Wgt</th><th>Gate Pass</th>
+                    <th>History</th>
+                    {% if session['role'] not in ['Super 1', 'Super 2'] %}<th>Action</th>{% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for stock in stocks %}{% if stock.reel_condition == 'Used' %}
+                <tr>
+                    <td><small>{{ stock.created_at.strftime('%Y-%m-%d %I:%M %p') }}</small></td>
+                    <td><span class="badge bg-secondary">{{ stock.store_location }}</span></td>
+                    <td><b class="text-primary">{{ stock.reel_no }}</b><br>
+                        <button onclick="printQR('{{ stock.reel_no }}')" class="btn btn-xs btn-outline-dark mt-1" style="font-size: 0.7rem;"><i class="bi bi-qr-code"></i> QR</button>
+                    </td>
+                    <td><b>{{ stock.paper_name }}</b></td>
+                    <td>{{ stock.size }} cm / {{ stock.gsm }} GSM</td>
+                    <td><b class="text-danger">{{ stock.weight }} kg</b></td>
+                    <td>{{ stock.gate_pass }}</td>
+                    <td><button class="btn btn-sm btn-info text-white fw-bold" onclick="viewHistory('{{ stock.reel_no }}')"><i class="bi bi-clock-history"></i> Logs</button></td>
+                    
+                    {% if session['role'] not in ['Super 1', 'Super 2'] %}
+                    <td>
+                        <div class="d-flex gap-1 flex-wrap">
+                            <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#issue{{ stock.id }}">Issue</button>
+                            <button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#updateLoc{{ stock.id }}"><i class="bi bi-geo-alt"></i> Loc</button>
+                            {% if session['role'] in ['Admin', 'Data Operator 1', 'Data Operator 2'] %}
+                            <form action="/delete_stock/{{ stock.id }}" method="POST" style="display:inline;" onsubmit="return confirm('Delete?');"><button type="submit" class="btn btn-sm btn-danger"><i class="bi bi-trash"></i></button></form>
+                            {% endif %}
+                        </div>
+                    </td>
+                    {% include 'partials/stock_modals.html' %}
+                    {% endif %}
+                </tr>
+                {% endif %}{% endfor %}
+            </tbody>
+        </table>
+    </div>
+  </div>
+</div>
+
+<!-- History Modal -->
+<div class="modal fade" id="historyModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title">Usage History: <span id="hReelNo"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <table class="table table-sm table-bordered">
+                    <thead><tr><th>Date & Time</th><th>Action</th><th>Weight Changed / Used</th><th>Doc Ref</th></tr></thead>
+                    <tbody id="historyTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function printQR(reelNo) {
+    var printWindow = window.open('', '_blank', 'width=450,height=450');
+    printWindow.document.write('<html><body style="text-align:center;font-family:sans-serif;padding-top:30px;"><h2>REEL QR</h2><h3>' + reelNo + '</h3><img src="/generate_qr/' + reelNo + '" style="width:240px;height:240px;" onload="window.print();window.close();"/></body></html>');
+    printWindow.document.close();
+}
+
+function viewHistory(reelNo) {
+    document.getElementById('hReelNo').innerText = reelNo;
+    fetch('/get_usage_history/' + reelNo)
+    .then(response => response.json())
+    .then(data => {
+        let tbody = document.getElementById('historyTableBody');
+        tbody.innerHTML = '';
+        if(data.history.length === 0){
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center">No logs found.</td></tr>';
+        } else {
+            data.history.forEach(log => {
+                tbody.innerHTML += `<tr><td>${log.date}</td><td><b>${log.action}</b></td><td class="text-danger">${log.weight_used} kg</td><td>${log.sr_no !== '-' ? 'SR: '+log.sr_no : 'GP: '+log.gate_pass}</td></tr>`;
+            });
+        }
+        var historyModal = new bootstrap.Modal(document.getElementById('historyModal'));
+        historyModal.show();
+    });
+}
+</script>
+{% endblock %}
