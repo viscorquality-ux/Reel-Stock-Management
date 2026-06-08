@@ -1,0 +1,24 @@
+<div class="modal fade" id="issue{{ stock.id }}" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <form action="/issue_reel/{{ stock.id }}" method="POST">
+        <div class="modal-header bg-success text-white"><h5 class="modal-title">Dispatch Reel: {{ stock.reel_no }}</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body">
+            <label>Ref Document:</label>
+            <select name="doc_type" class="form-select mb-2"><option value="SR">SR (Store Request)</option><option value="GP">GP (Gate Pass)</option></select>
+            <label>Document Reference Number:</label><input type="text" name="doc_number" class="form-control mb-2" required>
+            <div class="form-check mt-3"><input class="form-check-input" type="checkbox" name="is_viscor" value="1"><label class="form-check-label text-danger fw-bold">Routing Type: Viscor Lanka Line</label></div>
+        </div>
+        <div class="modal-footer"><button type="submit" class="btn btn-success">Execute Production Dispatch</button></div>
+    </form>
+  </div></div>
+</div>
+
+<div class="modal fade" id="updateLoc{{ stock.id }}" tabindex="-1">
+    <div class="modal-dialog modal-sm"><div class="modal-content">
+        <form action="/update_location/{{ stock.id }}" method="POST">
+            <div class="modal-header bg-warning text-dark"><h5 class="modal-title">Update Loc</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body"><select name="store_location" class="form-select">{% for loc in locations %}<option value="{{ loc }}" {% if stock.store_location == loc %}selected{% endif %}>{{ loc }}</option>{% endfor %}</select></div>
+            <div class="modal-footer"><button type="submit" class="btn btn-warning w-100 btn-sm">Save Changes</button></div>
+        </form>
+    </div></div>
+</div>
