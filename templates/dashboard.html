@@ -1,39 +1,23 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - Reel Stock Management</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 40px; }
-        .header { display: flex; justify-content: space-between; align-items: center; background-color: #f4f4f4; padding: 10px 20px; border-radius: 5px; }
-        .logout-btn { background-color: #ff4d4d; color: white; padding: 8px 15px; text-decoration: none; border-radius: 4px; }
-        .menu { margin-top: 30px; }
-        .menu a { display: inline-block; margin-right: 15px; padding: 10px 20px; background-color: #007BFF; color: white; text-decoration: none; border-radius: 4px; }
-    </style>
-</head>
-<body>
-
-    <div class="header">
-        <h2>Reel Stock Management Dashboard</h2>
-        <div>
-            <!-- app.py එකෙන් එවන username එක මෙතන පෙන්වනවා -->
-            <span>Welcome, <strong>{{ username }}</strong>!</span>
-            <a href="/logout" class="logout-btn">Logout</a>
+{% extends "base.html" %}
+{% block content %}
+<div class="row">
+    <div class="col-md-6">
+        <div class="card text-white bg-success mb-3 shadow">
+            <div class="card-header">Active Stock Registry</div>
+            <div class="card-body">
+                <h1 class="card-title">{{ active_count }} Reels Available</h1>
+                <a href="/active_stock" class="btn btn-light mt-2">Manage Active Stock ➔</a>
+            </div>
         </div>
     </div>
-
-    <div class="menu">
-        <h3>Quick Actions</h3>
-        <!-- ඉදිරියේදී මේවාට අදාල පිටු හදාගන්න පුළුවන් -->
-        <a href="#">View All Stock</a>
-        <a href="#">Add New Reel</a>
-        <a href="#">Issue Reel</a>
+    <div class="col-md-6">
+        <div class="card text-dark bg-warning mb-3 shadow">
+            <div class="card-header">Issued & Processing</div>
+            <div class="card-body">
+                <h1 class="card-title">{{ issued_count }} Reels Issued</h1>
+                <a href="/issued_stock" class="btn btn-dark mt-2">Process Returns ➔</a>
+            </div>
+        </div>
     </div>
-
-    <div style="margin-top: 40px;">
-        <p>This is your main dashboard area. You can add tables, charts, or stock details here.</p>
-    </div>
-
-</body>
-</html>
+</div>
+{% endblock %}
