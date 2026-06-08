@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3>Finished / Fully Consumed Reels</h3>
+    {% if session['role'] not in ['Super 1', 'Super 2'] %}
+    <button class="btn btn-primary fw-bold" data-bs-toggle="modal" data-bs-target="#manualAddFinished"><i class="bi bi-plus-circle"></i> Add Manual Finished Record</button>
+    {% endif %}
+</div>
+
+<div class="table-responsive bg-white p-3 rounded shadow-sm">
+    <table class="table table-hover align-middle text-center">
+        <thead class="table-secondary">
+            <tr>
+                <th>Location</th><th>Reel ID</th><th>Paper Name</th><th>Specs</th><th>Final Logged Weight</th><th>Doc/SR Ref</th><th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for stock in stocks %}
+            <tr class="text-muted">
+                <td>{{ stock.store_location }}</td>
+                <td><b>{{ stock.reel_no }}</b></td>
+                <td>{{ stock.paper_name }}</td>
+                <td>{{ stock.size }} cm / {{ stock.gsm }} GSM</td>
+                <td>{{ stock.weight }} kg</td>
+                <td><b class="text-dark">SR: {{ stock.sr_no }}</b> (GP: {{ stock.gate_pass }})</td>
+                <td><span class="badge bg-dark"><i class="bi bi-check-all"></i> Finished</span></td>
+            </tr>
+            {% else %}
+            <tr><td colspan="7" class="text-center py-4">No finished reels found in history.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Manual Add Modal -->
+<div class="modal fade" id="manualAddFinished" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form action="/add_manual_finished" method="POST">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title">Add Manual Finished Stock Record</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6"><label>Reel No</label><input type="text" name="reel_no" class="form-control" required></div>
+                        <div class="col-md-6">
+                            <label>Paper Name</label>
+                            <select name="paper_name" class="form-select" required>
+                                <option value="liner(T)">liner(T)</option><option value="medium(C)">medium(C)</option><option value="kraft(K)">kraft(K)</option><option value="White(WT)">White(WT)</option><option value="white kraft(WK)">white kraft(WK)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6"><label>SR Number (Mandatory)</label><input type="text" name="sr_no" class="form-control border-danger" required></div>
+                        <div class="col-md-6"><label>Store Location</label>
+                            <select name="store_location" class="form-select">{% for loc in locations %}<option value="{{ loc }}">{{ loc }}</option>{% endfor %}</select>
+                        </div>
+                        <div class="col-md-4"><label>Size (cm)</label><input type="number" step="0.01" name="size" class="form-control" required></div>
+                        <div class="col-md-4"><label>GSM</label><input type="number" name="gsm" class="form-control" required></div>
+                        <div class="col-md-4"><label>Final Weight (kg)</label><input type="number" step="0.01" name="weight" class="form-control" required></div>
+                        <div class="col-md-6"><label>Type</label><input type="text" name="type" class="form-control"></div>
+                        <div class="col-md-6"><label>Supplier</label><input type="text" name="supplier" class="form-control"></div>
+                    </div>
+                </div>
+                <div class="modal-footer"><button type="submit" class="btn btn-primary w-100">Add to Finished Data</button></div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
