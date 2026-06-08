@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card shadow-sm border-0">
+    <div class="card-header bg-dark text-white"><h5><i class="bi bi-plus-circle"></i> Add Active Raw Material</h5></div>
+    <div class="card-body">
+        <form action="/add_stock" method="POST" class="row g-3">
+            <div class="col-md-4"><label class="fw-bold">Store Location (5 Locations):</label>
+                <select name="store_location" class="form-select">
+                    {% for loc in locations %}
+                        <option value="{{ loc }}" {% if loc == 'VISCOR Lanka' and session['role'] == 'Data Operator 2' %}disabled class="bg-light text-muted"{% endif %}>
+                            {{ loc }} {% if loc == 'VISCOR Lanka' and session['role'] == 'Data Operator 2' %}(Restricted){% endif %}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4"><label class="fw-bold">Reel Number / Barcode:</label><input type="text" name="reel_no" class="form-control" required></div>
+            <div class="col-md-4"><label class="fw-bold">Size (mm):</label><input type="text" name="size" class="form-control" required></div>
+            <div class="col-md-4"><label class="fw-bold">GSM:</label><input type="text" name="gsm" class="form-control" required></div>
+            <div class="col-md-4"><label class="fw-bold">Paper Type:</label><input type="text" name="type" class="form-control" required></div>
+            <div class="col-md-4"><label class="fw-bold">Supplier Name:</label><input type="text" name="supplier" class="form-control" required></div>
+            <div class="col-md-6"><label class="fw-bold">Total Weight (Kg):</label><input type="number" step="0.01" name="weight" class="form-control" required></div>
+            <div class="col-md-6"><label class="fw-bold">Gate Pass Reference:</label>
+                <input type="text" name="gate_pass" class="form-control" {% if session['username'] == 'dataop2' %}value="LOCKED-OP2" readonly{% endif %} required>
+            </div>
+            <div class="col-12 mt-4"><button type="submit" class="btn btn-primary w-100 fw-bold">Save Asset Into Database</button></div>
+        </form>
+    </div>
+</div>
+{% endblock %}
