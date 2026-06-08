@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="text-danger"><i class="bi bi-shield-fill-check"></i> VISCOR Lanka - IssueMain Verification Queue</h3>
+</div>
+
+<div class="table-responsive bg-white p-3 rounded shadow-sm">
+    <table class="table table-bordered table-striped align-middle">
+        <thead class="table-info">
+            <tr>
+                <th>Original Location</th><th>Reel ID</th><th>Specs</th><th>Weight</th><th>GatePass/Ref</th><th>Verification Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for stock in stocks %}
+            <tr>
+                <td><span class="badge bg-dark">{{ stock.store_location }}</span></td>
+                <td><b class="text-primary">{{ stock.reel_no }}</b></td>
+                <td>{{ stock.size }}mm / {{ stock.gsm }}GSM ({{ stock.type }})</td>
+                <td><b>{{ stock.weight }} kg</b></td>
+                <td>GP: {{ stock.gate_pass }}</td>
+                <td>
+                    <!-- Requirement 8: dataop1 හෝ Admin ට පමණක් Verification බොත්තම පෙන්වීම, dataop2 ට බ්ලොක් කිරීම -->
+                    {% if session['role'] in ['Admin', 'Data Operator 1'] %}
+                    <form action="/verify_viscor_issue/{{ stock.id }}" method="POST" onsubmit="return confirm('Verify and Accept this Reel into VISCOR Lanka Production Active Inventory?');">
+                        <button type="submit" class="btn btn-sm btn-success fw-bold w-100"><i class="bi bi-check-circle"></i> Verify & Activate</button>
+                    </form>
+                    {% else %}
+                    <span class="badge bg-warning text-dark"><i class="bi bi-clock"></i> Pending Dataop1 Verification</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6" class="text-center text-muted py-4">No pending cross-operator transfers found in the Viscor queue.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
