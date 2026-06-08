@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>VISCOR Lanka System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+</head>
+<body class="bg-light">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4 shadow-sm">
+      <div class="container-fluid">
+        <a class="navbar-brand text-warning fw-bold" href="/dashboard"><i class="bi bi-factory"></i> VISCOR LANKA</a>
+        <div class="collapse navbar-collapse">
+          <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+            <li class="nav-item"><a class="nav-link text-white" href="/dashboard">Dashboard</a></li>
+            <li class="nav-item"><a class="nav-link text-white" href="/add_stock">Add Stock</a></li>
+            <li class="nav-item"><a class="nav-link text-white" href="/active_stock">Active Stock</a></li>
+            <li class="nav-item"><a class="nav-link text-white" href="/issued_stock">Issued Stock</a></li>
+            <li class="nav-item"><a class="nav-link text-white" href="/finished_stock">Finished Stock</a></li>
+            <li class="nav-item"><a class="nav-link text-warning" href="/usage_logs">Usage & Reports</a></li>
+          </ul>
+          <span class="navbar-text text-light me-3">User: <b>{{ session['username'] }} ({{ session['role'] }})</b></span>
+          <a href="/logout" class="btn btn-danger btn-sm">Logout</a>
+        </div>
+      </div>
+    </nav>
+
+    <div class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
