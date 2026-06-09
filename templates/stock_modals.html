@@ -1,0 +1,157 @@
+{% if reel is defined and stock is not defined %}
+    {% set stock = reel %}
+{% endif %}
+
+<div class="modal fade" id="issue{{ stock.id }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content text-dark">
+      <form action="{{ url_for('issue_reel', id=stock.id) }}" method="POST">
+          <div class="modal-header bg-success text-white">
+              <h5 class="modal-title"><i class="bi bi-truck text-white me-2"></i>Dispatch Reel: {{ stock.reel_number }}</h5>
+              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body text-start">
+              <div class="mb-3">
+                  <label class="form-label fw-bold">Ref Document Type Specification Selector:</label>
+                  <select name="doc_type" class="form-select" required>
+                      <option value="SR" selected>SR (Store Request Reference)</option>
+                      <option value="GP">GP (Gate Pass Identification)</option>
+                  </select>
+              </div>
+              <div class="mb-3">
+                  <label class="form-label fw-bold">Document Reference Number Identity String:</label>
+                  <input type="text" name="doc_number" class="form-control" required placeholder="Enter reference number">
+              </div>
+          </div>
+          <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+              <button type="submit" class="btn btn-success fw-bold">Execute Production Line Dispatch</button>
+          </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+
+<div class="modal fade" id="updateLocation{{ stock.id }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content text-dark">
+      <form action="{{ url_for('update_location', id=stock.id) }}" method="POST">
+          <div class="modal-header bg-warning text-dark">
+              <h5 class="modal-title"><i class="bi bi-geo-alt-fill me-2"></i>Change Location: {{ stock.reel_number }}</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body text-start">
+              <div class="mb-3">
+                  <label class="form-label fw-bold">Select New Store Location:</label>
+                  <select name="store_location" class="form-select" required>
+                      <option value="Viscor Lanka" {% if stock.store_location == 'Viscor Lanka' %}selected{% endif %}>Viscor Lanka</option>
+                      <option value="Packwell 1" {% if stock.store_location == 'Packwell 1' %}selected{% endif %}>Packwell 1</option>
+                      <option value="Packwell 2" {% if stock.store_location == 'Packwell 2' %}selected{% endif %}>Packwell 2</option>
+                      <option value="Packwell 3" {% if stock.store_location == 'Packwell 3' %}selected{% endif %}>Packwell 3</option>
+                      <option value="Packwell 4" {% if stock.store_location == 'Packwell 4' %}selected{% endif %}>Packwell 4</option>
+                      <option value="Packwell 5" {% if stock.store_location == 'Packwell 5' %}selected{% endif %}>Packwell 5</option>
+                      <option value="Packwell 6" {% if stock.store_location == 'Packwell 6' %}selected{% endif %}>Packwell 6</option>
+                      <option value="Packwell 7" {% if stock.store_location == 'Packwell 7' %}selected{% endif %}>Packwell 7</option>
+                  </select>
+              </div>
+          </div>
+          <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+              <button type="submit" class="btn btn-warning fw-bold text-dark">Update Location</button>
+          </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+
+<div class="modal fade" id="verifyViscor{{ stock.id }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content text-dark">
+      <form action="{{ url_for('verify_accept', id=stock.id) }}" method="POST">
+          <div class="modal-header bg-primary text-white">
+              <h5 class="modal-title"><i class="bi bi-shield-check me-2"></i>Viscor QA Verification & Commit</h5>
+              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body text-start">
+              <p>Are you sure you want to verify and transfer Reel <strong>{{ stock.reel_number }}</strong> to the Active Stock Registry?</p>
+              <div class="mb-3">
+                  <label class="form-label fw-bold">Current Reel Status Classification:</label>
+                  <select name="reel_condition" class="form-select" required>
+                      <option value="Full Reel" selected>Completely Unused (Full Reel)</option>
+                      <option value="Partial Reel">Partially Used / Cut (Partial Reel)</option>
+                  </select>
+              </div>
+          </div>
+          <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+              <button type="submit" class="btn btn-primary fw-bold">Execute Commit to Active Stock</button>
+          </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+
+<div class="modal fade" id="returnReel{{ stock.id }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content text-dark">
+      <form action="{{ url_for('process_return') }}" method="POST">
+          <div class="modal-header bg-info text-white">
+              <h5 class="modal-title"><i class="bi bi-arrow-counterclockwise me-2"></i>Process Partial Return: {{ stock.reel_number }}</h5>
+              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body text-start">
+              <input type="hidden" name="reel_no" value="{{ stock.reel_number }}">
+              
+              <div class="mb-3">
+                  <label class="form-label fw-bold">Original / Current Weight (kg):</label>
+                  <input type="text" class="form-control text-muted" value="{{ stock.weight }} kg" readonly disabled>
+              </div>
+              <div class="mb-3">
+                  <label class="form-label fw-bold">Returned Remaining Weight (kg) *:</label>
+                  <input type="number" step="0.01" name="returned_weight" class="form-control" required placeholder="e.g. 150.50">
+                  <div class="form-text text-danger">Warning: Entered weight must be less than current weight.</div>
+              </div>
+          </div>
+          <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+              <button type="submit" class="btn btn-info text-white fw-bold">Submit Return Entry</button>
+          </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+
+<div class="modal fade" id="updateStatus{{ stock.id }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content text-dark">
+      <form action="{{ url_for('update_status', id=stock.id) }}" method="POST">
+          <div class="modal-header bg-danger text-white">
+              <h5 class="modal-title"><i class="bi bi-exclamation-triangle-fill me-2"></i>Change Stock Status: {{ stock.reel_number }}</h5>
+              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body text-start">
+              <div class="mb-3">
+                  <label class="form-label fw-bold">Select Status Action Destination:</label>
+                  <select name="status_type" class="form-select" required>
+                      <option value="Damaged">Move to Damaged Stock Registry</option>
+                      <option value="Sold">Move to Sold Out Stock Registry</option>
+                      <option value="Finished">Mark as Fully Finished / Consumed</option>
+                  </select>
+              </div>
+              <div class="mb-3">
+                  <label class="form-label fw-bold">Reason / Remarks / Incident Log Notes:</label>
+                  <textarea name="notes" class="form-control" rows="3" placeholder="Provide reason here (e.g. Core damaged, sold to scrap)..." required></textarea>
+              </div>
+          </div>
+          <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+              <button type="submit" class="btn btn-danger fw-bold">Confirm Status Action</button>
+          </div>
+      </form>
+    </div>
+  </div>
+</div>
