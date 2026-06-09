@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card shadow-sm border-0 max-width mx-auto" style="max-width: 600px;">
+    <div class="card-header bg-dark text-white fw-bold fs-5">Add New Raw Material Stock Entry</div>
+    <div class="card-body">
+        <form action="/add_stock" method="POST">
+            <div class="mb-3">
+                <label class="form-label fw-bold">Unique Reel Number Identification:</label>
+                <input type="text" name="reel_number" class="form-control" placeholder="Ex: 100140aaaaaaaa" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-bold">Paper Name Classification:</label>
+                <select name="paper_name" class="form-select" required>
+                    <option value="Liner (T)">Liner (T)</option>
+                    <option value="Medium (C)">Medium (C)</option>
+                    <option value="Kraft (K)">Kraft (K)</option>
+                    <option value="White (WT)">White (WT)</option>
+                    <option value="White kraft (WK)">White kraft (WK)</option>
+                </select>
+            </div>
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">Size Dimension (cm):</label>
+                    <input type="number" step="0.01" name="size_cm" class="form-control" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">Weight Capacity (kg):</label>
+                    <input type="number" step="0.01" name="weight_kg" class="form-control" required>
+                </div>
+            </div>
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">GSM Density Parameters:</label>
+                    <input type="number" name="gsm" class="form-control" value="0">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">Reel Quality Type Classification:</label>
+                    <input type="text" name="reel_type" class="form-control" value="Standard">
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-bold">Warehouse Assignment Allocation (Location):</label>
+                <select name="store_location" class="form-select">
+                    {% for loc in locations %}
+                    <option value="{{ loc }}">{{ loc }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-bold">Supplier Entity Context Info:</label>
+                <input type="text" name="supplier" class="form-control" placeholder="N/A">
+            </div>
+            <div class="form-check p-3 bg-light border rounded mb-4">
+                <input class="form-check-input" type="checkbox" name="is_damage" value="1" id="dmgCheck">
+                <label class="form-check-label fw-bold text-danger" for="dmgCheck">
+                    <i class="bi bi-exclamation-triangle-fill"></i> Is this specific reel damaged? (Move to Damage Mini-Tab Registry)
+                </label>
+            </div>
+            <button type="submit" class="btn btn-primary w-100 fw-bold">Commit & Register Entry Stock</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
