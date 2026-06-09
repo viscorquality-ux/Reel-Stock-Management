@@ -9,11 +9,9 @@ app.secret_key = 'viscor_packwell_ultimate_secure_key'
 # ==============================================================================
 # ⚠️ DATABASE CONFIGURATION FIXED FOR AIVEN MYSQL & PYMYSQL
 # ==============================================================================
-# URL එක අවසානයේ තිබූ ?ssl-mode=REQUIRED කොටස ඉවත් කර mysql+pymysql යොදා ඇත.
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://avnadmin:AVNS_gHRTw4Hzio_XlhXcm7d@mysql-3e9936af-viscorquality-0270.g.aivencloud.com:28643/defaultdb'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Aiven MySQL සඳහා ආරක්ෂිතව SSL Connection එක ලබාදීමට මෙය භාවිතා කරයි.
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     "connect_args": {
         "ssl": {}
@@ -159,13 +157,21 @@ def active_stock():
                            total_full_count=total_full_count, total_full_weight=total_full_weight,
                            total_used_count=total_used_count, total_used_weight=total_used_weight)
 
+# ==============================================================================
+# 🛠️ FIXED: ADD STOCK ROUTE (400 BAD REQUEST ELIMINATED)
+# ==============================================================================
 @app.route('/add_stock', methods=['GET', 'POST'])
 def add_stock():
     user_role = session.get('role', 'dataop1')
     if request.method == 'POST':
         try:
-            reel_number = request.form['reel_number'].strip()
+            # .get() භාවිතා කර ඇති බැවින් කිසිවිටක 400 Bad Request Error එකක් මතු නොවේ
+            reel_number = request.form.get('reel_number', '').strip()
             
+            if not reel_number:
+                flash("Error: Reel Number is required!", "danger")
+                return redirect(url_for('add_stock'))
+                
             # 🔍 Unique Check
             existing_reel = Reel.query.filter_by(reel_number=reel_number).first()
             if existing_reel:
@@ -174,9 +180,9 @@ def add_stock():
                 
             size_cm = request.form.get('size_cm', 0.0, type=float)
             weight_kg = request.form.get('weight_kg', 0.0, type=float)
-            paper_name = request.form['paper_name']
-            status = request.form['status'] 
-            gate_pass_number = request.form['gate_pass_number']
+            paper_name = request.form.get('paper_name', '')
+            status = request.form.get('status', 'Full Reel') 
+            gate_pass_number = request.form.get('gate_pass_number', '')
             gsm = request.form.get('gsm', 0, type=int)
             reel_type = request.form.get('reel_type', 'Standard')
             supplier = request.form.get('supplier', 'N/A') or 'N/A'
@@ -248,7 +254,11 @@ def finish_reel(id):
 @app.route('/process_return', methods=['POST'])
 def process_return():
     reel_no = request.form.get('reel_no')
-    returned_weight = float(request.form.get('returned_weight'))
+    try:
+        returned_weight = float(request.form.get('returned_weight', 0.0))
+    except (ValueError, TypeError):
+        returned_weight = 0.0
+        
     reel = Reel.query.filter_by(reel_number=reel_no).first_or_404()
     used_amount = reel.weight_kg - returned_weight
     if used_amount < 0: used_amount = 0.0
