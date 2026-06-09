@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Management System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    
+    <style>
+        /* Print කරන විට Menu සහ Buttons Print වීම වැලැක්වීම */
+        @media print {
+            .no-print { display: none !important; }
+        }
+        body { background-color: #f8f9fa; }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4 shadow-sm no-print">
+        <div class="container-fluid">
+            <a class="navbar-brand fw-bold text-primary" href="/dashboard"><i class="bi bi-box-seam"></i> Viscor System</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <div class="navbar-nav me-auto">
+                    <a class="nav-link text-white" href="/dashboard"><i class="bi bi-speedometer2"></i> Dashboard</a>
+                    <a class="nav-link text-white" href="/add_stock"><i class="bi bi-plus-circle"></i> Add Stock</a>
+                    <a class="nav-link text-white" href="/active_stock"><i class="bi bi-boxes"></i> Active Stock</a>
+                    <a class="nav-link text-white" href="/issued_stock"><i class="bi bi-truck"></i> Issued Stock</a>
+                    <a class="nav-link text-white" href="/finished_usage_stock"><i class="bi bi-check-circle"></i> Finished & Usage</a>
+                    <a class="nav-link text-white" href="/damage_sell_stock"><i class="bi bi-trash"></i> Damage & Sell Stock</a>
+                    <a class="nav-link text-white" href="/viscor_issue"><i class="bi bi-shield-check"></i> Viscor Issue</a>
+                    <a class="nav-link text-white" href="/usage_logs"><i class="bi bi-journal-text"></i> Usage Logs</a>
+                </div>
+                
+                <div class="navbar-nav ms-auto">
+                    <a class="nav-link text-danger fw-bold" href="/logout"><i class="bi bi-box-arrow-right"></i> Logout</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container no-print">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'success' if category == 'success' else ('warning' if category == 'warning' else 'info') }} alert-dismissible fade show shadow-sm" role="alert">
+                        <i class="bi bi-info-circle-fill me-2"></i> {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <div class="container pb-5">
+        {% block content %}
+        {% endblock %}
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
