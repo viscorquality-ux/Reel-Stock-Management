@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row g-4 text-center mt-2">
+    <div class="col-md-4">
+        <div class="card bg-primary text-white shadow-sm p-4 border-0 h-100">
+            <h5>New Stock Initiation</h5>
+            <i class="bi bi-plus-square-fill display-4 my-2"></i>
+            <p>Direct Entry Point for Adding Raw Material Reels</p>
+            <a href="/add_stock" class="btn btn-light btn-sm mt-auto fw-bold"><i class="bi bi-plus"></i> Go to Add Stock</a>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-success text-white shadow-sm p-4 border-0 h-100">
+            <h5>Active Available Stocks</h5>
+            <h4 class="mb-0 mt-2">Total Reels: {{ active_count }}</h4>
+            <h4>Weight Matrix: {{ active_weight }} kg</h4>
+            <a href="/active_stock" class="btn btn-light btn-sm mt-auto fw-bold">Open Active Registry</a>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-warning text-dark shadow-sm p-4 border-0 h-100">
+            <h5>In Production / Issued Reels</h5>
+            <h1 class="display-5 mt-2 fw-bold">{{ issued }}</h1>
+            <a href="/issued_stock" class="btn btn-dark btn-sm mt-auto fw-bold">Process Returns</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

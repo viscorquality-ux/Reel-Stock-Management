@@ -1,0 +1,28 @@
+<div class="modal fade" id="issue{{ stock.id }}" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content text-dark">
+      <form action="/issue_reel/{{ stock.id }}" method="POST">
+          <div class="modal-header bg-success text-white">
+              <h5 class="modal-title">Dispatch Reel: {{ stock.reel_number }}</h5>
+              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body text-start">
+              <div class="mb-3">
+                  <label class="form-label fw-bold">Ref Document Type Specification Selector:</label>
+                  <select name="doc_type" class="form-select">
+                      <option value="SR">SR (Store Request Reference)</option>
+                      <option value="GP">GP (Gate Pass Identification)</option>
+                  </select>
+              </div>
+              <div class="mb-3">
+                  <label class="form-label fw-bold">Document Reference Number Identity String:</label>
+                  <input type="text" name="doc_number" class="form-control" required>
+              </div>
+          </div>
+          <div class="modal-footer">
+              <button type="submit" class="btn btn-success fw-bold">Execute Production Line Dispatch</button>
+          </div>
+      </form>
+    </div>
+  </div>
+</div>
