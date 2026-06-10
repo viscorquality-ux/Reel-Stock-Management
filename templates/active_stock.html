@@ -304,55 +304,61 @@
 
 <script>
 document.getElementById('reelSearchInput').addEventListener('input', function() {
-    // සෙවුම් කොටුවේ ගැසූ දේ සිම්පල් (toLowerCase) කර සියලුම හිස්තැන් මුළුමනින්ම ඉවත් කරයි
+    // 1. සෙවුම් කොටුවේ ගැසූ සියලුම හිස්තැන් ඉවත් කර simple අකුරු වලට හරවයි
     let filterText = this.value.toLowerCase().replace(/\s+/g, '');
     let rows = document.querySelectorAll('.reel-row');
     
+    // ඉලක්කම් කොටස් සහ අකුරු කොටස් වෙන වෙනම ස්මාර්ට් ලෙස වෙන් කරගනී
+    // උදා: "100140boxboard" -> ["100140", "boxboard"]
+    let tokens = filterText.match(/\d+|[a-z]+/ig) || [];
+    
     rows.forEach(function(row) {
-        // දත්ත පද්ධතියේ ඇති අගයන් සියල්ල සිම්පල් (toLowerCase) කර පිරිසිදු කරගනී
         let reelNumber = row.querySelector('.search-target-number').textContent.toLowerCase().replace(/\s+/g, '');
-        let paperName = row.querySelector('.search-target-name').textContent.toLowerCase().replace(/\s+/g, '');
+        let paperName = row.querySelector('.search-target-name').textContent.toLowerCase().replace(/[^a-z0-9]/g, '');
         
-        // Size සහ GSM වල ඇති අනවශ්‍ය අකුරු/දශම ඉවත් කර පිරිසිදු ඉලක්කම් පමණක් ගනී (උදා: 100.00 -> 100)
-        let size = row.querySelector('.search-target-size').textContent.toLowerCase().replace(/[^\d]/g, '');
-        let gsm = row.querySelector('.search-target-gsm').textContent.toLowerCase().replace(/[^\d]/g, '');
-
+        // Size සහ GSM වල තිබිය හැකි දශම තිත් (.00) හෝ වෙනත් ලකුණු ඉවත් කර පිරිසිදු ඉලක්කම් පමණක් ගනී
+        let sizeText = row.querySelector('.search-target-size').textContent.replace(/[^\d.]/g, '');
+        let sizeNum = parseFloat(sizeText);
+        let size = isNaN(sizeNum) ? '' : sizeNum.toString().replace('.', ''); // "100.00" -> "100" බවට පත් කරයි
+        
+        let gsmText = row.querySelector('.search-target-gsm').textContent.replace(/[^\d.]/g, '');
+        let gsmNum = parseFloat(gsmText);
+        let gsm = isNaN(gsmNum) ? '' : gsmNum.toString().replace('.', '');
+        
+        // ඉලක්කම් දෙක එකතු කර පිරිසිදු අනුපූරකයක් සාදයි (ఉదా: "100140")
+        let combinedNumbers = size + gsm;
+        
         let isMatch = false;
-
+        
         if (filterText === '') {
             isMatch = true;
-        } else {
-            // 1. Reel Number එකෙන් කෙලින්ම සෙවීම (Capital/Simple භේදයක් නැත)
-            if (reelNumber.includes(filterText)) {
-                isMatch = true;
-            } else {
-                // 2. අකුරු සහ ඉලක්කම් වෙන් කරගන්නා බලගතු Regular Expression එකක්
-                // පරිශීලකයා ගැසූ දේ: උදා: "100140boxboard" -> පළමු ඉලක්කම් සමූහය, දෙවන ඉලක්කම් සමූහය සහ ඉතිරි අකුරු වෙන් කරයි.
-                let parts = filterText.match(/^(\d+)?(\d{3})?([a-z]+)?/i);
-                
-                let searchSize = parts && parts[1] ? parts[1] : '';
-                let searchGsm = parts && parts[2] ? parts[2] : '';
-                let searchName = parts && parts[3] ? parts[3] : '';
-
-                // විශේෂ අවස්ථාව: පරිශීලකයා ඉලක්කම් 6කට වඩා එක දිගට ගැසූ විට එය නිවැරදිව Size සහ GSM ලෙස වෙන් කිරීම
-                if (filterText.length >= 6 && /^\d+$/.test(filterText)) {
-                    searchSize = filterText.substring(0, filterText.length - 3);
-                    searchGsm = filterText.substring(filterText.length - 3);
-                }
-
-                // ප්‍රගතිශීලී (Progressive) පරීක්ෂාව
-                let sizeCheck = searchSize ? size.includes(searchSize) : true;
-                let gsmCheck = searchGsm ? gsm.includes(searchGsm) : true;
-                let nameCheck = searchName ? paperName.includes(searchName) : true;
-
-                // කොන්දේසි තුනම සපුරාලන්නේ නම් පමණක් දත්ත පේළිය පෙන්වයි
-                if (sizeCheck && gsmCheck && nameCheck) {
-                    isMatch = true;
+        } else if (reelNumber.includes(filterText)) {
+            // Reel Number එක කෙලින්ම Type කර ඇත්නම් එය මුලින්ම පෙන්වයි
+            isMatch = true;
+        } else if (tokens.length > 0) {
+            // ඇතුළත් කළ දත්ත කැබලි (Tokens) සියල්ලම අදාළ තීරුවල තිබේදැයි පරීක්ෂා කරයි
+            let allTokensMatch = true;
+            
+            for (let i = 0; i < tokens.length; i++) {
+                let token = tokens[i];
+                if (/^\d+$/.test(token)) {
+                    // ඉලක්කම් කොටස Size සහ GSM එකතුව තුළ තිබේදැයි බලයි
+                    if (!combinedNumbers.includes(token)) {
+                        allTokensMatch = false;
+                        break;
+                    }
+                } else {
+                    // අකුරු කොටස Material Name එක තුළ තිබේදැයි බලයි
+                    if (!paperName.includes(token)) {
+                        allTokensMatch = false;
+                        break;
+                    }
                 }
             }
+            isMatch = allTokensMatch;
         }
-
-        // අවසාන වශයෙන් Table එකේ පේළි පෙන්වීම හෝ සැඟවීම
+        
+        // ගැලපෙන පේළි පමණක් ඉතිරි කරයි
         if (isMatch) {
             row.style.display = '';
         } else {
@@ -361,7 +367,7 @@ document.getElementById('reelSearchInput').addEventListener('input', function() 
     });
 });
 
-// Sell / Damage Modal Box Logic (වෙනස් කර නැත)
+// Sell සහ Damage මාරු වන විට පෙට්ටි වෙනස් කරන පද්ධතිය (වෙනස් කර නැත)
 function updateActionModal(reelId, sellUrl) {
     let select = document.getElementById('actionType' + reelId);
     let form = document.getElementById('actionForm' + reelId);
@@ -386,5 +392,3 @@ function updateActionModal(reelId, sellUrl) {
     }
 }
 </script>
-
-{% endblock %}
