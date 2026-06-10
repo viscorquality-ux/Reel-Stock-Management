@@ -39,7 +39,7 @@
         <div class="col-12">
             <div class="input-group shadow-sm">
                 <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
-                <input type="text" id="reelSearchInput" class="form-control border-start-0 ps-0" placeholder="Search by Reel Number (ex-100140aaaaaaaaaa) or Material Name...">
+                <input type="text" id="reelSearchInput" class="form-control border-start-0 ps-0" placeholder="Search by Reel Number (ex-100140aaa), Material Name, Size or GSM...">
             </div>
         </div>
     </div>
@@ -78,9 +78,9 @@
                             <tr class="reel-row">
                                 <td class="fw-bold search-target-number">{{ reel.reel_number }}</td>
                                 <td class="search-target-name">{{ reel.paper_name }}</td>
-                                <td>{{ reel.size_cm }}</td>
-                                <td class="fw-bold">{{ reel.weight_kg }} kg</td>
-                                <td>{{ reel.gsm if reel.gsm else 'N/A' }}</td>
+                                <td class="search-target-size">{{ reel.size_cm }}</td>
+                                <td>{{ reel.weight_kg }} kg</td>
+                                <td class="search-target-gsm">{{ reel.gsm if reel.gsm else 'N/A' }}</td>
                                 <td><span class="badge bg-secondary">{{ reel.store_location }}</span></td>
                                 <td class="text-center">
                                     <div class="btn-group gap-1">
@@ -193,9 +193,9 @@
                             <tr class="reel-row">
                                 <td class="fw-bold search-target-number">{{ reel.reel_number }}</td>
                                 <td class="search-target-name">{{ reel.paper_name }}</td>
-                                <td>{{ reel.size_cm }}</td>
+                                <td class="search-target-size">{{ reel.size_cm }}</td>
                                 <td class="fw-bold text-info">{{ reel.weight_kg }} kg</td>
-                                <td>{{ reel.gsm if reel.gsm else 'N/A' }}</td>
+                                <td class="search-target-gsm">{{ reel.gsm if reel.gsm else 'N/A' }}</td>
                                 <td><span class="badge bg-secondary">{{ reel.store_location }}</span></td>
                                 <td class="text-center">
                                     <div class="btn-group gap-1">
@@ -292,14 +292,20 @@
 
 <script>
 document.getElementById('reelSearchInput').addEventListener('keyup', function() {
-    let filter = this.value.toLowerCase();
+    let filter = this.value.toLowerCase().trim();
     let rows = document.querySelectorAll('.reel-row');
     
     rows.forEach(function(row) {
         let reelNumber = row.querySelector('.search-target-number').textContent.toLowerCase();
         let paperName = row.querySelector('.search-target-name').textContent.toLowerCase();
+        let size = row.querySelector('.search-target-size').textContent.toLowerCase();
+        let gsm = row.querySelector('.search-target-gsm').textContent.toLowerCase();
         
-        if (reelNumber.includes(filter) || paperName.includes(filter)) {
+        // ක්ෂේත්‍ර 4න් ඕනෑම එකකට ගැලපේ නම් පේළිය දර්ශනය කරයි
+        if (reelNumber.includes(filter) || 
+            paperName.includes(filter) || 
+            size.includes(filter) || 
+            gsm.includes(filter)) {
             row.style.display = '';
         } else {
             row.style.display = 'none';
