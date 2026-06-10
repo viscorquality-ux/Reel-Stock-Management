@@ -304,7 +304,7 @@
 
 <script>
 document.getElementById('reelSearchInput').addEventListener('keyup', function() {
-    // සෙවුම් කොටුවේ ඇති සියලුම හිස්තැන් (Spaces) මුළුමනින්ම ඉවත් කරයි
+    // සෙවුම් කොටුවේ ඇති සියලුම හිස්තැන් (Spaces) ඉවත් කරයි
     let filterText = this.value.toLowerCase().replace(/\s+/g, '');
     let rows = document.querySelectorAll('.reel-row');
     
@@ -314,33 +314,12 @@ document.getElementById('reelSearchInput').addEventListener('keyup', function() 
         let size = row.querySelector('.search-target-size').textContent.toLowerCase().replace(/\s+/g, '');
         let gsm = row.querySelector('.search-target-gsm').textContent.toLowerCase().replace(/\s+/g, '');
         
-        let isProgressiveMatch = false;
+        // අනුපිළිවෙලින් දත්ත පේළියේ ඇති වටිනාකම් හිස්තැන් රහිතව එකතු කරයි (Size + GSM + Name)
+        let combinedString = size + gsm + paperName;
         
-        if (filterText === '') {
-            isProgressiveMatch = true;
-        } else if (filterText.length <= size.length) {
-            // පියවර 1: පරිශීලකයා තවමත් Size එක පමණක් ඇතුළත් කරන අවස්ථාව
-            isProgressiveMatch = size.startsWith(filterText);
-        } else {
-            // පියවර 2: Size එක ඇතුළත් කර අවසන් වී, ඊළඟ කොටස් පරීක්ෂා කිරීම
-            if (filterText.startsWith(size)) {
-                let rem1 = filterText.substring(size.length); // Size එකට පසු ඉතිරි වන අකුරු කොටස
-                
-                if (rem1.length <= gsm.length) {
-                    // තවමත් GSM එක පමණක් ඇතුළත් කරන අවස්ථාව
-                    isProgressiveMatch = gsm.startsWith(rem1);
-                } else {
-                    // පියවර 3: GSM එකත් ඇතුළත් කර අවසන් වී, Material Name එක පරීක්ෂා කිරීම
-                    if (rem1.startsWith(gsm)) {
-                        let rem2 = rem1.substring(gsm.length); // GSM එකටත් පසු ඉතිරි වන Material Name කොටස
-                        isProgressiveMatch = paperName.includes(rem2);
-                    }
-                }
-            }
-        }
-        
-        // Reel Number එක කෙලින්ම ගැසූ විට හෝ ඉහත Progressive Logic එක හරියාකාරව ගැලපෙන විට පේළිය පෙන්වයි
-        if (reelNumber.includes(filterText) || isProgressiveMatch) {
+        // 100% ක් සාර්ථක සෙවුම් තර්කනය:
+        // combinedString එක ඇතුළේ පරිශීලකයා එක දිගට Type කරන දේ අඩංගුද කියා හෝ Reel Number එක අඩංගුද කියා බලයි
+        if (filterText === '' || reelNumber.includes(filterText) || combinedString.includes(filterText)) {
             row.style.display = '';
         } else {
             row.style.display = 'none';
