@@ -304,53 +304,23 @@
 
 <script>
 document.getElementById('reelSearchInput').addEventListener('input', function() {
-    // සෙවුම් කොටුවේ ගැසූ සියලුම හිස්තැන් මුළුමනින්ම ඉවත් කරගනී
-    let filterText = this.value.toLowerCase().replace(/\s+/g, '');
+    // සෙවුම් කොටුවේ Type කරන දේ සම්පූර්ණයෙන්ම සිම්පල් (lowercase) කර, හිස්තැන් සහ ලකුණු සියල්ල ඉවත් කරයි
+    let filterText = this.value.toLowerCase().replace(/[^a-z0-9]/g, '');
     let rows = document.querySelectorAll('.reel-row');
     
-    // පරිශීලකයා ගැසූ දේ ඉලක්කම් සහ අකුරු ලෙස වෙන වෙනම කඩා වෙන් කරගන්නා උසස් Regular Expression එකක්
-    // උදා: "100140boxboard" -> ["100", "140", "boxboard"] ලෙස වෙන් කරයි
-    let matches = filterText.match(/^(\d+)?(\d{3})?([a-z]+)?/i);
-    
-    let searchSize = matches && matches[1] ? matches[1] : '';
-    let searchGsm = matches && matches[2] ? matches[2] : '';
-    let searchName = matches && matches[3] ? matches[3] : '';
-
-    // විශේෂ අවස්ථාව: ඔබ ඉලක්කම් 3ක් හෝ 4ක් පමණක් ගැසූ විට එය මුල් කොටසට (searchSize) පමණක් වැටේ.
-    // ඉලක්කම් 6ක් ගැසූ විට එය ස්වයංක්‍රීයව Size (පළමු ඉලක්කම් 3) සහ GSM (දෙවන ඉලක්කම් 3) ලෙස වෙන් වේ.
-    if (filterText.length >= 6 && /^\d+$/.test(filterText)) {
-        searchSize = filterText.substring(0, filterText.length - 3);
-        searchGsm = filterText.substring(filterText.length - 3);
-    }
-
     rows.forEach(function(row) {
-        let reelNumber = row.querySelector('.search-target-number').textContent.toLowerCase().replace(/\s+/g, '');
-        let paperName = row.querySelector('.search-target-name').textContent.toLowerCase().replace(/\s+/g, '');
-        let size = row.querySelector('.search-target-size').textContent.toLowerCase().replace(/[^\d]/g, ''); // ඉලක්කම් පමණක් ගනී (100.00 -> 100)
-        let gsm = row.querySelector('.search-target-gsm').textContent.toLowerCase().replace(/[^\d]/g, '');   // ඉලක්කම් පමණක් ගනී
-
-        let isMatch = true;
-
-        if (filterText !== '') {
-            // 1. Reel Number එකෙන් කෙලින්ම සෙවීම
-            if (reelNumber.includes(filterText)) {
-                isMatch = true;
-            } else {
-                // 2. පියවරෙන් පියවර (Progressive) සෙවීම
-                if (searchSize && !size.includes(searchSize)) {
-                    isMatch = false;
-                }
-                if (searchGsm && !gsm.includes(searchGsm)) {
-                    isMatch = false;
-                }
-                if (searchName && !paperName.includes(searchName)) {
-                    isMatch = false;
-                }
-            }
-        }
-
-        // ගැලපෙන පේළි පමණක් පෙන්වයි
-        if (isMatch) {
+        // දත්ත පේළි වල ඇති අගයන්ද සිම්පල් (lowercase) කර, හිස්තැන් සහ ලකුණු ඉවත් කර පිරිසිදු කරගනී
+        let reelNumber = row.querySelector('.search-target-number').textContent.toLowerCase().replace(/[^a-z0-9]/g, '');
+        let paperName = row.querySelector('.search-target-name').textContent.toLowerCase().replace(/[^a-z0-9]/g, '');
+        let size = row.querySelector('.search-target-size').textContent.toLowerCase().replace(/[^a-z0-9]/g, '');
+        let gsm = row.querySelector('.search-target-gsm').textContent.toLowerCase().replace(/[^a-z0-9]/g, '');
+        
+        // අනුපිළිවෙලින් (Size + GSM + Name) එකතු කර තනි වචනයක් සාදයි
+        // උදා: "100" + "140" + "boxboard" -> "100140boxboard"
+        let combinedString = size + gsm + paperName;
+        
+        // හිස් නම් සියල්ල පෙන්වයි, නැතහොත් Reel Number එකේ හෝ සාදාගත් තනි වචනයේ අඩංගු දැයි බලයි
+        if (filterText === '' || reelNumber.includes(filterText) || combinedString.includes(filterText)) {
             row.style.display = '';
         } else {
             row.style.display = 'none';
@@ -358,7 +328,7 @@ document.getElementById('reelSearchInput').addEventListener('input', function() 
     });
 });
 
-// Sell / Damage Modal Box Logic
+// Sell සහ Damage මාරු වන විට පෙට්ටිය වෙනස් කරන පද්ධතිය (වෙනස් කර නැත)
 function updateActionModal(reelId, sellUrl) {
     let select = document.getElementById('actionType' + reelId);
     let form = document.getElementById('actionForm' + reelId);
