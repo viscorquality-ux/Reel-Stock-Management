@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h3>Active Stock Registry</h3>
+    <h3 class="fw-bold"><i class="bi bi-boxes me-2"></i>Active Stock Registry</h3>
     <button onclick="window.print();" class="btn btn-success no-print fw-bold"><i class="bi bi-printer"></i> Print Selected Report</button>
 </div>
 
@@ -12,22 +12,35 @@
     </div>
 </div>
 
+<!-- 📊 Mini Tabs Component -->
 <ul class="nav nav-tabs no-print" id="activeTabs" role="tablist">
     <li class="nav-item">
-        <button class="nav-link active fw-bold text-dark" id="full-tab" data-bs-toggle="tab" data-bs-target="#full" type="button" role="tab">Full Material Reels</button>
+        <button class="nav-link active fw-bold text-dark" id="full-tab" data-bs-toggle="tab" data-bs-target="#full" type="button" role="tab">
+            Full Material Reels <span class="badge bg-primary ms-1">{{ total_full_count }}</span>
+        </button>
     </li>
     <li class="nav-item">
-        <button class="nav-link fw-bold text-dark" id="used-tab" data-bs-toggle="tab" data-bs-target="#used" type="button" role="tab">Usage/Partial Return Reels</button>
+        <button class="nav-link fw-bold text-dark" id="used-tab" data-bs-toggle="tab" data-bs-target="#used" type="button" role="tab">
+            Usage/Partial Return Reels <span class="badge bg-warning text-dark ms-1">{{ total_used_count }}</span>
+        </button>
     </li>
 </ul>
 
 <div class="tab-content mt-3" id="activeTabsContent">
+    
+    <!-- Tab 1: Full Material Reels -->
     <div class="tab-pane fade show active" id="full" role="tabpanel">
         <div class="table-responsive bg-white p-3 rounded shadow-sm">
             <table class="table table-hover align-middle row-searchable-table">
                 <thead class="table-dark">
                     <tr>
-                        <th>Location</th><th>Reel ID</th><th>Paper Name</th><th>GSM / Dimension</th><th>Reel Type</th><th>Weight Matrix</th><th class="no-print">Actions Setup</th>
+                        <th>Location</th>
+                        <th>Reel ID</th>
+                        <th>Paper Name</th> <!-- Added Paper Name -->
+                        <th>GSM / Dimension</th>
+                        <th>Reel Type</th>
+                        <th>Weight Matrix</th>
+                        <th class="no-print">Actions Setup</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -35,21 +48,54 @@
                     <tr>
                         <td><span class="badge bg-secondary">{{ stock.store_location }}</span></td>
                         <td class="target-reel-no"><b>{{ stock.reel_number }}</b></td>
-                        <td><b>{{ stock.paper_name }}</b></td>
+                        <td><b class="text-primary">{{ stock.paper_name }}</b></td> <!-- Display Paper Name -->
                         <td>{{ stock.gsm }} GSM / {{ stock.size_cm }} cm</td>
                         <td><span class="badge bg-info text-dark">{{ stock.reel_type }}</span></td>
-                        <td><span class="badge bg-primary fs-6">{{ stock.weight_kg }} kg</span></td>
+                        <td><span class="badge bg-success fs-6">{{ stock.weight_kg }} kg</span></td>
                         <td class="no-print">
                             <button class="btn btn-sm btn-success fw-bold me-1" data-bs-toggle="modal" data-bs-target="#issue{{ stock.id }}">Issue</button>
+                            <button class="btn btn-sm btn-outline-secondary fw-bold me-1" data-bs-toggle="modal" data-bs-target="#location{{ stock.id }}">Location</button>
                             <form action="/sell_reel/{{ stock.id }}" method="POST" class="d-inline"><button type="submit" class="btn btn-sm btn-warning text-dark fw-bold me-1">Sell</button></form>
-                            <form action="/delete_reel/{{ stock.id }}" method="POST" class="d-inline" onsubmit="return confirm('Are you absolutely sure you want to delete this reel permanently?');"><button type="submit" class="btn btn-sm btn-danger fw-bold me-1">Delete</button></form>
-                            
-                            {% if session['role'] == 'dataop2' %}
-                            <form action="/send_to_viscor/{{ stock.id }}" method="POST" class="d-inline"><button type="submit" class="btn btn-sm btn-dark fw-bold"><i class="bi bi-arrow-right-circle"></i> Send to Viscor</button></form>
-                            {% endif %}
+                            <form action="/delete_reel/{{ stock.id }}" method="POST" class="d-inline" onsubmit="return confirm('Delete permanently?');"><button type="submit" class="btn btn-sm btn-danger fw-bold">Delete</button></form>
                         </td>
                     </tr>
-                    {% include "stock_modals.html" %}
+
+                    <!-- Inline Modal for Issue (Full Reel) -->
+                    <div class="modal fade" id="issue{{ stock.id }}" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <form action="/issue_reel/{{ stock.id }}" method="POST">
+                                    <div class="modal-header bg-success text-white"><h5 class="modal-title">Issue Reel: {{ stock.reel_number }}</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+                                    <div class="modal-body">
+                                        <div class="mb-3"><label class="form-label fw-bold">Document Type</label><select name="doc_type" class="form-select"><option value="GP">Gate Pass (GP)</option><option value="SR">Store Request (SR)</option></select></div>
+                                        <div class="mb-3"><label class="form-label fw-bold">Reference Number</label><input type="text" name="doc_number" class="form-control" required placeholder="Enter Document Number"></div>
+                                    </div>
+                                    <div class="modal-footer"><button type="submit" class="btn btn-success fw-bold">Confirm & Dispatch</button></div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Inline Modal for Location Update (Full Reel) -->
+                    <div class="modal fade" id="location{{ stock.id }}" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <form action="/update_location/{{ stock.id }}" method="POST">
+                                    <div class="modal-header bg-secondary text-white"><h5 class="modal-title">Update Warehouse Location</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+                                    <div class="modal-body">
+                                        <label class="form-label fw-bold">Select New Location</label>
+                                        <select name="store_location" class="form-select">
+                                            {% for loc in locations %}
+                                            <option value="{{ loc }}" {% if stock.store_location == loc %}selected{% endif %}>{{ loc }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="modal-footer"><button type="submit" class="btn btn-primary">Update Location</button></div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
                     {% else %}
                     <tr><td colspan="7" class="text-center py-4 text-muted">No full material stocks available.</td></tr>
                     {% endfor %}
@@ -58,12 +104,19 @@
         </div>
     </div>
 
+    <!-- Tab 2: Usage / Partial Return Reels -->
     <div class="tab-pane fade" id="used" role="tabpanel">
         <div class="table-responsive bg-white p-3 rounded shadow-sm">
             <table class="table table-hover align-middle row-searchable-table">
                 <thead class="table-dark">
                     <tr>
-                        <th>Location</th><th>Reel ID</th><th>Paper Name</th><th>GSM / Dimension</th><th>Reel Type</th><th>Weight Matrix</th><th class="no-print">Actions Setup</th>
+                        <th>Location</th>
+                        <th>Reel ID</th>
+                        <th>Paper Name</th> <!-- Added Paper Name -->
+                        <th>GSM / Dimension</th>
+                        <th>Reel Type</th>
+                        <th>Weight Matrix</th>
+                        <th class="no-print">Actions Setup</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -71,21 +124,54 @@
                     <tr>
                         <td><span class="badge bg-secondary">{{ stock.store_location }}</span></td>
                         <td class="target-reel-no"><b>{{ stock.reel_number }}</b></td>
-                        <td><b>{{ stock.paper_name }}</b></td>
+                        <td><b class="text-primary">{{ stock.paper_name }}</b></td> <!-- Display Paper Name -->
                         <td>{{ stock.gsm }} GSM / {{ stock.size_cm }} cm</td>
                         <td><span class="badge bg-info text-dark">{{ stock.reel_type }}</span></td>
-                        <td><span class="badge bg-primary fs-6">{{ stock.weight_kg }} kg</span></td>
+                        <td><span class="badge bg-warning text-dark fs-6">{{ stock.weight_kg }} kg</span></td>
                         <td class="no-print">
                             <button class="btn btn-sm btn-success fw-bold me-1" data-bs-toggle="modal" data-bs-target="#issue{{ stock.id }}">Issue</button>
+                            <button class="btn btn-sm btn-outline-secondary fw-bold me-1" data-bs-toggle="modal" data-bs-target="#location{{ stock.id }}">Location</button>
                             <form action="/sell_reel/{{ stock.id }}" method="POST" class="d-inline"><button type="submit" class="btn btn-sm btn-warning text-dark fw-bold me-1">Sell</button></form>
-                            <form action="/delete_reel/{{ stock.id }}" method="POST" class="d-inline" onsubmit="return confirm('Confirm deletion parameter?');"><button type="submit" class="btn btn-sm btn-danger fw-bold me-1">Delete</button></form>
-                            
-                            {% if session['role'] == 'dataop2' %}
-                            <form action="/send_to_viscor/{{ stock.id }}" method="POST" class="d-inline"><button type="submit" class="btn btn-sm btn-dark fw-bold"><i class="bi bi-arrow-right-circle"></i> Send to Viscor</button></form>
-                            {% endif %}
+                            <form action="/delete_reel/{{ stock.id }}" method="POST" class="d-inline" onsubmit="return confirm('Delete permanently?');"><button type="submit" class="btn btn-sm btn-danger fw-bold">Delete</button></form>
                         </td>
                     </tr>
-                    {% include "stock_modals.html" %}
+
+                    <!-- Inline Modal for Issue (Used Reel) -->
+                    <div class="modal fade" id="issue{{ stock.id }}" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <form action="/issue_reel/{{ stock.id }}" method="POST">
+                                    <div class="modal-header bg-success text-white"><h5 class="modal-title">Issue Reel: {{ stock.reel_number }}</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+                                    <div class="modal-body">
+                                        <div class="mb-3"><label class="form-label fw-bold">Document Type</label><select name="doc_type" class="form-select"><option value="GP">Gate Pass (GP)</option><option value="SR">Store Request (SR)</option></select></div>
+                                        <div class="mb-3"><label class="form-label fw-bold">Reference Number</label><input type="text" name="doc_number" class="form-control" required placeholder="Enter Document Number"></div>
+                                    </div>
+                                    <div class="modal-footer"><button type="submit" class="btn btn-success fw-bold">Confirm & Dispatch</button></div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Inline Modal for Location Update (Used Reel) -->
+                    <div class="modal fade" id="location{{ stock.id }}" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <form action="/update_location/{{ stock.id }}" method="POST">
+                                    <div class="modal-header bg-secondary text-white"><h5 class="modal-title">Update Warehouse Location</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+                                    <div class="modal-body">
+                                        <label class="form-label fw-bold">Select New Location</label>
+                                        <select name="store_location" class="form-select">
+                                            {% for loc in locations %}
+                                            <option value="{{ loc }}" {% if stock.store_location == loc %}selected{% endif %}>{{ loc }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="modal-footer"><button type="submit" class="btn btn-primary">Update Location</button></div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
                     {% else %}
                     <tr><td colspan="7" class="text-center py-4 text-muted">No usage or partial return material stocks found.</td></tr>
                     {% endfor %}
@@ -96,6 +182,7 @@
 </div>
 
 <script>
+// Real-time Javascript search function for Active Stock Table Rows
 function filterRegistryTables() {
     var input = document.getElementById("registrySearchInput");
     var filter = input.value.toUpperCase();
