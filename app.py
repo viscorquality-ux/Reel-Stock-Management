@@ -128,7 +128,7 @@ def dashboard():
     active_reels = Reel.query.filter(Reel.status.in_(['Full Reel', 'Used Reel'])).all()
     active_count = len(active_reels)
     active_weight = sum((r.weight_kg or 0.0) for r in active_reels)
-    pending_viscor = Reel.query.filter_by(routing_type='Viscor Lanka Line', status='Full Reel').count()
+    pending_viscor = Reel.query.filter_by(status='Pending Viscor').count()
     issued = Reel.query.filter_by(status='Issued').count()
     finished = Reel.query.filter_by(status='Finished').count()
     damage_sell_count = Reel.query.filter(Reel.status.in_(['Damaged', 'Sold'])).count()
@@ -185,16 +185,59 @@ def issue_reel(id):
     reel = Reel.query.get_or_404(id)
     doc_type = request.form.get('doc_type')
     doc_number = request.form.get('doc_number')
-    reel.status = 'Issued'
+    send_to_viscor = request.form.get('send_to_viscor')
+
     if doc_type == 'SR': reel.sr_number = doc_number
     else: reel.gate_pass_number = doc_number
-    
-    db.session.add(ReelHistory(reel_id=reel.id, usage_details=f"Dispatched via {doc_type}: {doc_number}", action_type='ISSUE'))
-    db.session.commit()
-    flash('Reel dispatched to production successfully.', 'success')
-    return redirect(url_for('active_stock'))
 
-# 🛠️ FIXED: New Route for Conditionally Issuing Damaged Reels with Approval Commands
+    # DataOp2 Viscor Lanka Tick Check
+    if send_to_viscor == 'yes' and session.get('role') == 'dataop2':
+        reel.status = 'Pending Viscor'
+        db.session.add(ReelHistory(reel_id=reel.id, usage_details=f"Sent to Viscor Lanka via {doc_type}: {doc_number}", action_type='TRANSIT'))
+        flash(f'Reel {reel.reel_number} sent to Viscor Lanka. Pending verification by DataOp1.', 'info')
+    else:
+        reel.status = 'Issued'
+        db.session.add(ReelHistory(reel_id=reel.id, usage_details=f"Dispatched via {doc_type}: {doc_number}", action_type='ISSUE'))
+        flash(f'Reel {reel.reel_number} dispatched successfully.', 'success')
+        
+    db.session.commit()
+    return redirect(request.referrer or url_for('active_stock'))
+
+# 🛠️ FIXED: Viscor Issue Routes for DataOp1 Verifications
+@app.route('/viscor_issue')
+def viscor_issue():
+    # Only show reels that were transferred to Viscor and are pending verification
+    reels = Reel.query.filter_by(status='Pending Viscor').all()
+    return render_template('viscor_issue.html', reels=reels)
+
+@app.route('/accept_viscor/<int:id>', methods=['POST'])
+def accept_viscor(id):
+    if session.get('role') != 'dataop1':
+        flash('Unauthorized Action. Only DataOp1 can verify materials.', 'danger')
+        return redirect(url_for('viscor_issue'))
+        
+    reel = Reel.query.get_or_404(id)
+    reel.status = 'Full Reel' # Add back to active stock
+    reel.store_location = 'Viscor Lanka'
+    db.session.add(ReelHistory(reel_id=reel.id, usage_details="Verified & Accepted by Viscor Lanka", action_type='ACCEPTED'))
+    db.session.commit()
+    flash(f'Reel {reel.reel_number} has been Verified & Accepted to Active Stock.', 'success')
+    return redirect(url_for('viscor_issue'))
+
+@app.route('/reject_viscor/<int:id>', methods=['POST'])
+def reject_viscor(id):
+    if session.get('role') != 'dataop1':
+        flash('Unauthorized Action.', 'danger')
+        return redirect(url_for('viscor_issue'))
+        
+    reel = Reel.query.get_or_404(id)
+    reel.status = 'Full Reel' # Revert back to active stock
+    reel.store_location = 'Packwell W 1' # Return to Packwell
+    db.session.add(ReelHistory(reel_id=reel.id, usage_details="Unaccepted & Returned by Viscor Lanka", action_type='REJECTED'))
+    db.session.commit()
+    flash(f'Reel {reel.reel_number} was Unaccepted and returned to Packwell.', 'warning')
+    return redirect(url_for('viscor_issue'))
+
 @app.route('/issue_damaged_reel/<int:id>', methods=['POST'])
 def issue_damaged_reel(id):
     reel = Reel.query.get_or_404(id)
@@ -202,21 +245,16 @@ def issue_damaged_reel(id):
     doc_number = request.form.get('doc_number')
     approval_remark = request.form.get('approval_remark')
 
-    # Update Status to Issued (Weight remains completely unchanged)
     reel.status = 'Issued'
-    if doc_type == 'SR': 
-        reel.sr_number = doc_number
-    else: 
-        reel.gate_pass_number = doc_number
+    if doc_type == 'SR': reel.sr_number = doc_number
+    else: reel.gate_pass_number = doc_number
     
-    # Save the special conditional log
     db.session.add(ReelHistory(
         reel_id=reel.id, 
         usage_details=f"Conditionally Issued via {doc_type}: {doc_number}. Approval: {approval_remark}", 
         action_type='COND. ISSUE'
     ))
     db.session.commit()
-    
     flash(f'Damaged Reel {reel.reel_number} conditionally approved and moved to Issued Stock.', 'success')
     return redirect(url_for('issued_stock'))
 
