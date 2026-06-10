@@ -1,39 +1,73 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h3>Damaged & Sold Stock Registry</h3>
+    <h3 class="fw-bold text-danger"><i class="bi bi-exclamation-octagon-fill me-2"></i>Damaged & Sold Stock Registry</h3>
 </div>
 
-<div class="table-responsive bg-white p-3 rounded shadow-sm mb-4">
-    <table class="table table-hover align-middle">
-        <thead class="table-dark">
-            <tr>
-                <th>Reel ID</th>
-                <th>Specs</th>
-                <th>Remaining Weight</th>
-                <th>Status</th>
-                <th>Paper Category</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for stock in stocks %}
-            <tr>
-                <td><b class="text-dark">{{ stock.reel_no }}</b></td>
-                <td>{{ stock.size }} mm / {{ stock.gsm }} GSM ({{ stock.type }})</td>
-                <td><span class="badge bg-secondary fs-6">{{ stock.weight }} kg</span></td>
-                <td>
-                    {% if stock.status == 'Damaged' %}
-                    <span class="badge bg-danger">Damaged</span>
+<!-- 📊 Mini Tabs Component -->
+<ul class="nav nav-tabs" id="damageSellTabs" role="tablist">
+    <li class="nav-item">
+        <button class="nav-link active fw-bold text-danger" id="damaged-tab" data-bs-toggle="tab" data-bs-target="#damaged" type="button" role="tab">Damaged Items (හානි වූ තොග)</button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link fw-bold text-warning text-dark" id="sold-tab" data-bs-toggle="tab" data-bs-target="#sold" type="button" role="tab">Sold Items (විකුණන ලද තොග)</button>
+    </li>
+</ul>
+
+<div class="tab-content mt-3" id="damageSellTabsContent">
+    
+    <!-- Tab 1: Damaged Items -->
+    <div class="tab-pane fade show active" id="damaged" role="tabpanel">
+        <div class="table-responsive bg-white p-3 rounded shadow-sm">
+            <table class="table table-hover align-middle">
+                <thead class="table-danger">
+                    <tr>
+                        <th>Location</th><th>Reel ID</th><th>Paper Name</th><th>GSM / Size</th><th>Type</th><th>Weight</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for stock in damaged_reels %}
+                    <tr>
+                        <td><span class="badge bg-secondary">{{ stock.store_location }}</span></td>
+                        <td><b>{{ stock.reel_number }}</b></td>
+                        <td>{{ stock.paper_name }}</td>
+                        <td>{{ stock.gsm }} GSM / {{ stock.size_cm }} cm</td>
+                        <td><span class="badge bg-dark">{{ stock.reel_type }}</span></td>
+                        <td><span class="badge bg-danger fs-6">{{ stock.weight_kg }} kg</span></td>
+                    </tr>
                     {% else %}
-                    <span class="badge bg-warning text-dark">Sold</span>
-                    {% endif %}
-                </td>
-                <td>{{ stock.paper_name }}</td>
-            </tr>
-            {% else %}
-            <tr><td colspan="5" class="text-center text-muted py-4">No records found for damaged or sold stock.</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
+                    <tr><td colspan="6" class="text-center py-4 text-muted">No damaged material logs found.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Tab 2: Sold Items -->
+    <div class="tab-pane fade" id="sold" role="tabpanel">
+        <div class="table-responsive bg-white p-3 rounded shadow-sm">
+            <table class="table table-hover align-middle">
+                <thead class="table-warning">
+                    <tr>
+                        <th>Location</th><th>Reel ID</th><th>Paper Name</th><th>GSM / Size</th><th>Type</th><th>Weight</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for stock in sold_reels %}
+                    <tr>
+                        <td><span class="badge bg-secondary">{{ stock.store_location }}</span></td>
+                        <td><b>{{ stock.reel_number }}</b></td>
+                        <td>{{ stock.paper_name }}</td>
+                        <td>{{ stock.gsm }} GSM / {{ stock.size_cm }} cm</td>
+                        <td><span class="badge bg-dark">{{ stock.reel_type }}</span></td>
+                        <td><span class="badge bg-warning text-dark fs-6">{{ stock.weight_kg }} kg</span></td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="6" class="text-center py-4 text-muted">No sold material logs found.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
 {% endblock %}
