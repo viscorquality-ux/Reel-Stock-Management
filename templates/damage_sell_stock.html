@@ -1,9 +1,16 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap">
     <h3 class="fw-bold text-danger"><i class="bi bi-exclamation-octagon-fill me-2"></i>Damaged & Sold Stock Registry</h3>
+    
+    <!-- 🔍 FIXED: අලුතින් එකතු කරන ලද Search Bar එක -->
+    <div class="input-group mt-2 mt-md-0" style="max-width: 350px;">
+        <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+        <input type="text" id="damageSellSearch" class="form-control border-start-0" placeholder="Search Reel ID, Name, Location...">
+    </div>
 </div>
 
+<!-- 📊 Mini Tabs Component -->
 <ul class="nav nav-tabs" id="damageSellTabs" role="tablist">
     <li class="nav-item">
         <button class="nav-link active fw-bold text-danger" id="damaged-tab" data-bs-toggle="tab" data-bs-target="#damaged" type="button" role="tab">Damaged Items (හානි වූ තොග)</button>
@@ -15,9 +22,10 @@
 
 <div class="tab-content mt-3" id="damageSellTabsContent">
     
+    <!-- Tab 1: Damaged Items -->
     <div class="tab-pane fade show active" id="damaged" role="tabpanel">
         <div class="table-responsive bg-white p-3 rounded shadow-sm">
-            <table class="table table-hover align-middle">
+            <table class="table table-hover align-middle" id="damagedTable">
                 <thead class="table-danger">
                     <tr>
                         <th>Location</th>
@@ -30,19 +38,21 @@
                 </thead>
                 <tbody>
                     {% for stock in damaged_reels %}
-                    <tr>
+                    <tr class="searchable-row">
                         <td><span class="badge bg-secondary">{{ stock.store_location }}</span></td>
                         <td><b>{{ stock.reel_number }}</b></td>
                         <td>{{ stock.paper_name }}</td>
                         <td>{{ stock.gsm }} GSM / {{ stock.size_cm }} cm</td>
                         <td><span class="badge bg-danger fs-6">{{ stock.weight_kg }} kg</span></td>
                         <td>
+                            <!-- Conditional Issue Button -->
                             <button class="btn btn-sm btn-success fw-bold" data-bs-toggle="modal" data-bs-target="#issueDamaged{{ stock.id }}">
                                 <i class="bi bi-check2-circle"></i> Conditional Issue
                             </button>
                         </td>
                     </tr>
 
+                    <!-- Conditional Issue Approval Modal -->
                     <div class="modal fade" id="issueDamaged{{ stock.id }}" tabindex="-1" aria-hidden="true">
                         <div class="modal-dialog">
                             <div class="modal-content border-danger">
@@ -80,16 +90,17 @@
                         </div>
                     </div>
                     {% else %}
-                    <tr><td colspan="6" class="text-center py-4 text-muted">No damaged material logs found.</td></tr>
+                    <tr class="no-data-row"><td colspan="6" class="text-center py-4 text-muted">No damaged material logs found.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
     </div>
 
+    <!-- Tab 2: Sold Items -->
     <div class="tab-pane fade" id="sold" role="tabpanel">
         <div class="table-responsive bg-white p-3 rounded shadow-sm">
-            <table class="table table-hover align-middle">
+            <table class="table table-hover align-middle" id="soldTable">
                 <thead class="table-warning">
                     <tr>
                         <th>Location</th><th>Reel ID</th><th>Paper Name</th><th>GSM / Size</th><th>Type</th><th>Weight</th>
@@ -97,7 +108,7 @@
                 </thead>
                 <tbody>
                     {% for stock in sold_reels %}
-                    <tr>
+                    <tr class="searchable-row">
                         <td><span class="badge bg-secondary">{{ stock.store_location }}</span></td>
                         <td><b>{{ stock.reel_number }}</b></td>
                         <td>{{ stock.paper_name }}</td>
@@ -106,11 +117,34 @@
                         <td><span class="badge bg-warning text-dark fs-6">{{ stock.weight_kg }} kg</span></td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="6" class="text-center py-4 text-muted">No sold material logs found.</td></tr>
+                    <tr class="no-data-row"><td colspan="6" class="text-center py-4 text-muted">No sold material logs found.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
     </div>
 </div>
+
+<!-- 🔍 අලුතින් එකතු කරන ලද Search Script එක -->
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const searchInput = document.getElementById("damageSellSearch");
+
+        searchInput.addEventListener("keyup", function() {
+            let filter = this.value.toLowerCase();
+            let rows = document.querySelectorAll(".searchable-row");
+
+            rows.forEach(function(row) {
+                let rowText = row.innerText.toLowerCase();
+                // If the row contains the typed text, show it, else hide it
+                if (rowText.includes(filter)) {
+                    row.style.display = "";
+                } else {
+                    row.style.display = "none";
+                }
+            });
+        });
+    });
+</script>
+
 {% endblock %}
