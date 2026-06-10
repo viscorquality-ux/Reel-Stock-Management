@@ -84,7 +84,6 @@ AUTHORIZED_USERS = {
 
 @app.context_processor
 def inject_global_facilities():
-    # 🛠️ FIXED: Updated Warehouse Locations as requested
     return {
         'locations': [
             'Viscor Lanka', 'Packwell W 1', 'Packwell W 2', 'Packwell W 3', 
@@ -195,6 +194,32 @@ def issue_reel(id):
     flash('Reel dispatched to production successfully.', 'success')
     return redirect(url_for('active_stock'))
 
+# 🛠️ FIXED: New Route for Conditionally Issuing Damaged Reels with Approval Commands
+@app.route('/issue_damaged_reel/<int:id>', methods=['POST'])
+def issue_damaged_reel(id):
+    reel = Reel.query.get_or_404(id)
+    doc_type = request.form.get('doc_type')
+    doc_number = request.form.get('doc_number')
+    approval_remark = request.form.get('approval_remark')
+
+    # Update Status to Issued (Weight remains completely unchanged)
+    reel.status = 'Issued'
+    if doc_type == 'SR': 
+        reel.sr_number = doc_number
+    else: 
+        reel.gate_pass_number = doc_number
+    
+    # Save the special conditional log
+    db.session.add(ReelHistory(
+        reel_id=reel.id, 
+        usage_details=f"Conditionally Issued via {doc_type}: {doc_number}. Approval: {approval_remark}", 
+        action_type='COND. ISSUE'
+    ))
+    db.session.commit()
+    
+    flash(f'Damaged Reel {reel.reel_number} conditionally approved and moved to Issued Stock.', 'success')
+    return redirect(url_for('issued_stock'))
+
 @app.route('/issued_stock')
 def issued_stock():
     return render_template('issued_stock.html', stocks=Reel.query.filter_by(status='Issued').all())
@@ -229,7 +254,6 @@ def mark_damage_sell(id):
     flash(f"Reel successfully marked as {status_type}.", "warning")
     return redirect(url_for('issued_stock'))
 
-# 🛠️ FIXED: Added dedicated route to handle GET /damage_sell_stock to eliminate 404 Error
 @app.route('/damage_sell_stock')
 def damage_sell_stock():
     damaged_reels = Reel.query.filter_by(status='Damaged').all()
