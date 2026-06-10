@@ -7,7 +7,7 @@ app = Flask(__name__)
 app.secret_key = 'viscor_packwell_ultimate_secure_key'
 
 # ==============================================================================
-# ⚠️ DATABASE CONFIGURATION WITH SSL FOR AIVEN
+# ⚠️ DATABASE CONFIGURATION WITH SSL
 # ==============================================================================
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://avnadmin:AVNS_gHRTw4Hzio_XlhXcm7d@mysql-3e9936af-viscorquality-0270.g.aivencloud.com:28643/defaultdb'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -23,11 +23,9 @@ colombo_tz = pytz.timezone('Asia/Colombo')
 
 class SmartRole(str):
     def __eq__(self, other):
-        if not isinstance(other, str):
-            return False
+        if not isinstance(other, str): return False
         return self.lower().replace(" ", "") == other.lower().replace(" ", "")
-    def __ne__(self, other):
-        return not self.__eq__(other)
+    def __ne__(self, other): return not self.__eq__(other)
 
 # --- Database Models ---
 class Reel(db.Model):
@@ -40,9 +38,9 @@ class Reel(db.Model):
     gate_pass_number = db.Column(db.String(50), nullable=True)
     sr_number = db.Column(db.String(50), nullable=True) 
     routing_type = db.Column(db.String(50), nullable=True)
-    store_location = db.Column(db.String(100), default='Main Store')
+    store_location = db.Column(db.String(100), default='Viscor Lanka')
     gsm = db.Column(db.Integer, default=0)
-    reel_type = db.Column(db.String(100), default='Standard') 
+    reel_type = db.Column(db.String(100), default='Liner(T)') 
     supplier = db.Column(db.String(100), default='N/A', nullable=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(colombo_tz))
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(colombo_tz), onupdate=lambda: datetime.now(colombo_tz))
@@ -54,15 +52,13 @@ class Reel(db.Model):
     @property
     def size(self): return self.size_cm
     @property
-    def type(self): return self.reel_type or 'Standard'
+    def type(self): return self.reel_type or 'Liner(T)'
     @property
     def weight(self): return self.weight_kg or 0.0
     @property
     def sr_no(self): return self.sr_number or '-'
     @property
     def gate_pass(self): return self.gate_pass_number or '-'
-    @property
-    def is_viscor_issued(self): return 1 if self.routing_type == 'Viscor Lanka Line' else 0
 
 class ReelHistory(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -77,29 +73,23 @@ class ReelHistory(db.Model):
     @property
     def reel_no(self): return self.reel.reel_number if self.reel else ''
     @property
-    def store_location(self): return self.reel.store_location if self.reel else 'Main Store'
-    @property
-    def size(self): return self.reel.size_cm if self.reel else 0.0
-    @property
-    def gsm(self): return self.reel.gsm if self.reel else 0
-    @property
-    def type(self): return self.reel.reel_type if self.reel else 'Standard'
+    def store_location(self): return self.reel.store_location if self.reel else 'Viscor Lanka'
     @property
     def used_weight(self): return self.weight_used or 0.0
 
-# 🔐 Authorized Users Dictionary
 AUTHORIZED_USERS = {
-    "admin": "admin@0123",
-    "dataop1": "viscor@2468",
-    "dataop2": "packwell@8642",
-    "super1": "vissuper@00",
-    "super2": "packsuper@11"
+    "admin": "admin@0123", "dataop1": "viscor@2468", "dataop2": "packwell@8642",
+    "super1": "vissuper@00", "super2": "packsuper@11"
 }
 
 @app.context_processor
 def inject_global_facilities():
+    # 🛠️ FIXED: Updated Warehouse Locations as requested
     return {
-        'locations': ['Main Store', 'Production Floor', 'Viscor Yard', 'Packwell Warehouse'],
+        'locations': [
+            'Viscor Lanka', 'Packwell W 1', 'Packwell W 2', 'Packwell W 3', 
+            'Packwell W 4', 'Packwell W 5', 'Packwell W 6', 'Packwell W 7'
+        ],
         'f_supplier': request.args.get('supplier', '')
     }
 
@@ -107,14 +97,13 @@ def inject_global_facilities():
 def handle_session_and_security():
     if 'role' in session and session['role']:
         session['role'] = SmartRole(session['role'])
-    allowed_routes = ['login', 'login_submit', 'static', 'reset_db']
+    allowed_routes = ['login', 'login_submit', 'static']
     if request.endpoint not in allowed_routes and 'role' not in session:
         return redirect(url_for('login'))
 
 @app.route('/')
 def home():
-    if 'role' in session: return redirect(url_for('dashboard'))
-    return redirect(url_for('login'))
+    return redirect(url_for('dashboard')) if 'role' in session else redirect(url_for('login'))
 
 @app.route('/login')
 def login(): return render_template('login.html')
@@ -127,14 +116,12 @@ def login_submit():
         session['role'] = SmartRole(username)
         flash(f"Logged in successfully as {username}", "success")
         return redirect(url_for('dashboard'))
-    else:
-        flash("Invalid Username or Password!", "danger")
-        return redirect(url_for('login'))
+    flash("Invalid Username or Password!", "danger")
+    return redirect(url_for('login'))
 
 @app.route('/logout')
 def logout():
     session.pop('role', None)
-    flash("You have been logged out.", "info")
     return redirect(url_for('login'))
 
 @app.route('/dashboard')
@@ -142,25 +129,21 @@ def dashboard():
     active_reels = Reel.query.filter(Reel.status.in_(['Full Reel', 'Used Reel'])).all()
     active_count = len(active_reels)
     active_weight = sum((r.weight_kg or 0.0) for r in active_reels)
-    pending_viscor_count = Reel.query.filter_by(routing_type='Viscor Lanka Line', status='Full Reel').count()
+    pending_viscor = Reel.query.filter_by(routing_type='Viscor Lanka Line', status='Full Reel').count()
     issued = Reel.query.filter_by(status='Issued').count()
     finished = Reel.query.filter_by(status='Finished').count()
+    damage_sell_count = Reel.query.filter(Reel.status.in_(['Damaged', 'Sold'])).count()
     return render_template('dashboard.html', active_count=active_count, active_weight=active_weight,
-                           pending_viscor_count=pending_viscor_count, issued=issued, finished=finished)
+                           pending_viscor_count=pending_viscor, issued=issued, finished=finished, damage_sell_count=damage_sell_count)
 
-# 🛠️ FIXED: Added safety guardrails 'or 0.0' to prevent TypeErrors crashing active_stock
 @app.route('/active_stock')
 def active_stock():
     full_reels = Reel.query.filter_by(status='Full Reel').all()
     used_reels = Reel.query.filter_by(status='Used Reel').all()
-    total_full_count = len(full_reels)
-    total_full_weight = sum((r.weight_kg or 0.0) for r in full_reels)
-    total_used_count = len(used_reels)
-    total_used_weight = sum((r.weight_kg or 0.0) for r in used_reels)
     return render_template('active_stock.html', 
                            full_reels=full_reels, used_reels=used_reels,
-                           total_full_count=total_full_count, total_full_weight=total_full_weight,
-                           total_used_count=total_used_count, total_used_weight=total_used_weight)
+                           total_full_count=len(full_reels), total_full_weight=sum((r.weight_kg or 0.0) for r in full_reels),
+                           total_used_count=len(used_reels), total_used_weight=sum((r.weight_kg or 0.0) for r in used_reels))
 
 @app.route('/add_stock', methods=['GET', 'POST'])
 def add_stock():
@@ -168,12 +151,7 @@ def add_stock():
     if request.method == 'POST':
         try:
             reel_number = request.form.get('reel_number', '').strip()
-            if not reel_number:
-                flash("Error: Reel Number is required!", "danger")
-                return redirect(url_for('add_stock'))
-                
-            existing_reel = Reel.query.filter_by(reel_number=reel_number).first()
-            if existing_reel:
+            if Reel.query.filter_by(reel_number=reel_number).first():
                 flash(f"Error: Reel Number '{reel_number}' already exists!", "danger")
                 return redirect(url_for('add_stock'))
                 
@@ -183,21 +161,19 @@ def add_stock():
                 weight_kg=request.form.get('weight_kg', 0.0, type=float),
                 paper_name=request.form.get('paper_name', ''),
                 status=request.form.get('status', 'Full Reel'), 
-                store_location=request.form.get('store_location', 'Main Store'),
+                store_location=request.form.get('store_location', 'Viscor Lanka'),
                 gate_pass_number=request.form.get('gate_pass_number', ''),
                 gsm=request.form.get('gsm', 0, type=int),
-                reel_type=request.form.get('reel_type', 'Standard'),
-                supplier=request.form.get('supplier', 'N/A') or 'N/A',
-                routing_type="Viscor Lanka Line" if user_role in ['dataop1', 'super1'] else request.form.get('routing_type', '')
+                reel_type=request.form.get('reel_type', 'Liner(T)'),
+                supplier=request.form.get('supplier', 'N/A') or 'N/A'
             )
             db.session.add(new_reel)
             db.session.commit()
             
-            initial_log = ReelHistory(reel_id=new_reel.id, usage_details=f"Stock initialized in {new_reel.status} at {new_reel.store_location}", action_type='INITIAL')
-            db.session.add(initial_log)
+            db.session.add(ReelHistory(reel_id=new_reel.id, usage_details=f"Stock initialized in {new_reel.status}", action_type='INITIAL'))
             db.session.commit()
             
-            flash(f"Reel {reel_number} successfully saved!", "success")
+            flash(f"Reel {reel_number} saved successfully!", "success")
             return redirect(url_for('active_stock'))
         except Exception as e:
             db.session.rollback()
@@ -214,16 +190,14 @@ def issue_reel(id):
     if doc_type == 'SR': reel.sr_number = doc_number
     else: reel.gate_pass_number = doc_number
     
-    log = ReelHistory(reel_id=reel.id, usage_details=f"Dispatched via {doc_type}: {doc_number}", action_type='ISSUE')
-    db.session.add(log)
+    db.session.add(ReelHistory(reel_id=reel.id, usage_details=f"Dispatched via {doc_type}: {doc_number}", action_type='ISSUE'))
     db.session.commit()
     flash('Reel dispatched to production successfully.', 'success')
     return redirect(url_for('active_stock'))
 
 @app.route('/issued_stock')
 def issued_stock():
-    stocks = Reel.query.filter_by(status='Issued').all()
-    return render_template('issued_stock.html', stocks=stocks)
+    return render_template('issued_stock.html', stocks=Reel.query.filter_by(status='Issued').all())
 
 @app.route('/update_location/<int:id>', methods=['POST'])
 def update_location(id):
@@ -239,8 +213,7 @@ def finish_reel(id):
     used_weight = reel.weight_kg or 0.0
     reel.weight_kg = 0.0
     reel.status = 'Finished'
-    log = ReelHistory(reel_id=reel.id, usage_details="Marked 100% finished by production line", weight_used=used_weight, action_type='FINISHED')
-    db.session.add(log)
+    db.session.add(ReelHistory(reel_id=reel.id, usage_details="Marked 100% finished", weight_used=used_weight, action_type='FINISHED'))
     db.session.commit()
     flash('Reel marked as completely finished.', 'success')
     return redirect(url_for('issued_stock'))
@@ -249,21 +222,19 @@ def finish_reel(id):
 def mark_damage_sell(id):
     reel = Reel.query.get_or_404(id)
     status_type = request.form.get('status_type', 'Damaged')
-    notes = request.form.get('notes', 'Updated via Material View Screen')
+    notes = request.form.get('notes', 'N/A')
     reel.status = status_type
-    log = ReelHistory(reel_id=reel.id, usage_details=f"Status updated to {status_type}. Notes: {notes}", action_type=status_type.upper())
-    db.session.add(log)
+    db.session.add(ReelHistory(reel_id=reel.id, usage_details=f"Status: {status_type}. Notes: {notes}", action_type=status_type.upper()))
     db.session.commit()
-    flash(f"Reel {reel.reel_number} marked as {status_type}.", "warning")
+    flash(f"Reel successfully marked as {status_type}.", "warning")
     return redirect(url_for('issued_stock'))
 
-@app.route('/send_to_viscor/<int:id>', methods=['POST'])
-def send_to_viscor(id):
-    reel = Reel.query.get_or_404(id)
-    reel.routing_type = 'Viscor Lanka Line'
-    db.session.commit()
-    flash(f"Reel {reel.reel_number} routed to Viscor Lanka Line.", "success")
-    return redirect(url_for('active_stock'))
+# 🛠️ FIXED: Added dedicated route to handle GET /damage_sell_stock to eliminate 404 Error
+@app.route('/damage_sell_stock')
+def damage_sell_stock():
+    damaged_reels = Reel.query.filter_by(status='Damaged').all()
+    sold_reels = Reel.query.filter_by(status='Sold').all()
+    return render_template('damage_sell_stock.html', damaged_reels=damaged_reels, sold_reels=sold_reels)
 
 @app.route('/sell_reel/<int:id>', methods=['POST'])
 def sell_reel(id):
@@ -287,48 +258,24 @@ def process_return():
     returned_weight = request.form.get('returned_weight', 0.0, type=float)
     reel = Reel.query.filter_by(reel_number=reel_no).first_or_404()
     used_amount = (reel.weight_kg or 0.0) - returned_weight
-    if used_amount < 0: used_amount = 0.0
     reel.weight_kg = returned_weight
     reel.status = 'Used Reel'
-    log = ReelHistory(reel_id=reel.id, usage_details=f"Returned with balance {returned_weight}kg", weight_used=used_amount, action_type='PARTIAL RETURN')
-    db.session.add(log)
+    db.session.add(ReelHistory(reel_id=reel.id, usage_details=f"Returned balance {returned_weight}kg", weight_used=max(0.0, used_amount), action_type='PARTIAL RETURN'))
     db.session.commit()
     flash('Partial return registered successfully.', 'info')
     return redirect(url_for('active_stock'))
 
 @app.route('/finished_usage_stock')
 def finished_usage_stock():
-    start_date_str = request.args.get('start_date', '')
-    end_date_str = request.args.get('end_date', '')
-    finished_query = Reel.query.filter_by(status='Finished')
-    usage_query = ReelHistory.query.join(Reel).filter(ReelHistory.action_type.in_(['PARTIAL RETURN', 'FINISHED']))
-    
-    finished_reels = finished_query.all()
-    usage_logs = usage_query.all()
-    total_finished_weight = sum((r.weight_kg or 0.0) for r in finished_reels)
-    total_used_weight_log = sum((log.weight_used or 0.0) for log in usage_logs)
-    
-    return render_template('finished_stock.html', 
-                           finished_reels=finished_reels, usage_logs=usage_logs,
-                           total_finished_weight=total_finished_weight, total_used_weight_log=total_used_weight_log,
-                           start_date=start_date_str, end_date=end_date_str)
-
-@app.route('/update_sr_number/<int:id>', methods=['POST'])
-def update_sr_number(id):
-    reel = Reel.query.get_or_404(id)
-    reel.sr_number = request.form.get('sr_number')
-    db.session.commit()
-    return redirect(url_for('finished_usage_stock'))
-
-@app.route('/viscor_issue')
-def viscor_issue():
-    reels = Reel.query.filter_by(routing_type='Viscor Lanka Line', status='Full Reel').all()
-    return render_template('viscor_issue_main.html', reels=reels)
+    finished_reels = Reel.query.filter_by(status='Finished').all()
+    usage_logs = ReelHistory.query.join(Reel).filter(ReelHistory.action_type.in_(['PARTIAL RETURN', 'FINISHED'])).all()
+    return render_template('finished_stock.html', finished_reels=finished_reels, usage_logs=usage_logs,
+                           total_finished_weight=sum((r.weight_kg or 0.0) for r in finished_reels),
+                           total_used_weight_log=sum((log.weight_used or 0.0) for log in usage_logs))
 
 @app.route('/usage_logs')
 def usage_logs():
-    logs = ReelHistory.query.order_by(ReelHistory.timestamp.desc()).all()
-    return render_template('usage_logs.html', logs=logs)
+    return render_template('usage_logs.html', logs=ReelHistory.query.order_by(ReelHistory.timestamp.desc()).all())
 
 if __name__ == '__main__':
     app.run(debug=True)
