@@ -38,16 +38,17 @@
                 <div class="row mb-3">
                     <div class="col-md-4">
                         <label class="form-label fw-bold text-primary">Reel Quality Type *</label>
+                        <!-- 🛠️ FIXED: Added the specific drop-down items requested -->
                         <select class="form-select" name="reel_type" required>
-                            <option value="Premium">Premium</option>
-                            <option value="Grade A">Grade A</option>
-                            <option value="Grade B">Grade B</option>
-                            <option value="Reject">Reject</option>
-                            <option value="Other">Other</option>
+                            <option value="Liner(T)">Liner(T)</option>
+                            <option value="Medium(C)">Medium(C)</option>
+                            <option value="Kraft(K)">Kraft(K)</option>
+                            <option value="White(WT)">White(WT)</option>
+                            <option value="White Kraft(WK)">White Kraft(WK)</option>
                         </select>
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label fw-bold text-success">Initial Status (Full or Used Reel) *</label>
+                        <label class="form-label fw-bold text-success">Initial Status *</label>
                         <div class="mt-2 border p-2 rounded bg-light">
                             <div class="form-check form-check-inline">
                                 <input class="form-check-input" type="radio" name="status" id="statusFull" value="Full Reel" checked>
@@ -76,22 +77,9 @@
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Supplier Name (Optional)</label>
-                        <input type="text" class="form-control" name="supplier" placeholder="e.g. ABC Papers Ltd">
+                        <input type="text" class="form-control" name="supplier" placeholder="e.g. Supplier Pvt Ltd">
                     </div>
                 </div>
-
-                {% if user_role not in ['dataop1', 'super1'] %}
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label class="form-label">Routing Type (Production Line)</label>
-                        <select class="form-select" name="routing_type">
-                            <option value="">None</option>
-                            <option value="Viscor Lanka Line">Viscor Lanka Line</option>
-                            <option value="Packwell Line">Packwell Line</option>
-                        </select>
-                    </div>
-                </div>
-                {% endif %}
 
                 <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
                     <a href="{{ url_for('dashboard') }}" class="btn btn-secondary me-md-2">Cancel</a>
