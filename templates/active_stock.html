@@ -39,7 +39,7 @@
         <div class="col-12">
             <div class="input-group shadow-sm">
                 <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
-                <input type="text" id="reelSearchInput" class="form-control border-start-0 ps-0" placeholder="Type directly without spaces (e.g., 100140BoxBoard) or Reel Number...">
+                <input type="text" id="reelSearchInput" class="form-control border-start-0 ps-0" placeholder="Type without spaces (ex: 100140BoxBoard) or Reel Number...">
             </div>
         </div>
     </div>
@@ -85,7 +85,7 @@
                                 <td class="text-center">
                                     <div class="btn-group gap-1">
                                         <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#issueModal{{ reel.id }}">Issue</button>
-                                        <button type="button" class="btn btn-warning btn-sm text-dark fw-bold" data-bs-toggle="modal" data-bs-target="#sellModal{{ reel.id }}">Sell / Damage</button>
+                                        <button type="button" class="btn btn-warning btn-sm text-dark fw-bold" data-bs-toggle="modal" data-bs-target="#sellDamageModal{{ reel.id }}">Sell/Damage</button>
                                         <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteModal{{ reel.id }}">Delete</button>
                                     </div>
 
@@ -119,30 +119,30 @@
                                         </div>
                                     </div>
 
-                                    <div class="modal fade text-start" id="sellModal{{ reel.id }}" tabindex="-1" aria-hidden="true">
+                                    <div class="modal fade text-start" id="sellDamageModal{{ reel.id }}" tabindex="-1" aria-hidden="true">
                                         <div class="modal-dialog">
                                             <div class="modal-content">
                                                 <div class="modal-header bg-warning text-dark">
-                                                    <h5 class="modal-title fw-bold"><i class="bi bi-currency-dollar"></i> Sell / Damage Reel: {{ reel.reel_number }}</h5>
+                                                    <h5 class="modal-title fw-bold">Sell or Damage Reel: {{ reel.reel_number }}</h5>
                                                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                                 </div>
-                                                <form action="{{ url_for('sell_reel', id=reel.id) }}" method="POST">
+                                                <form id="actionForm{{ reel.id }}" action="{{ url_for('sell_reel', id=reel.id) }}" method="POST">
                                                     <div class="modal-body">
                                                         <div class="mb-3">
-                                                            <label class="form-label fw-bold">Reason / Category</label>
-                                                            <select class="form-select" name="removal_reason" required>
-                                                                <option value="Sold">Sold (විකිණීම)</option>
-                                                                <option value="Damaged">Damaged (හානි වීම)</option>
+                                                            <label class="form-label fw-bold">Action Type</label>
+                                                            <select class="form-select border-dark" id="actionType{{ reel.id }}" onchange="updateActionModal('{{ reel.id }}', '{{ url_for('sell_reel', id=reel.id) }}')">
+                                                                <option value="sell">Sell Item</option>
+                                                                <option value="damage">Mark as Damage</option>
                                                             </select>
                                                         </div>
                                                         <div class="mb-3">
-                                                            <label class="form-label fw-bold">Invoice / Reference / Description</label>
-                                                            <input type="text" class="form-control" name="invoice_number" required placeholder="Enter Reference or Description">
+                                                            <label class="form-label fw-bold" id="actionLabel{{ reel.id }}">Invoice / Reference Number</label>
+                                                            <input type="text" class="form-control" id="actionInput{{ reel.id }}" name="invoice_number" required placeholder="Enter Invoice Number">
                                                         </div>
                                                     </div>
                                                     <div class="modal-footer">
                                                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                                        <button type="submit" class="btn btn-warning fw-bold">Confirm Action</button>
+                                                        <button type="submit" id="actionBtn{{ reel.id }}" class="btn btn-warning fw-bold">Confirm Sell</button>
                                                     </div>
                                                 </form>
                                             </div>
@@ -206,7 +206,7 @@
                                 <td class="text-center">
                                     <div class="btn-group gap-1">
                                         <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#issueModalUsed{{ reel.id }}">Issue</button>
-                                        <button type="button" class="btn btn-warning btn-sm text-dark fw-bold" data-bs-toggle="modal" data-bs-target="#sellModalUsed{{ reel.id }}">Sell / Damage</button>
+                                        <button type="button" class="btn btn-warning btn-sm text-dark fw-bold" data-bs-toggle="modal" data-bs-target="#sellDamageModalUsed{{ reel.id }}">Sell/Damage</button>
                                         <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteModalUsed{{ reel.id }}">Delete</button>
                                     </div>
 
@@ -240,30 +240,30 @@
                                         </div>
                                     </div>
 
-                                    <div class="modal fade text-start" id="sellModalUsed{{ reel.id }}" tabindex="-1" aria-hidden="true">
+                                    <div class="modal fade text-start" id="sellDamageModalUsed{{ reel.id }}" tabindex="-1" aria-hidden="true">
                                         <div class="modal-dialog">
                                             <div class="modal-content">
                                                 <div class="modal-header bg-warning text-dark">
-                                                    <h5 class="modal-title fw-bold"><i class="bi bi-currency-dollar"></i> Sell / Damage Partial Reel: {{ reel.reel_number }}</h5>
+                                                    <h5 class="modal-title fw-bold">Sell or Damage Partial Reel: {{ reel.reel_number }}</h5>
                                                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                                 </div>
-                                                <form action="{{ url_for('sell_reel', id=reel.id) }}" method="POST">
+                                                <form id="actionForm{{ reel.id }}" action="{{ url_for('sell_reel', id=reel.id) }}" method="POST">
                                                     <div class="modal-body">
                                                         <div class="mb-3">
-                                                            <label class="form-label fw-bold">Reason / Category</label>
-                                                            <select class="form-select" name="removal_reason" required>
-                                                                <option value="Sold">Sold (විකිණීම)</option>
-                                                                <option value="Damaged">Damaged (හානි වීම)</option>
+                                                            <label class="form-label fw-bold">Action Type</label>
+                                                            <select class="form-select border-dark" id="actionType{{ reel.id }}" onchange="updateActionModal('{{ reel.id }}', '{{ url_for('sell_reel', id=reel.id) }}')">
+                                                                <option value="sell">Sell Item</option>
+                                                                <option value="damage">Mark as Damage</option>
                                                             </select>
                                                         </div>
                                                         <div class="mb-3">
-                                                            <label class="form-label fw-bold">Invoice / Reference / Description</label>
-                                                            <input type="text" class="form-control" name="invoice_number" required placeholder="Enter Reference or Description">
+                                                            <label class="form-label fw-bold" id="actionLabel{{ reel.id }}">Invoice / Reference Number</label>
+                                                            <input type="text" class="form-control" id="actionInput{{ reel.id }}" name="invoice_number" required placeholder="Enter Invoice Number">
                                                         </div>
                                                     </div>
                                                     <div class="modal-footer">
                                                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                                        <button type="submit" class="btn btn-warning fw-bold">Confirm Action</button>
+                                                        <button type="submit" id="actionBtn{{ reel.id }}" class="btn btn-warning fw-bold">Confirm Sell</button>
                                                     </div>
                                                 </form>
                                             </div>
@@ -303,28 +303,55 @@
 </div>
 
 <script>
+// 1. හිස්තැන් නොමැතිව (No Spaces) අනුපිළිවෙලින් Filter වන Search Logic එක
 document.getElementById('reelSearchInput').addEventListener('keyup', function() {
-    let filter = this.value.toLowerCase().replace(/\s+/g, '').trim(); // ටයිප් කරන කේතයේ ඇති සියලුම Spaces ඉවත් කරයි
+    // Type කරන සියලුම හිස්තැන් ඉවත් කර තනි වචනයක් බවට පත් කරගනී (උදා: "100 140" -> "100140")
+    let filterText = this.value.toLowerCase().replace(/\s+/g, '');
     let rows = document.querySelectorAll('.reel-row');
     
     rows.forEach(function(row) {
+        // දත්ත වල ඇති හිස්තැන්ද ඉවත් කරගනී
         let reelNumber = row.querySelector('.search-target-number').textContent.toLowerCase().replace(/\s+/g, '');
         let paperName = row.querySelector('.search-target-name').textContent.toLowerCase().replace(/\s+/g, '');
         let size = row.querySelector('.search-target-size').textContent.toLowerCase().replace(/\s+/g, '');
         let gsm = row.querySelector('.search-target-gsm').textContent.toLowerCase().replace(/\s+/g, '');
         
-        // ක්‍රමවේදය 1: Size + GSM + Material Name එක දිගට තිබේදැයි බලයි (e.g., 100140boxboard)
-        let combinedString1 = size + gsm + paperName;
-        // ක්‍රමවේදය 2: සාමාන්‍ය Reel Number එකෙන් සෙවීම සඳහා
-        let combinedString2 = reelNumber;
-
-        if (combinedString1.includes(filter) || combinedString2.includes(filter)) {
+        // අනුපිළිවෙලින් Size + GSM + Material Name එක දිගට අමුණා String එකක් සාදයි (උදා: "100140boxboard")
+        let combinedString = size + gsm + paperName;
+        
+        // අමුණපු වචනය හෝ Reel අංකය Type කළ දේට ගැලපේදැයි බලයි
+        if (reelNumber.includes(filterText) || combinedString.includes(filterText)) {
             row.style.display = '';
         } else {
             row.style.display = 'none';
         }
     });
 });
+
+// 2. Sell සහ Damage අතර මාරු වීමේදී Form එක සහ Box එක වෙනස් කරන Logic එක
+function updateActionModal(reelId, sellUrl) {
+    let select = document.getElementById('actionType' + reelId);
+    let form = document.getElementById('actionForm' + reelId);
+    let label = document.getElementById('actionLabel' + reelId);
+    let input = document.getElementById('actionInput' + reelId);
+    let btn = document.getElementById('actionBtn' + reelId);
+
+    if (select.value === 'sell') {
+        form.action = sellUrl; // Sell route එකට යවයි
+        label.innerText = 'Invoice / Reference Number';
+        input.name = 'invoice_number'; // Backend එකේ Invoice Number එක අල්ලගන්නා නම
+        input.placeholder = 'Enter Invoice Number';
+        btn.innerText = 'Confirm Sell';
+        btn.className = 'btn btn-warning fw-bold';
+    } else {
+        form.action = '/damage_reel/' + reelId; // Damage route එකට යවයි
+        label.innerText = 'Damage Reason / Command';
+        input.name = 'damage_reason'; // Backend එකේ Damage Reason එක අල්ලගන්නා නම
+        input.placeholder = 'Enter Damage Reason...';
+        btn.innerText = 'Confirm Damage';
+        btn.className = 'btn btn-danger fw-bold';
+    }
+}
 </script>
 
 {% endblock %}
