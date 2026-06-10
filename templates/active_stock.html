@@ -39,7 +39,7 @@
         <div class="col-12">
             <div class="input-group shadow-sm">
                 <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
-                <input type="text" id="reelSearchInput" class="form-control border-start-0 ps-0" placeholder="Type without spaces (ex: 100140BoxBoard) or Reel Number...">
+                <input type="text" id="reelSearchInput" class="form-control border-start-0 ps-0" placeholder="Type continuously: SizeGSMName (e.g., 100140BoxBoard) or Reel Number...">
             </div>
         </div>
     </div>
@@ -303,24 +303,44 @@
 </div>
 
 <script>
-// 1. හිස්තැන් නොමැතිව (No Spaces) අනුපිළිවෙලින් Filter වන Search Logic එක
 document.getElementById('reelSearchInput').addEventListener('keyup', function() {
-    // Type කරන සියලුම හිස්තැන් ඉවත් කර තනි වචනයක් බවට පත් කරගනී (උදා: "100 140" -> "100140")
+    // සෙවුම් කොටුවේ ඇති සියලුම හිස්තැන් (Spaces) මුළුමනින්ම ඉවත් කරයි
     let filterText = this.value.toLowerCase().replace(/\s+/g, '');
     let rows = document.querySelectorAll('.reel-row');
     
     rows.forEach(function(row) {
-        // දත්ත වල ඇති හිස්තැන්ද ඉවත් කරගනී
         let reelNumber = row.querySelector('.search-target-number').textContent.toLowerCase().replace(/\s+/g, '');
         let paperName = row.querySelector('.search-target-name').textContent.toLowerCase().replace(/\s+/g, '');
         let size = row.querySelector('.search-target-size').textContent.toLowerCase().replace(/\s+/g, '');
         let gsm = row.querySelector('.search-target-gsm').textContent.toLowerCase().replace(/\s+/g, '');
         
-        // අනුපිළිවෙලින් Size + GSM + Material Name එක දිගට අමුණා String එකක් සාදයි (උදා: "100140boxboard")
-        let combinedString = size + gsm + paperName;
+        let isProgressiveMatch = false;
         
-        // අමුණපු වචනය හෝ Reel අංකය Type කළ දේට ගැලපේදැයි බලයි
-        if (reelNumber.includes(filterText) || combinedString.includes(filterText)) {
+        if (filterText === '') {
+            isProgressiveMatch = true;
+        } else if (filterText.length <= size.length) {
+            // පියවර 1: පරිශීලකයා තවමත් Size එක පමණක් ඇතුළත් කරන අවස්ථාව
+            isProgressiveMatch = size.startsWith(filterText);
+        } else {
+            // පියවර 2: Size එක ඇතුළත් කර අවසන් වී, ඊළඟ කොටස් පරීක්ෂා කිරීම
+            if (filterText.startsWith(size)) {
+                let rem1 = filterText.substring(size.length); // Size එකට පසු ඉතිරි වන අකුරු කොටස
+                
+                if (rem1.length <= gsm.length) {
+                    // තවමත් GSM එක පමණක් ඇතුළත් කරන අවස්ථාව
+                    isProgressiveMatch = gsm.startsWith(rem1);
+                } else {
+                    // පියවර 3: GSM එකත් ඇතුළත් කර අවසන් වී, Material Name එක පරීක්ෂා කිරීම
+                    if (rem1.startsWith(gsm)) {
+                        let rem2 = rem1.substring(gsm.length); // GSM එකටත් පසු ඉතිරි වන Material Name කොටස
+                        isProgressiveMatch = paperName.includes(rem2);
+                    }
+                }
+            }
+        }
+        
+        // Reel Number එක කෙලින්ම ගැසූ විට හෝ ඉහත Progressive Logic එක හරියාකාරව ගැලපෙන විට පේළිය පෙන්වයි
+        if (reelNumber.includes(filterText) || isProgressiveMatch) {
             row.style.display = '';
         } else {
             row.style.display = 'none';
@@ -328,7 +348,7 @@ document.getElementById('reelSearchInput').addEventListener('keyup', function() 
     });
 });
 
-// 2. Sell සහ Damage අතර මාරු වීමේදී Form එක සහ Box එක වෙනස් කරන Logic එක
+// Sell සහ Damage මාරු වන විට පෙට්ටි වෙනස් කරන පද්ධතිය (වෙනස් කර නැත)
 function updateActionModal(reelId, sellUrl) {
     let select = document.getElementById('actionType' + reelId);
     let form = document.getElementById('actionForm' + reelId);
@@ -337,16 +357,16 @@ function updateActionModal(reelId, sellUrl) {
     let btn = document.getElementById('actionBtn' + reelId);
 
     if (select.value === 'sell') {
-        form.action = sellUrl; // Sell route එකට යවයි
+        form.action = sellUrl;
         label.innerText = 'Invoice / Reference Number';
-        input.name = 'invoice_number'; // Backend එකේ Invoice Number එක අල්ලගන්නා නම
+        input.name = 'invoice_number';
         input.placeholder = 'Enter Invoice Number';
         btn.innerText = 'Confirm Sell';
         btn.className = 'btn btn-warning fw-bold';
     } else {
-        form.action = '/damage_reel/' + reelId; // Damage route එකට යවයි
+        form.action = '/damage_reel/' + reelId;
         label.innerText = 'Damage Reason / Command';
-        input.name = 'damage_reason'; // Backend එකේ Damage Reason එක අල්ලගන්නා නම
+        input.name = 'damage_reason';
         input.placeholder = 'Enter Damage Reason...';
         btn.innerText = 'Confirm Damage';
         btn.className = 'btn btn-danger fw-bold';
