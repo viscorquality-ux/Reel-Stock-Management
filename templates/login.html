@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex align-items-center justify-content-center" style="height: 80vh;">
+    <div class="card p-4 shadow-lg border-0" style="width: 350px;">
+        <h3 class="text-center text-primary mb-4"><b>Stock Management</b><br><small class="text-muted fs-6">Smart System Login</small></h3>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category if category != 'error' else 'danger' }} py-2" role="alert">
+                        <small>{{ message }}</small>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <form action="/login_submit" method="POST">
+            <div class="mb-3">
+                <label class="form-label fw-bold">Username</label>
+                <input type="text" name="username" class="form-control" placeholder="Enter Username (ex: dataop1)" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-bold">Password</label>
+                <div class="input-group">
+                    <input type="password" name="password" id="passwordField" class="form-control" placeholder="Password" required>
+                    <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                        <i class="bi bi-eye" id="eyeIcon"></i>
+                    </button>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary w-100 fw-bold">Secure Login</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    // Show/Hide Password Toggle Logic
+    document.getElementById('togglePassword').addEventListener('click', function () {
+        const passwordInput = document.getElementById('passwordField');
+        const icon = document.getElementById('eyeIcon');
+        
+        if (passwordInput.type === 'password') {
+            passwordInput.type = 'text';
+            icon.classList.replace('bi-eye', 'bi-eye-slash');
+        } else {
+            passwordInput.type = 'password';
+            icon.classList.replace('bi-eye-slash', 'bi-eye');
+        }
+    });
+</script>
+{% endblock %}
