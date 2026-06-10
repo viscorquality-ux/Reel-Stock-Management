@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3 class="fw-bold"><i class="bi bi-boxes me-2"></i>Active Stock Registry</h3>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-primary">
+                    <tr>
+                        <th>Location</th>
+                        <th>Reel ID</th>
+                        <th>Specs (Size/GSM)</th>
+                        <th>Quality Type</th>
+                        <th>Current Weight</th>
+                        <th>Doc Ref</th>
+                        {% if session['role'] not in ['super1', 'super2'] %}
+                        <th>Actions</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for stock in stocks %}
+                    <tr>
+                        <td><span class="badge bg-secondary">{{ stock.store_location }}</span></td>
+                        
+                        <td><b class="text-dark">{{ stock.reel_no }}</b></td>
+                        <td>{{ stock.size }} cm / {{ stock.gsm }} GSM</td>
+                        <td><span class="badge bg-info text-dark">{{ stock.type }}</span></td>
+                        <td>
+                            <span class="badge {% if stock.status == 'Full Reel' %}bg-success{% else %}bg-warning text-dark{% endif %} fs-6">
+                                {{ stock.weight }} kg
+                            </span>
+                        </td>
+                        <td>
+                            {% if stock.sr_no != '-' %}SR: <b>{{ stock.sr_no }}</b><br>{% endif %}
+                            {% if stock.gate_pass != '-' %}GP: <b>{{ stock.gate_pass }}</b>{% endif %}
+                        </td>
+                        
+                        {% if session['role'] not in ['super1', 'super2'] %}
+                        <td>
+                            <div class="d-flex gap-1 flex-wrap">
+                                <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#issue{{ stock.id }}">
+                                    <i class="bi bi-truck"></i> Issue
+                                </button>
+                                <button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#updateLocation{{ stock.id }}">
+                                    <i class="bi bi-geo-alt"></i> Location
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#updateStatus{{ stock.id }}">
+                                    <i class="bi bi-exclamation-triangle"></i> Status
+                                </button>
+                            </div>
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% include 'stock_modals.html' %}
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-4">No active stock available in the registry.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
