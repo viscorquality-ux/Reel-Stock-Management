@@ -290,7 +290,7 @@ def mark_damage_sell(id):
     db.session.add(ReelHistory(reel_id=reel.id, usage_details=f"Status: {status_type}. Notes: {notes}", action_type=status_type.upper()))
     db.session.commit()
     flash(f"Reel successfully marked as {status_type}.", "warning")
-    return redirect(url_for('issued_stock'))
+    return redirect(url_for('active_stock'))
 
 @app.route('/damage_sell_stock')
 def damage_sell_stock():
