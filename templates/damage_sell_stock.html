@@ -1,9 +1,17 @@
 {% extends 'base.html' %}
 {% block content %}
 <div class="container mt-4 mb-5">
-    <h2 class="text-danger fw-bold mb-4"><i class="bi bi-exclamation-octagon"></i> Damage & Sold Stock Management</h2>
+    <div class="d-flex justify-content-between align-items-center mb-4 no-print">
+        <h2 class="text-danger fw-bold mb-0"><i class="bi bi-exclamation-octagon"></i> Damage & Sold Stock</h2>
+        <button class="btn btn-secondary fw-bold shadow-sm" onclick="window.print()"><i class="bi bi-printer"></i> Print Report</button>
+    </div>
     
-    <ul class="nav nav-tabs mb-3" id="damageTabs" role="tablist">
+    <!-- Live Search -->
+    <div class="mb-4 no-print">
+        <input type="text" id="liveSearchInput" class="form-control form-control-lg shadow-sm border-2 border-danger" placeholder="Search by continuous typing: SizeGSMName (e.g. 100140Kraft) or Reel Number...">
+    </div>
+
+    <ul class="nav nav-tabs mb-3 no-print" id="damageTabs" role="tablist">
         <li class="nav-item">
             <button class="nav-link active fw-bold text-danger" id="damaged-tab" data-bs-toggle="tab" data-bs-target="#damaged" type="button"><i class="bi bi-trash"></i> Damaged Stock</button>
         </li>
@@ -16,25 +24,27 @@
     </ul>
 
     <div class="tab-content">
+        <!-- 1. DAMAGED STOCK -->
         <div class="tab-pane fade show active" id="damaged">
             <div class="card shadow border-0 border-top border-danger border-4">
+                <div class="card-header bg-white d-none d-print-block"><h5 class="mb-0 fw-bold text-danger">Damaged Stock Records</h5></div>
                 <div class="table-responsive">
                     <table class="table table-striped table-hover align-middle mb-0">
                         <thead class="table-dark">
                             <tr>
-                                <th>Reel No</th><th>Material</th><th>Size</th><th>GSM</th><th>Weight</th><th>Location</th><th>Action</th>
+                                <th>Reel No</th><th>Material</th><th>Size</th><th>GSM</th><th>Weight</th><th>Location</th><th class="no-print">Action</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for reel in damaged_reels %}
-                            <tr>
-                                <td class="fw-bold text-danger">{{ reel.reel_number }}</td>
-                                <td>{{ reel.paper_name }} ({{ reel.reel_type }})</td>
-                                <td>{{ reel.size_cm }} cm</td>
-                                <td>{{ reel.gsm }}</td>
+                            <tr class="reel-row">
+                                <td class="fw-bold r-no text-danger">{{ reel.reel_number }}</td>
+                                <td><span class="r-mat">{{ reel.paper_name }}</span> (<span class="r-pname">{{ reel.reel_type }}</span>)</td>
+                                <td class="r-size" data-val="{{ reel.size_cm }}">{{ reel.size_cm }} cm</td>
+                                <td class="r-gsm" data-val="{{ reel.gsm }}">{{ reel.gsm }}</td>
                                 <td>{{ reel.weight_kg }} kg</td>
                                 <td>{{ reel.store_location }}</td>
-                                <td>
+                                <td class="no-print">
                                     <button class="btn btn-sm btn-warning fw-bold text-dark" data-bs-toggle="modal" data-bs-target="#condIssueModal{{ reel.id }}"><i class="bi bi-shield-exclamation"></i> Conditional Issue</button>
                                 </td>
                             </tr>
@@ -48,8 +58,10 @@
             </div>
         </div>
 
+        <!-- 2. SOLD OUT STOCK -->
         <div class="tab-pane fade" id="sold">
             <div class="card shadow border-0 border-top border-primary border-4">
+                <div class="card-header bg-white d-none d-print-block"><h5 class="mb-0 fw-bold text-primary">Sold Stock Records</h5></div>
                 <div class="table-responsive">
                     <table class="table table-striped table-hover align-middle mb-0">
                         <thead class="table-dark">
@@ -59,11 +71,11 @@
                         </thead>
                         <tbody>
                             {% for reel in sold_reels %}
-                            <tr>
-                                <td class="fw-bold text-primary">{{ reel.reel_number }}</td>
-                                <td>{{ reel.paper_name }} ({{ reel.reel_type }})</td>
-                                <td>{{ reel.size_cm }} cm</td>
-                                <td>{{ reel.gsm }}</td>
+                            <tr class="reel-row">
+                                <td class="fw-bold r-no text-primary">{{ reel.reel_number }}</td>
+                                <td><span class="r-mat">{{ reel.paper_name }}</span> (<span class="r-pname">{{ reel.reel_type }}</span>)</td>
+                                <td class="r-size" data-val="{{ reel.size_cm }}">{{ reel.size_cm }} cm</td>
+                                <td class="r-gsm" data-val="{{ reel.gsm }}">{{ reel.gsm }}</td>
                                 <td>{{ reel.weight_kg }} kg</td>
                                 <td>{{ reel.store_location }}</td>
                             </tr>
@@ -77,8 +89,10 @@
             </div>
         </div>
 
+        <!-- 3. CONDITIONAL LOGS -->
         <div class="tab-pane fade" id="logs">
             <div class="card shadow border-0 border-top border-secondary border-4">
+                <div class="card-header bg-white d-none d-print-block"><h5 class="mb-0 fw-bold text-secondary">Conditional Issue Logs</h5></div>
                 <div class="table-responsive">
                     <table class="table table-striped table-hover align-middle mb-0">
                         <thead class="table-dark">
@@ -106,8 +120,9 @@
     </div>
 </div>
 
+<!-- CONDITIONAL ISSUE MODALS -->
 {% for reel in damaged_reels %}
-<div class="modal fade" id="condIssueModal{{ reel.id }}" tabindex="-1">
+<div class="modal fade no-print" id="condIssueModal{{ reel.id }}" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow">
             <div class="modal-header bg-warning text-dark">
@@ -141,4 +156,39 @@
     </div>
 </div>
 {% endfor %}
+
+<script>
+document.getElementById('liveSearchInput').addEventListener('input', function() {
+    let inputVal = this.value.toLowerCase().replace(/\s+/g, '');
+    let rows = document.querySelectorAll('.reel-row');
+    let tokens = inputVal.match(/\d+|[a-z]+/ig) || [];
+
+    rows.forEach(row => {
+        let matched = false;
+        let rNo = row.querySelector('.r-no').textContent.toLowerCase().replace(/\s+/g, '');
+        let rMat = row.querySelector('.r-mat').textContent.toLowerCase().replace(/[^a-z0-9]/g, '');
+        let rPname = row.querySelector('.r-pname').textContent.toLowerCase().replace(/[^a-z0-9]/g, '');
+        let size = parseFloat(row.querySelector('.r-size').getAttribute('data-val')).toString().replace('.', '');
+        let gsm = row.querySelector('.r-gsm').getAttribute('data-val');
+        let combinedNumbers = size + gsm;
+        let combinedText = rMat + rPname;
+
+        if (inputVal === '') matched = true;
+        else if (rNo.includes(inputVal)) matched = true;
+        else if (tokens.length > 0) {
+            let matchesAll = true;
+            tokens.forEach(token => {
+                if (/^\d+$/.test(token)) {
+                    if (!combinedNumbers.includes(token)) matchesAll = false;
+                } else {
+                    if (!combinedText.includes(token)) matchesAll = false;
+                }
+            });
+            matched = matchesAll;
+        }
+
+        row.style.display = matched ? '' : 'none';
+    });
+});
+</script>
 {% endblock %}
