@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="container mt-4">
+<div class="container mt-4 mb-5">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2 class="text-secondary fw-bold mb-0"><i class="bi bi-layers"></i> Active Raw Material Stock</h2>
         
@@ -17,158 +17,159 @@
         {% endif %}
     </div>
 
-    <div class="row g-3 mb-4">
-        <div class="col-md-6">
-            <div class="card bg-success text-white shadow border-0">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="text-uppercase mb-1 fw-bold">Full Reels Total</h6>
-                            <h3 class="mb-0 fw-black"><span id="sumFullCount">{{ total_full_count }}</span> <small class="fs-6">Items</small></h3>
-                        </div>
-                        <div class="text-end">
-                            <i class="bi bi-box-seam fs-1 opacity-50"></i>
-                            <h4 class="mb-0 fw-bold mt-2"><span id="sumFullWeight">{{ "%.2f"|format(total_full_weight) }}</span> <small class="fs-6">kg</small></h4>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-6">
-            <div class="card bg-warning text-dark shadow border-0">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="text-uppercase mb-1 fw-bold">Used Reels Total</h6>
-                            <h3 class="mb-0 fw-black"><span id="sumUsedCount">{{ total_used_count }}</span> <small class="fs-6">Items</small></h3>
-                        </div>
-                        <div class="text-end">
-                            <i class="bi bi-scissors fs-1 opacity-50"></i>
-                            <h4 class="mb-0 fw-bold mt-2"><span id="sumUsedWeight">{{ "%.2f"|format(total_used_weight) }}</span> <small class="fs-6">kg</small></h4>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <div class="mb-4">
-        <input type="text" id="liveSearchInput" class="form-control shadow-sm" placeholder="Search by continuous typing: SizeGSMName (e.g. 100140Kraft) or Reel Number...">
+        <input type="text" id="liveSearchInput" class="form-control form-control-lg shadow-sm border-2 border-primary" placeholder="Search by continuous typing: SizeGSMName (e.g. 100140Kraft) or Reel Number...">
     </div>
 
-    <div class="card shadow border-0 mb-4">
-        <div class="card-header bg-success text-white fw-bold"><i class="bi bi-grid-3x3-gap"></i> Full Reels Available</div>
-        <div class="table-responsive">
-            <table class="table table-striped align-middle mb-0">
-                <thead class="table-dark">
-                    <tr>
-                        <th>Reel No</th><th>Material Name</th><th>Paper Name</th><th>Size</th><th>GSM</th><th>Weight</th><th>Location</th><th>Action</th>
-                    </tr>
-                </thead>
-                <tbody id="fullReelsBody">
-                    {% for reel in full_reels %}
-                    <tr class="reel-row" data-type="full">
-                        <td class="fw-bold r-no">{{ reel.reel_number }}</td>
-                        <td class="r-mat">{{ reel.paper_name }}</td>
-                        <td class="r-pname">{{ reel.reel_type }}</td>
-                        <td class="r-size" data-val="{{ reel.size_cm }}">{{ reel.size_cm }} cm</td>
-                        <td class="r-gsm" data-val="{{ reel.gsm }}">{{ reel.gsm }}</td>
-                        <td class="fw-bold text-success r-weight" data-val="{{ reel.weight_kg }}">{{ reel.weight_kg }} kg</td>
-                        <td>{{ reel.store_location }}</td>
-                        <td>
-                            <button class="btn btn-sm btn-dark fw-bold" data-bs-toggle="modal" data-bs-target="#issueModal{{ reel.id }}"><i class="bi bi-send"></i> Issue</button>
-                            <button class="btn btn-sm btn-danger fw-bold" data-bs-toggle="modal" data-bs-target="#damageModal{{ reel.id }}"><i class="bi bi-exclamation-triangle"></i> Flag</button>
-                        </td>
-                    </tr>
+    <ul class="nav nav-tabs mb-3" id="stockTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active fw-bold text-success fs-5" id="full-tab" data-bs-toggle="tab" data-bs-target="#full" type="button" role="tab">
+                <i class="bi bi-box-fill"></i> Full Reels (<span id="sumFullCountTab">{{ total_full_count }}</span>)
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link fw-bold text-warning fs-5" id="used-tab" data-bs-toggle="tab" data-bs-target="#used" type="button" role="tab">
+                <i class="bi bi-scissors"></i> Used Reels (<span id="sumUsedCountTab">{{ total_used_count }}</span>)
+            </button>
+        </li>
+    </ul>
 
-                    <div class="modal fade" id="issueModal{{ reel.id }}" {{"data-bs-backdrop=static data-bs-keyboard=false" if session.get('role') == 'dataop2'}}>
-                        <div class="modal-content mx-auto my-5 p-4 border-0 shadow" style="max-width:450px; border-radius:12px;">
-                            <h5 class="fw-bold mb-3 text-dark"><i class="bi bi-send-fill text-primary"></i> Issue Reel: {{ reel.reel_number }}</h5>
-                            <form action="{{ url_for('issue_reel', id=reel.id) }}" method="POST">
-                                <div class="mb-3">
-                                    <label class="form-label fw-bold">Document Type</label>
-                                    <select name="doc_type" class="form-select" required>
-                                        <option value="Gate Pass">Gate Pass</option>
-                                        <option value="SR">SR Number</option>
-                                    </select>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label fw-bold">Document Number</label>
-                                    <input type="text" name="doc_number" class="form-control" required placeholder="Enter Document Reference...">
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label fw-bold">Send to Viscor Lanka?</label>
-                                    <select name="send_to_viscor" class="form-select" required>
-                                        <option value="no">No (Direct Floor Dispatch)</option>
-                                        <option value="yes">Yes (Pending Verification Transfer)</option>
-                                    </select>
-                                </div>
-                                <div class="d-flex gap-2 justify-content-end mt-4">
-                                    <button type="button" class="btn btn-light border fw-bold" data-bs-dismiss="modal">Cancel</button>
-                                    <button type="submit" class="btn btn-primary fw-bold">Confirm Release</button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-
-                    <div class="modal fade" id="damageModal{{ reel.id }}">
-                        <div class="modal-content mx-auto my-5 p-4 border-0 shadow" style="max-width:450px;">
-                            <h5 class="fw-bold mb-3 text-danger"><i class="bi bi-exclamation-octagon-fill"></i> Flag Non-Active Inventory</h5>
-                            <form action="{{ url_for('mark_damage_sell', id=reel.id) }}" method="POST">
-                                <div class="mb-3">
-                                    <label class="form-label fw-bold">Select Categorization</label>
-                                    <select name="status_type" class="form-select" required>
-                                        <option value="Damaged">Damaged Reel</option>
-                                        <option value="Sold">Sold Out</option>
-                                    </select>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label fw-bold">Internal tracking Notes</label>
-                                    <textarea name="notes" class="form-control" rows="3" required placeholder="Write internal auditing reason..."></textarea>
-                                </div>
-                                <div class="d-flex gap-2 justify-content-end mt-4">
-                                    <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Close</button>
-                                    <button type="submit" class="btn btn-danger fw-bold">Apply Flag</button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </tbody>
-            </table>
+    <div class="tab-content" id="stockTabsContent">
+        
+        <div class="tab-pane fade show active" id="full" role="tabpanel">
+            <div class="card shadow border-0 border-top border-success border-4">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover align-middle mb-0">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Reel No</th><th>Material</th><th>Paper Type</th><th>Size</th><th>GSM</th><th>Weight</th><th>Location</th><th class="text-center">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="fullReelsBody">
+                            {% for reel in full_reels %}
+                            <tr class="reel-row" data-type="full">
+                                <td class="fw-bold r-no text-success">{{ reel.reel_number }}</td>
+                                <td class="r-mat">{{ reel.paper_name }}</td>
+                                <td class="r-pname">{{ reel.reel_type }}</td>
+                                <td class="r-size" data-val="{{ reel.size_cm }}">{{ reel.size_cm }} cm</td>
+                                <td class="r-gsm" data-val="{{ reel.gsm }}">{{ reel.gsm }}</td>
+                                <td class="fw-bold r-weight" data-val="{{ reel.weight_kg }}">{{ reel.weight_kg }} kg</td>
+                                <td>{{ reel.store_location }}</td>
+                                <td class="text-center">
+                                    <button class="btn btn-sm btn-dark fw-bold me-1" data-bs-toggle="modal" data-bs-target="#issueModal{{ reel.id }}"><i class="bi bi-send"></i> Issue</button>
+                                    <button class="btn btn-sm btn-danger fw-bold" data-bs-toggle="modal" data-bs-target="#damageModal{{ reel.id }}"><i class="bi bi-exclamation-triangle"></i> Damage / Sell</button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
-    </div>
 
-    <div class="card shadow border-0">
-        <div class="card-header bg-warning text-dark fw-bold"><i class="bi bi-scissors"></i> Partially Used Reels</div>
-        <div class="table-responsive">
-            <table class="table table-striped align-middle mb-0">
-                <thead class="table-dark">
-                    <tr>
-                        <th>Reel No</th><th>Material Name</th><th>Paper Name</th><th>Size</th><th>GSM</th><th>Weight</th><th>Location</th><th>Action</th>
-                    </tr>
-                </thead>
-                <tbody id="usedReelsBody">
-                    {% for reel in used_reels %}
-                    <tr class="reel-row" data-type="used">
-                        <td class="fw-bold r-no">{{ reel.reel_number }}</td>
-                        <td class="r-mat">{{ reel.paper_name }}</td>
-                        <td class="r-pname">{{ reel.reel_type }}</td>
-                        <td class="r-size" data-val="{{ reel.size_cm }}">{{ reel.size_cm }} cm</td>
-                        <td class="r-gsm" data-val="{{ reel.gsm }}">{{ reel.gsm }}</td>
-                        <td class="fw-bold text-danger r-weight" data-val="{{ reel.weight_kg }}">{{ reel.weight_kg }} kg</td>
-                        <td>{{ reel.store_location }}</td>
-                        <td>
-                            <button class="btn btn-sm btn-dark fw-bold" data-bs-toggle="modal" data-bs-target="#issueModal{{ reel.id }}"><i class="bi bi-send"></i> Issue</button>
-                            <button class="btn btn-sm btn-danger fw-bold" data-bs-toggle="modal" data-bs-target="#damageModal{{ reel.id }}"><i class="bi bi-exclamation-triangle"></i> Flag</button>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <div class="tab-pane fade" id="used" role="tabpanel">
+            <div class="card shadow border-0 border-top border-warning border-4">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover align-middle mb-0">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Reel No</th><th>Material</th><th>Paper Type</th><th>Size</th><th>GSM</th><th>Weight</th><th>Location</th><th class="text-center">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usedReelsBody">
+                            {% for reel in used_reels %}
+                            <tr class="reel-row" data-type="used">
+                                <td class="fw-bold r-no text-warning">{{ reel.reel_number }}</td>
+                                <td class="r-mat">{{ reel.paper_name }}</td>
+                                <td class="r-pname">{{ reel.reel_type }}</td>
+                                <td class="r-size" data-val="{{ reel.size_cm }}">{{ reel.size_cm }} cm</td>
+                                <td class="r-gsm" data-val="{{ reel.gsm }}">{{ reel.gsm }}</td>
+                                <td class="fw-bold text-danger r-weight" data-val="{{ reel.weight_kg }}">{{ reel.weight_kg }} kg</td>
+                                <td>{{ reel.store_location }}</td>
+                                <td class="text-center">
+                                    <button class="btn btn-sm btn-dark fw-bold me-1" data-bs-toggle="modal" data-bs-target="#issueModal{{ reel.id }}"><i class="bi bi-send"></i> Issue</button>
+                                    <button class="btn btn-sm btn-danger fw-bold" data-bs-toggle="modal" data-bs-target="#damageModal{{ reel.id }}"><i class="bi bi-exclamation-triangle"></i> Damage / Sell</button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
+
     </div>
 </div>
+
+{% set all_reels = full_reels + used_reels %}
+{% for reel in all_reels %}
+    <div class="modal fade" id="issueModal{{ reel.id }}" tabindex="-1" {{"data-bs-backdrop=static data-bs-keyboard=false" if session.get('role') == 'dataop2'}}>
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-send-fill text-primary"></i> Issue Reel: {{ reel.reel_number }}</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form action="{{ url_for('issue_reel', id=reel.id) }}" method="POST">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Document Type</label>
+                            <select name="doc_type" class="form-select" required>
+                                <option value="Gate Pass">Gate Pass</option>
+                                <option value="SR">SR Number</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Document Number</label>
+                            <input type="text" name="doc_number" class="form-control" required placeholder="Enter Document Reference...">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Send to Viscor Lanka?</label>
+                            <select name="send_to_viscor" class="form-select" required>
+                                <option value="no">No (Direct Floor Dispatch)</option>
+                                <option value="yes">Yes (Pending Verification Transfer)</option>
+                            </select>
+                        </div>
+                        <div class="d-flex gap-2 justify-content-end mt-4">
+                            <button type="button" class="btn btn-light border fw-bold" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-primary fw-bold">Confirm Release</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="damageModal{{ reel.id }}" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-exclamation-octagon-fill"></i> Damage / Sell Action</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form action="{{ url_for('mark_damage_sell', id=reel.id) }}" method="POST">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Select Action</label>
+                            <select name="status_type" class="form-select" required>
+                                <option value="Damaged">Mark as Damaged Reel</option>
+                                <option value="Sold">Mark as Sold Out</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Internal tracking Notes</label>
+                            <textarea name="notes" class="form-control" rows="3" required placeholder="Write internal auditing reason..."></textarea>
+                        </div>
+                        <div class="d-flex gap-2 justify-content-end mt-4">
+                            <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Close</button>
+                            <button type="submit" class="btn btn-danger fw-bold">Apply Action</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endfor %}
 
 <script>
 document.getElementById('liveSearchInput').addEventListener('input', function() {
@@ -176,7 +177,7 @@ document.getElementById('liveSearchInput').addEventListener('input', function() 
     let rows = document.querySelectorAll('.reel-row');
     let tokens = inputVal.match(/\d+|[a-z]+/ig) || [];
 
-    let fCount = 0, fWeight = 0, uCount = 0, uWeight = 0;
+    let fCount = 0, uCount = 0;
 
     rows.forEach(row => {
         let matched = false;
@@ -186,7 +187,6 @@ document.getElementById('liveSearchInput').addEventListener('input', function() 
         
         let size = parseFloat(row.querySelector('.r-size').getAttribute('data-val')).toString().replace('.', '');
         let gsm = row.querySelector('.r-gsm').getAttribute('data-val');
-        let weight = parseFloat(row.querySelector('.r-weight').getAttribute('data-val')) || 0;
         
         let combinedNumbers = size + gsm;
         let combinedText = rMat + rPname;
@@ -209,17 +209,15 @@ document.getElementById('liveSearchInput').addEventListener('input', function() 
 
         if (matched) {
             row.style.display = '';
-            if (row.getAttribute('data-type') === 'full') { fCount++; fWeight += weight; }
-            else { uCount++; uWeight += weight; }
+            if (row.getAttribute('data-type') === 'full') { fCount++; }
+            else { uCount++; }
         } else {
             row.style.display = 'none';
         }
     });
 
-    document.getElementById('sumFullCount').innerText = fCount;
-    document.getElementById('sumFullWeight').innerText = fWeight.toFixed(2);
-    document.getElementById('sumUsedCount').innerText = uCount;
-    document.getElementById('sumUsedWeight').innerText = uWeight.toFixed(2);
+    document.getElementById('sumFullCountTab').innerText = fCount;
+    document.getElementById('sumUsedCountTab').innerText = uCount;
 });
 </script>
 {% endblock %}
