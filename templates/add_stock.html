@@ -1,25 +1,19 @@
 {% extends 'base.html' %}
 {% block content %}
-
 <div class="container mt-4">
-    <!-- Form එක Compact 500px සයිස් එකෙන්ම තබා ඇත -->
     <div class="card shadow border-0 mx-auto" style="max-width: 500px;">
         <div class="card-header bg-dark text-white fw-bold py-3 text-center">
             <h5 class="mb-0"><i class="bi bi-plus-circle"></i> Add New Stock Entry</h5>
         </div>
         <div class="card-body p-4">
-            <!-- User Role Field -->
             <input type="hidden" id="currentUserRole" value="{{ user_role }}">
 
             <form action="{{ url_for('add_stock') }}" method="POST" id="rawMaterialForm">
-                
-                <!-- 1️⃣ Reel Number -->
                 <div class="mb-3">
                     <label for="reel_number" class="form-label fw-bold text-dark mb-1">Reel Number</label>
                     <input type="text" class="form-control border-2" id="reel_number" name="reel_number" placeholder="e.g., REEL-9901" required>
                 </div>
 
-                <!-- 2️⃣ Reel Status Ticks (Full Reel / Used Reel) -->
                 <div class="mb-3 p-2 bg-light rounded border text-center">
                     <div class="form-check form-check-inline me-3">
                         <input class="form-check-input" type="radio" name="status" id="status_full" value="Full Reel" checked>
@@ -31,13 +25,11 @@
                     </div>
                 </div>
 
-                <!-- 3️⃣ Material Name -->
                 <div class="mb-3">
                     <label for="paper_name" class="form-label fw-bold mb-1">Material Name</label>
                     <input type="text" class="form-control" id="paper_name" name="paper_name" placeholder="e.g., Box Board" required>
                 </div>
 
-                <!-- 4️⃣ Paper Name Dropdown -->
                 <div class="mb-3">
                     <label for="reel_type" class="form-label fw-bold mb-1">Paper Name</label>
                     <select class="form-select" id="reel_type" name="reel_type" required>
@@ -50,7 +42,6 @@
                     </select>
                 </div>
 
-                <!-- 5️⃣ Size (cm) & GSM -->
                 <div class="row g-2 mb-3">
                     <div class="col-6">
                         <label for="size_cm" class="form-label fw-bold mb-1">Size (cm)</label>
@@ -62,24 +53,16 @@
                     </div>
                 </div>
 
-                <!-- 6️⃣ Weight (kg) -->
                 <div class="mb-3">
                     <label for="weight_kg" class="form-label fw-bold mb-1">Weight (kg)</label>
                     <input type="number" step="0.01" class="form-control" id="weight_kg" name="weight_kg" placeholder="e.g., 450.50" required>
                 </div>
 
-                <!-- 7️⃣ Warehouse Location (Packwell 1 - 7 දක්වා වෙන් කර ඇත) -->
                 <div class="mb-4">
                     <label for="store_location" class="form-label fw-bold mb-1">Warehouse Location</label>
                     <select class="form-select" id="store_location" name="store_location" required>
                         <option value="" selected disabled>Select Warehouse Location...</option>
-                        
-                        <!-- Viscor Lanka Option (DataOp 2 ට Block වේ) -->
-                        <option value="Viscor Lanka" {% if user_role == 'dataop2' %} disabled class="text-muted bg-light" {% endif %}>
-                            Viscor Lanka {% if user_role == 'dataop2' %} (Blocked) {% endif %}
-                        </option>
-
-                        <!-- Packwell Options 1 to 7 (DataOp 1 ට Block වේ) -->
+                        <option value="Viscor Lanka" {% if user_role == 'dataop2' %} disabled class="text-muted bg-light" {% endif %}>Viscor Lanka {% if user_role == 'dataop2' %} (Blocked) {% endif %}</option>
                         <option value="Packwell W 1" {% if user_role == 'dataop1' %} disabled class="text-muted bg-light" {% endif %}>Packwell W 1 {% if user_role == 'dataop1' %} (Blocked) {% endif %}</option>
                         <option value="Packwell W 2" {% if user_role == 'dataop1' %} disabled class="text-muted bg-light" {% endif %}>Packwell W 2 {% if user_role == 'dataop1' %} (Blocked) {% endif %}</option>
                         <option value="Packwell W 3" {% if user_role == 'dataop1' %} disabled class="text-muted bg-light" {% endif %}>Packwell W 3 {% if user_role == 'dataop1' %} (Blocked) {% endif %}</option>
@@ -91,43 +74,30 @@
                     <div id="locationWarning" class="form-text text-danger fw-bold mt-1" style="display: none;"></div>
                 </div>
 
-                <!-- Submit Button -->
                 <div class="d-grid">
                     <button type="submit" class="btn btn-dark fw-bold py-2"><i class="bi bi-plus-circle"></i> Save Stock Entry</button>
                 </div>
-
             </form>
         </div>
     </div>
 </div>
-
-<!-- Role Restriction Script -->
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+document.getElementById('store_location').addEventListener('change', function() {
     let userRole = document.getElementById('currentUserRole').value.toLowerCase().trim();
-    let locationSelect = document.getElementById('store_location');
     let warningDiv = document.getElementById('locationWarning');
+    let val = this.value;
 
-    locationSelect.addEventListener('change', function() {
-        let selectedValue = this.value;
-        
-        // DataOp 1 නම් සහ "Packwell" අඩංගු ඕනෑම එකක් තේරුවොත් වළක්වයි
-        if (userRole === 'dataop1' && selectedValue.startsWith('Packwell')) {
-            warningDiv.innerText = "❌ Not authorized for Packwell Warehouses";
-            warningDiv.style.display = 'block';
-            this.value = ""; 
-        } 
-        // DataOp 2 නම් සහ Viscor Lanka තේරුවොත් වළක්වයි
-        else if (userRole === 'dataop2' && selectedValue === 'Viscor Lanka') {
-            warningDiv.innerText = "❌ Not authorized for Viscor Lanka";
-            warningDiv.style.display = 'block';
-            this.value = ""; 
-        } 
-        else {
-            warningDiv.style.display = 'none';
-        }
-    });
+    if (userRole === 'dataop1' && val.startsWith('Packwell')) {
+        warningDiv.innerText = "❌ Not authorized for Packwell Warehouses";
+        warningDiv.style.display = 'block';
+        this.value = ""; 
+    } else if (userRole === 'dataop2' && val === 'Viscor Lanka') {
+        warningDiv.innerText = "❌ Not authorized for Viscor Lanka";
+        warningDiv.style.display = 'block';
+        this.value = ""; 
+    } else {
+        warningDiv.style.display = 'none';
+    }
 });
 </script>
-
 {% endblock %}
