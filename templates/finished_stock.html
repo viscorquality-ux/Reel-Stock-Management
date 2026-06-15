@@ -1,10 +1,8 @@
 {% extends 'base.html' %}
 {% block content %}
-
 <div class="container mt-4">
     <h2 class="text-secondary fw-bold mb-4"><i class="bi bi-check2-all"></i> Finished & Usage Stock</h2>
 
-    <!-- Summary Cards (Live Update වන ලෙස IDs එක් කර ඇත) -->
     <div class="row mb-4">
         <div class="col-md-6">
             <div class="card bg-light shadow-sm border-0">
@@ -30,51 +28,34 @@
         </div>
     </div>
 
-    <!-- සොයන්නා (Search Bar) -->
     <div class="row mb-4">
         <div class="col-12">
-            <div class="input-group shadow-sm">
-                <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
-                <input type="text" id="finishedSearchInput" class="form-control border-start-0 ps-0" placeholder="Type continuously: SizeGSMName (e.g., 100140BoxBoard) or Reel Number...">
-            </div>
+            <input type="text" id="finishedSearchInput" class="form-control shadow-sm" placeholder="Type continuously: SizeGSMName (e.g., 100140Kraft) or Reel Number...">
         </div>
     </div>
 
-    <!-- Navigation Tabs -->
     <ul class="nav nav-tabs mb-3" id="finishedTabs" role="tablist">
-        <li class="nav-item" role="presentation">
-            <button class="nav-link active fw-bold text-success" id="finished-tab" data-bs-toggle="tab" data-bs-target="#finished-reels" type="button" role="tab">
-                Finished Reels (<span id="tabFinishedCount">{{ finished_reels|length }}</span>)
-            </button>
+        <li class="nav-item">
+            <button class="nav-link active fw-bold text-success" id="finished-tab" data-bs-toggle="tab" data-bs-target="#finished-reels" type="button" role="tab">Finished Reels (<span id="tabFinishedCount">{{ finished_reels|length }}</span>)</button>
         </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link fw-bold text-info" id="usage-tab" data-bs-toggle="tab" data-bs-target="#usage-logs" type="button" role="tab">
-                Usage Logs (<span id="tabUsageCount">{{ usage_logs|length }}</span>)
-            </button>
+        <li class="nav-item">
+            <button class="nav-link fw-bold text-info" id="usage-tab" data-bs-toggle="tab" data-bs-target="#usage-logs" type="button" role="tab">Usage Logs (<span id="tabUsageCount">{{ usage_logs|length }}</span>)</button>
         </li>
     </ul>
 
     <div class="tab-content">
-        <!-- Finished Reels Tab -->
         <div class="tab-pane fade show active" id="finished-reels" role="tabpanel">
-            <div class="card shadow-sm border-0">
+            <div class="card shadow border-0">
                 <div class="table-responsive">
-                    <table class="table table-striped table-hover align-middle mb-0">
+                    <table class="table table-striped align-middle mb-0">
                         <thead class="table-dark">
                             <tr>
-                                <th>Reel Number</th>
-                                <th>Material</th>
-                                <th>Size (cm)</th>
-                                <th>GSM</th>
-                                <th>Finished Weight (kg)</th>
-                                <th>Final Location</th>
-                                <th>Status</th>
+                                <th>Reel Number</th><th>Material</th><th>Size (cm)</th><th>GSM</th><th>Finished Weight</th><th>Location</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% if finished_reels %}
                                 {% for reel in finished_reels %}
-                                <!-- සෙවීම සඳහා classes එක් කර ඇත -->
                                 <tr class="search-row finished-row">
                                     <td class="fw-bold search-target-number">{{ reel.reel_number }}</td>
                                     <td class="search-target-name">{{ reel.paper_name }}</td>
@@ -82,11 +63,10 @@
                                     <td class="search-target-gsm">{{ reel.gsm }}</td>
                                     <td class="fw-bold text-success search-target-weight" data-weight="{{ reel.weight_kg }}">{{ reel.weight_kg }} kg</td>
                                     <td>{{ reel.store_location }}</td>
-                                    <td><span class="badge bg-success">Finished</span></td>
                                 </tr>
                                 {% endfor %}
                             {% else %}
-                                <tr><td colspan="7" class="text-center text-muted">No finished reels found.</td></tr>
+                                <tr><td colspan="6" class="text-center text-muted">No finished records found.</td></tr>
                             {% endif %}
                         </tbody>
                     </table>
@@ -94,40 +74,28 @@
             </div>
         </div>
 
-        <!-- Usage Logs Tab -->
         <div class="tab-pane fade" id="usage-logs" role="tabpanel">
-            <div class="card shadow-sm border-0">
+            <div class="card shadow border-0">
                 <div class="table-responsive">
-                    <table class="table table-striped table-hover align-middle mb-0">
+                    <table class="table table-striped align-middle mb-0">
                         <thead class="table-dark">
                             <tr>
-                                <th>Date & Time</th>
-                                <th>Reel Number</th>
-                                <th>Action</th>
-                                <th>Usage Details</th>
-                                <th>Weight Logged (kg)</th>
+                                <th>Date & Time</th><th>Reel Number</th><th>Action</th><th>Usage Details</th><th>Weight Logged</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% if usage_logs %}
                                 {% for log in usage_logs %}
-                                <!-- සෙවීම සඳහා classes එක් කර ඇත -->
                                 <tr class="search-row usage-row">
                                     <td>{{ log.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
                                     <td class="fw-bold search-target-number">{{ log.reel.reel_number if log.reel else 'N/A' }}</td>
-                                    <td>
-                                        {% if log.action_type == 'FINISHED' %}
-                                            <span class="badge bg-success search-target-action">{{ log.action_type }}</span>
-                                        {% else %}
-                                            <span class="badge bg-info text-dark search-target-action">{{ log.action_type }}</span>
-                                        {% endif %}
-                                    </td>
+                                    <td><span class="badge bg-info text-dark search-target-action">{{ log.action_type }}</span></td>
                                     <td class="search-target-details">{{ log.usage_details }}</td>
                                     <td class="fw-bold text-danger search-target-weight" data-weight="{{ log.weight_used }}">{{ log.weight_used }} kg</td>
                                 </tr>
                                 {% endfor %}
                             {% else %}
-                                <tr><td colspan="5" class="text-center text-muted">No usage logs found.</td></tr>
+                                <tr><td colspan="5" class="text-center text-muted">No usage logging data available.</td></tr>
                             {% endif %}
                         </tbody>
                     </table>
@@ -137,112 +105,65 @@
     </div>
 </div>
 
-<!-- Search & Live Calculation Script -->
 <script>
 document.getElementById('finishedSearchInput').addEventListener('input', function() {
     let filterText = this.value.toLowerCase().replace(/\s+/g, '');
     let rows = document.querySelectorAll('.search-row');
     let tokens = filterText.match(/\d+|[a-z]+/ig) || [];
     
-    // සජීවීව ගණනය කිරීම සඳහා
-    let currentFinishedCount = 0;
-    let currentFinishedWeight = 0;
-    let currentUsageCount = 0;
-    let currentUsageWeight = 0;
+    let cFinCount = 0, cFinWeight = 0, cUseCount = 0, cUseWeight = 0;
     
-    rows.forEach(function(row) {
+    rows.forEach(row => {
         let isMatch = false;
 
-        // Finished Reels සඳහා Multi-Filter Logic එක
         if (row.classList.contains('finished-row')) {
-            let reelNumber = row.querySelector('.search-target-number').textContent.toLowerCase().replace(/\s+/g, '');
-            let paperName = row.querySelector('.search-target-name').textContent.toLowerCase().replace(/[^a-z0-9]/g, '');
-            
-            let sizeText = row.querySelector('.search-target-size').textContent.replace(/[^\d.]/g, '');
-            let sizeNum = parseFloat(sizeText);
-            let size = isNaN(sizeNum) ? '' : sizeNum.toString().replace('.', ''); 
-            
-            let gsmText = row.querySelector('.search-target-gsm').textContent.replace(/[^\d.]/g, '');
-            let gsmNum = parseFloat(gsmText);
-            let gsm = isNaN(gsmNum) ? '' : gsmNum.toString().replace('.', '');
-            
+            let rNo = row.querySelector('.search-target-number').textContent.toLowerCase().replace(/\s+/g, '');
+            let pName = row.querySelector('.search-target-name').textContent.toLowerCase().replace(/[^a-z0-9]/g, '');
+            let size = parseFloat(row.querySelector('.search-target-size').textContent).toString().replace('.', '');
+            let gsm = row.querySelector('.search-target-gsm').textContent;
             let combinedNumbers = size + gsm;
             
-            if (filterText === '') {
-                isMatch = true;
-            } else if (reelNumber.includes(filterText)) {
-                isMatch = true;
-            } else if (tokens.length > 0) {
+            if (filterText === '') isMatch = true;
+            else if (rNo.includes(filterText)) isMatch = true;
+            else if (tokens.length > 0) {
                 let allTokensMatch = true;
-                for (let i = 0; i < tokens.length; i++) {
-                    let token = tokens[i];
-                    if (/^\d+$/.test(token)) {
-                        if (!combinedNumbers.includes(token)) {
-                            allTokensMatch = false;
-                            break;
-                        }
-                    } else {
-                        if (!paperName.includes(token)) {
-                            allTokensMatch = false;
-                            break;
-                        }
-                    }
-                }
+                tokens.forEach(tok => {
+                    if (/^\d+$/.test(tok)) { if (!combinedNumbers.includes(tok)) allTokensMatch = false; }
+                    else { if (!pName.includes(tok)) allTokensMatch = false; }
+                });
                 isMatch = allTokensMatch;
             }
-        } 
-        // Usage Logs සඳහා Filter Logic එක (Reel Number & Action Details අනුව)
-        else if (row.classList.contains('usage-row')) {
-            let reelNumber = row.querySelector('.search-target-number').textContent.toLowerCase().replace(/\s+/g, '');
-            let actionText = row.querySelector('.search-target-action').textContent.toLowerCase().replace(/\s+/g, '');
-            let detailsText = row.querySelector('.search-target-details').textContent.toLowerCase().replace(/\s+/g, '');
-            
-            let combinedText = reelNumber + actionText + detailsText;
+        } else if (row.classList.contains('usage-row')) {
+            let rNo = row.querySelector('.search-target-number').textContent.toLowerCase().replace(/\s+/g, '');
+            let act = row.querySelector('.search-target-action').textContent.toLowerCase();
+            let det = row.querySelector('.search-target-details').textContent.toLowerCase();
+            let combinedText = rNo + act + det;
 
-            if (filterText === '') {
-                isMatch = true;
-            } else if (reelNumber.includes(filterText)) {
-                isMatch = true;
-            } else {
+            if (filterText === '') isMatch = true;
+            else if (rNo.includes(filterText)) isMatch = true;
+            else {
                 let allTokensMatch = true;
-                for (let i = 0; i < tokens.length; i++) {
-                    if (!combinedText.includes(tokens[i])) {
-                        allTokensMatch = false;
-                        break;
-                    }
-                }
+                tokens.forEach(tok => { if (!combinedText.includes(tok)) allTokensMatch = false; });
                 isMatch = allTokensMatch;
             }
         }
         
-        // Row එක පෙන්නුම් කිරීම සහ බර එකතු කිරීම
         if (isMatch) {
             row.style.display = '';
-            
-            let weightCell = row.querySelector('.search-target-weight');
-            let weightVal = parseFloat(weightCell.getAttribute('data-weight')) || 0;
-            
-            if (row.classList.contains('finished-row')) {
-                currentFinishedCount++;
-                currentFinishedWeight += weightVal;
-            } else if (row.classList.contains('usage-row')) {
-                currentUsageCount++;
-                currentUsageWeight += weightVal;
-            }
+            let wVal = parseFloat(row.querySelector('.search-target-weight').getAttribute('data-weight')) || 0;
+            if (row.classList.contains('finished-row')) { cFinCount++; cFinWeight += wVal; }
+            else { cUseCount++; cUseWeight += wVal; }
         } else {
             row.style.display = 'none';
         }
     });
     
-    // HTML Elements වල අගයන් සජීවීව වෙනස් කිරීම (Live DOM Update)
-    document.getElementById('displayFinishedCount').innerText = currentFinishedCount;
-    document.getElementById('displayFinishedWeight').innerText = currentFinishedWeight.toFixed(2);
-    document.getElementById('tabFinishedCount').innerText = currentFinishedCount;
-    
-    document.getElementById('displayUsageCount').innerText = currentUsageCount;
-    document.getElementById('displayUsageWeight').innerText = currentUsageWeight.toFixed(2);
-    document.getElementById('tabUsageCount').innerText = currentUsageCount;
+    document.getElementById('displayFinishedCount').innerText = cFinCount;
+    document.getElementById('displayFinishedWeight').innerText = cFinWeight.toFixed(2);
+    document.getElementById('tabFinishedCount').innerText = cFinCount;
+    document.getElementById('displayUsageCount').innerText = cUseCount;
+    document.getElementById('displayUsageWeight').innerText = cUseWeight.toFixed(2);
+    document.getElementById('tabUsageCount').innerText = cUseCount;
 });
 </script>
-
 {% endblock %}
