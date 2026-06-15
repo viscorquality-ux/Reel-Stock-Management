@@ -3,62 +3,60 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stock Management System</title>
+    <title>Raw Material Management System</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
-    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
     <style>
-        /* Print කරන විට Menu සහ Buttons Print වීම වැලැක්වීම */
-        @media print {
-            .no-print { display: none !important; }
-        }
         body { background-color: #f8f9fa; }
+        .navbar-brand { font-weight: 800; letter-spacing: 0.5px; }
+        .fw-black { font-weight: 900; }
     </style>
 </head>
 <body>
-
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4 shadow-sm no-print">
-        <div class="container-fluid">
-            <a class="navbar-brand fw-bold text-primary" href="/dashboard"><i class="bi bi-box-seam"></i> Viscor System</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('dashboard') }}"><i class="bi bi-cpu-fill text-warning"></i> CORE-STOCK</a>
+            <button class="navbar-brand border-0 bg-transparent navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <div class="navbar-nav me-auto">
-                    <a class="nav-link text-white" href="/dashboard"><i class="bi bi-speedometer2"></i> Dashboard</a>
-                    <a class="nav-link text-white" href="/add_stock"><i class="bi bi-plus-circle"></i> Add Stock</a>
-                    <a class="nav-link text-white" href="/active_stock"><i class="bi bi-boxes"></i> Active Stock</a>
-                    <a class="nav-link text-white" href="/issued_stock"><i class="bi bi-truck"></i> Issued Stock</a>
-                    <a class="nav-link text-white" href="/finished_usage_stock"><i class="bi bi-check-circle"></i> Finished & Usage</a>
-                    <a class="nav-link text-white" href="/damage_sell_stock"><i class="bi bi-trash"></i> Damage & Sell Stock</a>
-                    <a class="nav-link text-white" href="/viscor_issue"><i class="bi bi-shield-check"></i> Viscor Issue</a>
-                    
-                </div>
-                
-                <div class="navbar-nav ms-auto">
-                    <a class="nav-link text-danger fw-bold" href="/logout"><i class="bi bi-box-arrow-right"></i> Logout</a>
+            <div class="collapse navbar-collapse" id="mainNav">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    {% if session.get('role') %}
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('dashboard') }}"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('active_stock') }}"><i class="bi bi-layers"></i> Active Stock</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('add_stock') }}"><i class="bi bi-plus-square"></i> Add Entries</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('viscor_issue') }}"><i class="bi bi-arrow-left-right"></i> Viscor Transit</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('issued_stock') }}"><i class="bi bi-clipboard-check"></i> Issued Floors</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('finished_usage_stock') }}"><i class="bi bi-check2-all"></i> Finished & Usage</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('damage_sell_stock') }}"><i class="bi bi-shield-exclamation"></i> Non-Active Inventory</a></li>
+                    {% endif %}
+                </ul>
+                <div class="d-flex align-items-center">
+                    {% if session.get('role') %}
+                        <span class="text-white-50 me-3 fw-bold"><i class="bi bi-person-circle"></i> {{ session.get('username') }}</span>
+                        <a href="{{ url_for('logout') }}" class="btn btn-sm btn-outline-danger fw-bold"><i class="bi bi-box-arrow-right"></i> Logout</a>
+                    {% else %}
+                        <a href="{{ url_for('login') }}" class="btn btn-sm btn-outline-light fw-bold"><i class="bi bi-box-arrow-in-right"></i> Login System</a>
+                    {% endif %}
                 </div>
             </div>
         </div>
     </nav>
 
-    <div class="container no-print">
+    <div class="container py-2 mt-2">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
-                    <div class="alert alert-{{ 'success' if category == 'success' else ('warning' if category == 'warning' else 'info') }} alert-dismissible fade show shadow-sm" role="alert">
-                        <i class="bi bi-info-circle-fill me-2"></i> {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    <div class="alert alert-{{ category if category != 'error' else 'danger' }} alert-dismissible fade show text-center py-2" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     </div>
                 {% endfor %}
             {% endif %}
         {% endwith %}
     </div>
 
-    <div class="container pb-5">
-        {% block content %}
-        {% endblock %}
-    </div>
+    {% block content %}{% endblock %}
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
