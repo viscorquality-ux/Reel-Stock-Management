@@ -1,83 +1,51 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 {% block content %}
-
-<div class="container mt-5">
-    <div class="card shadow border-0 mx-auto" style="max-width: 420px;">
-        <div class="card-header bg-dark text-white text-center py-4">
-            <h4 class="mb-1 fw-bold"><i class="bi bi-shield-lock"></i> System Login</h4>
-            <!-- දැනට ලොග් වී සිටින පරිශීලකයෙක් ඇත්නම් ඔහුගේ නම මෙතැන පෙන්වයි -->
-            {% if session.get('username') %}
-                <small class="text-info fw-bold">Currently Active: {{ session.get('username') }}</small>
-            {% else %}
-                <small class="text-muted">Enter your credentials to access</small>
+<div class="d-flex align-items-center justify-content-center" style="height: 80vh;">
+    <div class="card p-4 shadow-lg border-0" style="width: 350px;">
+        <h3 class="text-center text-primary mb-4"><b>Stock Management</b><br><small class="text-muted fs-6">Smart System Login</small></h3>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category if category != 'error' else 'danger' }} py-2" role="alert">
+                        <small>{{ message }}</small>
+                    </div>
+                {% endfor %}
             {% endif %}
-        </div>
-        <div class="card-body p-4">
-            
-            <!-- දෝෂ පණිවිඩ පෙන්වීම (Flash Messages) -->
-            {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    {% for category, message in messages %}
-                        <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show text-center py-2 mb-3 fs-6" role="alert">
-                            {{ message }}
-                            <button type="button" class="btn-close shadow-none" data-bs-dismiss="alert" aria-label="Close" style="padding: 0.8rem;"></button>
-                        </div>
-                    {% endfor %}
-                {% endif %}
-            {% endwith %}
+        {% endwith %}
 
-            <form action="{{ url_for('login') }}" method="POST" id="loginForm">
-                
-                <!-- Username Input (සජීවීව නම පෙන්වීම සඳහා Input Event එකක් දමා ඇත) -->
-                <div class="mb-3">
-                    <label for="username" class="form-label fw-bold mb-1">Username</label>
-                    <div class="input-group">
-                        <span class="input-group-text bg-light"><i class="bi bi-person"></i></span>
-                        <input type="text" class="form-control" id="username" name="username" placeholder="Type Username..." required autofocus>
-                    </div>
+        <form action="/login_submit" method="POST">
+            <div class="mb-3">
+                <label class="form-label fw-bold">Username</label>
+                <input type="text" name="username" class="form-control" placeholder="Enter Username (ex: dataop1)" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-bold">Password</label>
+                <div class="input-group">
+                    <input type="password" name="password" id="passwordField" class="form-control" placeholder="Password" required>
+                    <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                        <i class="bi bi-eye" id="eyeIcon"></i>
+                    </button>
                 </div>
-
-                <!-- Password Input -->
-                <div class="mb-4">
-                    <label for="password" class="form-label fw-bold mb-1">Password</label>
-                    <div class="input-group">
-                        <span class="input-group-text bg-light"><i class="bi bi-key"></i></span>
-                        <input type="password" class="form-control" id="password" name="password" placeholder="••••••••" required>
-                    </div>
-                </div>
-
-                <!-- Live User Greeting (Type කරන විට සජීවීව නම පෙන්වන කොටස) -->
-                <div id="liveGreeting" class="text-center mb-3 text-secondary fw-bold" style="display: none; min-height: 24px;">
-                    Hello, <span id="typedUser" class="text-dark"></span>! 👋
-                </div>
-
-                <!-- Login Button -->
-                <div class="d-grid">
-                    <button type="submit" class="btn btn-dark fw-bold py-2"><i class="bi bi-box-arrow-in-right"></i> Login to System</button>
-                </div>
-
-            </form>
-        </div>
+            </div>
+            <button type="submit" class="btn btn-primary w-100 fw-bold">Secure Login</button>
+        </form>
     </div>
 </div>
 
-<!-- JavaScript මඟින් පරිශීලකයා නම Type කරන විට එය සජීවීව පෙන්වීම (Interactive Experience) -->
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    let usernameInput = document.getElementById('username');
-    let liveGreeting = document.getElementById('liveGreeting');
-    let typedUser = document.getElementById('typedUser');
-
-    usernameInput.addEventListener('input', function() {
-        let currentName = this.value.trim();
-        if (currentName.length > 0) {
-            typedUser.innerText = currentName;
-            liveGreeting.style.display = 'block';
+    // Show/Hide Password Toggle Logic
+    document.getElementById('togglePassword').addEventListener('click', function () {
+        const passwordInput = document.getElementById('passwordField');
+        const icon = document.getElementById('eyeIcon');
+        
+        if (passwordInput.type === 'password') {
+            passwordInput.type = 'text';
+            icon.classList.replace('bi-eye', 'bi-eye-slash');
         } else {
-            liveGreeting.style.display = 'none';
+            passwordInput.type = 'password';
+            icon.classList.replace('bi-eye-slash', 'bi-eye');
         }
     });
-});
 </script>
-
 {% endblock %}
