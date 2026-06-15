@@ -6,7 +6,7 @@ import pytz
 app = Flask(__name__)
 app.secret_key = 'viscor_packwell_ultimate_secure_key'
 
-# DATABASE CONFIGURATION WITH SSL
+# DATABASE CONFIGURATION
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://avnadmin:AVNS_gHRTw4Hzio_XlhXcm7d@mysql-3e9936af-viscorquality-0270.g.aivencloud.com:28643/defaultdb'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = { "connect_args": { "ssl": {} } }
@@ -20,7 +20,7 @@ class SmartRole(str):
         return self.lower().replace(" ", "") == other.lower().replace(" ", "")
     def __ne__(self, other): return not self.__eq__(other)
 
-# DATABASE MODELS
+# MODELS
 class Reel(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     reel_number = db.Column(db.String(100), unique=True, nullable=False)
@@ -187,11 +187,17 @@ def issue_reel(id):
     doc_type = request.form.get('doc_type')
     doc_number = request.form.get('doc_number')
     send_to_viscor = request.form.get('send_to_viscor')
+    return_to_packwell = request.form.get('return_to_packwell')
 
     if doc_type == 'SR': reel.sr_number = doc_number
     else: reel.gate_pass_number = doc_number
 
-    if send_to_viscor == 'yes':
+    if return_to_packwell == 'yes':
+        # Encoding original state into temporary routing status
+        reel.status = 'Pending Packwell Full' if reel.status == 'Full Reel' else 'Pending Packwell Used'
+        db.session.add(ReelHistory(reel_id=reel.id, usage_details=f"Returned back to Packwell via {doc_type}: {doc_number}", action_type='RETURN_TRANSIT'))
+        flash(f'Reel {reel.reel_number} returned to Packwell. Pending dataop2 acceptance.', 'warning')
+    elif send_to_viscor == 'yes':
         reel.status = 'Pending Viscor'
         db.session.add(ReelHistory(reel_id=reel.id, usage_details=f"Sent to Viscor Lanka via {doc_type}: {doc_number}", action_type='TRANSIT'))
         flash(f'Reel {reel.reel_number} sent to Viscor Lanka. Pending verification.', 'info')
@@ -206,8 +212,9 @@ def issue_reel(id):
 @app.route('/viscor_issue')
 def viscor_issue():
     user_role = session.get('role')
-    reels = Reel.query.filter_by(status='Pending Viscor').all()
-    return render_template('viscor_issue.html', reels=reels, user_role=user_role)
+    viscor_reels = Reel.query.filter_by(status='Pending Viscor').all()
+    packwell_reels = Reel.query.filter(Reel.status.in_(['Pending Packwell Full', 'Pending Packwell Used'])).all()
+    return render_template('viscor_issue.html', reels=viscor_reels, packwell_reels=packwell_reels, user_role=user_role)
 
 @app.route('/accept_viscor/<int:id>', methods=['POST'])
 def accept_viscor(id):
@@ -235,6 +242,38 @@ def reject_viscor(id):
     db.session.add(ReelHistory(reel_id=reel.id, usage_details="Unaccepted & Returned to Packwell", action_type='REJECTED'))
     db.session.commit()
     flash(f'Reel {reel.reel_number} was Unaccepted and returned to Packwell.', 'warning')
+    return redirect(url_for('viscor_issue'))
+
+@app.route('/accept_packwell/<int:id>', methods=['POST'])
+def accept_packwell(id):
+    if session.get('role') != 'dataop2' and session.get('role') != 'admin':
+        flash('Unauthorized Action.', 'danger')
+        return redirect(url_for('viscor_issue'))
+        
+    reel = Reel.query.get_or_404(id)
+    selected_location = request.form.get('store_location')
+    stock_type = request.form.get('stock_type', 'Full Reel')
+    
+    reel.status = stock_type
+    reel.store_location = selected_location
+    
+    db.session.add(ReelHistory(reel_id=reel.id, usage_details=f"Accepted back to Packwell at {selected_location} as {stock_type}", action_type='RETURN_ACCEPTED'))
+    db.session.commit()
+    flash(f'Reel {reel.reel_number} successfully accepted into {selected_location} active stock.', 'success')
+    return redirect(url_for('viscor_issue'))
+
+@app.route('/reject_packwell/<int:id>', methods=['POST'])
+def reject_packwell(id):
+    if session.get('role') != 'dataop2' and session.get('role') != 'admin':
+        flash('Unauthorized Action.', 'danger')
+        return redirect(url_for('viscor_issue'))
+        
+    reel = Reel.query.get_or_404(id)
+    reel.status = 'Full Reel' if 'Full' in reel.status else 'Used Reel'
+    reel.store_location = 'Viscor Lanka'
+    db.session.add(ReelHistory(reel_id=reel.id, usage_details="Return rejected by Packwell, sent back to Viscor Lanka", action_type='RETURN_REJECTED'))
+    db.session.commit()
+    flash(f'Returned Reel {reel.reel_number} was rejected and sent back to Viscor Lanka.', 'warning')
     return redirect(url_for('viscor_issue'))
 
 @app.route('/issue_damaged_reel/<int:id>', methods=['POST'])
