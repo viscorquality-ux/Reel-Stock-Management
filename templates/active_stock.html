@@ -1,33 +1,52 @@
 {% extends 'base.html' %}
 {% block content %}
-
 <div class="container mt-4">
-    <div class="row mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="text-secondary fw-bold mb-0"><i class="bi bi-layers"></i> Active Raw Material Stock</h2>
+        
+        <!-- Requirement 3: Super 1 & Super 2 Location Filter -->
+        {% if session.get('role') in ['super1', 'super2', 'admin'] %}
+        <form method="GET" action="{{ url_for('active_stock') }}" class="d-flex align-items-center gap-2 bg-light p-2 rounded shadow-sm border">
+            <label class="fw-bold text-dark mb-0 text-nowrap"><i class="bi bi-funnel"></i> Filter Location:</label>
+            <select name="location" class="form-select form-select-sm" onchange="this.form.submit()">
+                <option value="">All Locations</option>
+                {% for loc in locations %}
+                    <option value="{{ loc }}" {% if selected_loc == loc %}selected{% endif %}>{{ loc }}</option>
+                {% endfor %}
+            </select>
+        </form>
+        {% endif %}
+    </div>
+
+    <!-- Calculations Summaries Grid -->
+    <div class="row g-3 mb-4">
         <div class="col-md-6">
-            <div class="card bg-light shadow-sm border-0">
+            <div class="card bg-success text-white shadow border-0">
                 <div class="card-body">
-                    <h5 class="text-success fw-bold"><i class="bi bi-box-seam"></i> Total Full Reels</h5>
-                    <div class="d-flex justify-content-between align-items-center mt-2">
+                    <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <span class="fs-4 fw-bold text-dark" id="displayFullCount">{{ total_full_count if total_full_count else 0 }}</span> <small class="text-muted">Reels</small>
+                            <h6 class="text-uppercase mb-1 fw-bold">Full Reels Total</h6>
+                            <h3 class="mb-0 fw-black"><span id="sumFullCount">{{ total_full_count }}</span> <span class="fs-6 fw-normal">Items</span></h3>
                         </div>
-                        <div>
-                            <span class="fs-4 fw-bold text-dark" id="displayFullWeight">{{ "%.2f"|format(total_full_weight if total_full_weight else 0.0) }}</span> <small class="text-muted">kg</small>
+                        <div class="text-end">
+                            <i class="bi bi-box-seam fs-1 opacity-50"></i>
+                            <h4 class="mb-0 fw-bold mt-2"><span id="sumFullWeight">{{ "%.2f"|format(total_full_weight) }}</span> <span class="fs-6 fw-normal">kg</span></h4>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
         <div class="col-md-6">
-            <div class="card bg-light shadow-sm border-0">
+            <div class="card bg-warning text-dark shadow border-0">
                 <div class="card-body">
-                    <h5 class="text-info fw-bold"><i class="bi bi-scissors"></i> Total Used/Partial Reels</h5>
-                    <div class="d-flex justify-content-between align-items-center mt-2">
+                    <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <span class="fs-4 fw-bold text-dark" id="displayUsedCount">{{ total_used_count if total_used_count else 0 }}</span> <small class="text-muted">Reels</small>
+                            <h6 class="text-uppercase mb-1 fw-bold">Used Reels Total</h6>
+                            <h3 class="mb-0 fw-black"><span id="sumUsedCount">{{ total_used_count }}</span> <span class="fs-6 fw-normal">Items</span></h3>
                         </div>
-                        <div>
-                            <span class="fs-4 fw-bold text-dark" id="displayUsedWeight">{{ "%.2f"|format(total_used_weight if total_used_weight else 0.0) }}</span> <small class="text-muted">kg</small>
+                        <div class="text-end">
+                            <i class="bi bi-scissors fs-1 opacity-50"></i>
+                            <h4 class="mb-0 fw-bold mt-2"><span id="sumUsedWeight">{{ "%.2f"|format(total_used_weight) }}</span> <span class="fs-6 fw-normal">kg</span></h4>
                         </div>
                     </div>
                 </div>
@@ -35,386 +54,179 @@
         </div>
     </div>
 
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="input-group shadow-sm">
-                <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
-                <input type="text" id="reelSearchInput" class="form-control border-start-0 ps-0" placeholder="Type continuously: SizeGSMName (e.g., 100140BoxBoard) or Reel Number...">
-            </div>
+    <!-- Search input -->
+    <div class="mb-4">
+        <input type="text" id="liveSearchInput" class="form-control shadow-sm" placeholder="Search by continuous typing: SizeGSMName (e.g. 100140Kraft) or Reel Number...">
+    </div>
+
+    <!-- Full Reels Table -->
+    <div class="card shadow border-0 mb-5">
+        <div class="card-header bg-success text-white fw-bold"><i class="bi bi-grid-3x3-gap"></i> Full Reels List</div>
+        <div class="table-responsive">
+            <table class="table table-striped align-middle mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Reel No</th><th>Material</th><th>Paper Name</th><th>Size</th><th>GSM</th><th>Weight</th><th>Location</th><th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="fullReelsBody">
+                    {% for reel in full_reels %}
+                    <tr class="reel-row" data-type="full">
+                        <td class="fw-bold r-no">{{ reel.reel_number }}</td>
+                        <td class="r-mat">{{ reel.paper_name }}</td>
+                        <td class="r-pname">{{ reel.reel_type }}</td>
+                        <td class="r-size" data-val="{{ reel.size_cm }}">{{ reel.size_cm }} cm</td>
+                        <td class="r-gsm" data-val="{{ reel.gsm }}">{{ reel.gsm }}</td>
+                        <td class="fw-bold text-success r-weight" data-val="{{ reel.weight_kg }}">{{ reel.weight_kg }} kg</td>
+                        <td>{{ reel.store_location }}</td>
+                        <td>
+                            <button class="btn btn-sm btn-dark fw-bold" data-bs-toggle="modal" data-bs-target="#issueModal{{ reel.id }}"><i class="bi bi-send"></i> Issue</button>
+                            <button class="btn btn-sm btn-danger fw-bold" data-bs-toggle="modal" data-bs-target="#damageModal{{ reel.id }}"><i class="bi bi-exclamation-triangle"></i> Damage/Sell</button>
+                        </td>
+                    </tr>
+
+                    <!-- Issue Modal -->
+                    <div class="modal fade" id="issueModal{{ reel.id }}" {{"data-bs-backdrop=static data-bs-keyboard=false" if session.get('role') == 'dataop2'}}>
+                        <div class="modal-content mx-auto my-5 p-4 border-0 shadow" style="max-width:450px; border-radius:12px;">
+                            <h5 class="fw-bold mb-3 text-dark"><i class="bi bi-send-fill text-primary"></i> Issue Reel: {{ reel.reel_number }}</h5>
+                            <form action="{{ url_for('issue_reel', id=reel.id) }}" method="POST">
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Document Type</label>
+                                    <select name="doc_type" class="form-select" required>
+                                        <option value="Gate Pass">Gate Pass</option>
+                                        <option value="SR">SR Number</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Document Number</label>
+                                    <input type="text" name="doc_number" class="form-control" required placeholder="Enter Document Reference...">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Send to Viscor Lanka?</label>
+                                    <select name="send_to_viscor" class="form-select" required>
+                                        <option value="no">No (Direct Dispatch)</option>
+                                        <option value="yes">Yes (Transfer to Viscor Status)</option>
+                                    </select>
+                                </div>
+                                <div class="d-flex gap-2 justify-content-end mt-4">
+                                    <button type="button" class="btn btn-light border fw-bold" data-bs-dismiss="modal">Cancel</button>
+                                    <button type="submit" class="btn btn-primary fw-bold">Confirm Transfer</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Damage/Sell Modal -->
+                    <div class="modal fade" id="damageModal{{ reel.id }}">
+                        <div class="modal-content mx-auto my-5 p-4 border-0 shadow" style="max-width:450px;">
+                            <h5 class="fw-bold mb-3 text-danger"><i class="bi bi-exclamation-octagon-fill"></i> Flag Non-Active Status</h5>
+                            <form action="{{ url_for('mark_damage_sell', id=reel.id) }}" method="POST">
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Select Categorization</label>
+                                    <select name="status_type" class="form-select" required>
+                                        <option value="Damaged">Damaged Reel</option>
+                                        <option value="Sold">Sold / Disposed Out</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Reason & Approval Remarks</label>
+                                    <textarea name="notes" class="form-control" rows="3" required placeholder="Add internal tracking notes..."></textarea>
+                                </div>
+                                <div class="d-flex gap-2 justify-content-end mt-4">
+                                    <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Close</button>
+                                    <button type="submit" class="btn btn-danger fw-bold">Apply Flag</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 
-    <ul class="nav nav-tabs mb-3" id="stockTabs" role="tablist">
-        <li class="nav-item" role="presentation">
-            <button class="nav-link active fw-bold text-success" id="full-reels-tab" data-bs-toggle="tab" data-bs-target="#full-reels" type="button" role="tab">
-                Full Reels (<span id="tabFullCount">{{ full_reels|length if full_reels else 0 }}</span>)
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link fw-bold text-info" id="used-reels-tab" data-bs-toggle="tab" data-bs-target="#used-reels" type="button" role="tab">
-                Partially Used Reels (<span id="tabUsedCount">{{ used_reels|length if used_reels else 0 }}</span>)
-            </button>
-        </li>
-    </ul>
-
-    <div class="tab-content" id="stockTabsContent">
-        <div class="tab-pane fade show active" id="full-reels" role="tabpanel">
-            <div class="card shadow-sm border-0">
-                <div class="table-responsive">
-                    <table class="table table-striped table-hover align-middle mb-0" id="fullReelsTable">
-                        <thead class="table-dark">
-                            <tr>
-                                <th>Reel Number</th>
-                                <th>Material Name</th>
-                                <th>Size (cm)</th>
-                                <th>Weight (kg)</th>
-                                <th>GSM</th>
-                                <th>Location</th>
-                                <th class="text-center">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% if full_reels %}
-                                {% for reel in full_reels %}
-                                <tr class="reel-row full-reel-row">
-                                    <td class="fw-bold search-target-number">{{ reel.reel_number }}</td>
-                                    <td class="search-target-name">{{ reel.paper_name }}</td>
-                                    <td class="search-target-size">{{ reel.size_cm }}</td>
-                                    <td class="search-target-weight" data-weight="{{ reel.weight_kg }}">{{ reel.weight_kg }} kg</td>
-                                    <td class="search-target-gsm">{{ reel.gsm if reel.gsm else '0' }}</td>
-                                    <td><span class="badge bg-secondary">{{ reel.store_location }}</span></td>
-                                    <td class="text-center">
-                                        <div class="btn-group gap-1">
-                                            <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#issueModal{{ reel.id }}">Issue</button>
-                                            <button type="button" class="btn btn-warning btn-sm text-dark fw-bold" data-bs-toggle="modal" data-bs-target="#sellDamageModal{{ reel.id }}">Sell/Damage</button>
-                                            <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteModal{{ reel.id }}">Delete</button>
-                                        </div>
-
-                                        <div class="modal fade text-start" id="issueModal{{ reel.id }}" tabindex="-1" aria-hidden="true">
-                                            <div class="modal-dialog">
-                                                <div class="modal-content">
-                                                    <div class="modal-header bg-success text-white">
-                                                        <h5 class="modal-title">Issue Reel: {{ reel.reel_number }}</h5>
-                                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                                                    </div>
-                                                    <form action="{{ url_for('issue_reel', id=reel.id) }}" method="POST">
-                                                        <div class="modal-body">
-                                                            <div class="mb-3">
-                                                                <label class="form-label fw-bold">Document Type</label>
-                                                                <select class="form-select" name="doc_type" required>
-                                                                    <option value="Gate Pass">Gate Pass</option>
-                                                                    <option value="SR">SR Number</option>
-                                                                </select>
-                                                            </div>
-                                                            <div class="mb-3">
-                                                                <label class="form-label fw-bold">Document Number / Reference</label>
-                                                                <input type="text" class="form-control" name="doc_number" required placeholder="Enter reference code">
-                                                            </div>
-                                                        </div>
-                                                        <div class="modal-footer">
-                                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                                            <button type="submit" class="btn btn-success">Confirm Issue</button>
-                                                        </div>
-                                                    </form>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div class="modal fade text-start" id="sellDamageModal{{ reel.id }}" tabindex="-1" aria-hidden="true">
-                                            <div class="modal-dialog">
-                                                <div class="modal-content">
-                                                    <div class="modal-header bg-warning text-dark">
-                                                        <h5 class="modal-title fw-bold">Sell or Damage Reel: {{ reel.reel_number }}</h5>
-                                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                                    </div>
-                                                    <form id="actionForm{{ reel.id }}" action="{{ url_for('sell_reel', id=reel.id) }}" method="POST">
-                                                        <div class="modal-body">
-                                                            <div class="mb-3">
-                                                                <label class="form-label fw-bold">Action Type</label>
-                                                                <select class="form-select border-dark" id="actionType{{ reel.id }}" onchange="updateActionModal('{{ reel.id }}', '{{ url_for('sell_reel', id=reel.id) }}', '{{ url_for('damage_reel', id=reel.id) }}')">
-                                                                    <option value="sell">Sell Item</option>
-                                                                    <option value="damage">Mark as Damage</option>
-                                                                </select>
-                                                            </div>
-                                                            <div class="mb-3">
-                                                                <label class="form-label fw-bold" id="actionLabel{{ reel.id }}">Invoice / Reference Number</label>
-                                                                <input type="text" class="form-control" id="actionInput{{ reel.id }}" name="invoice_number" required placeholder="Enter Invoice Number">
-                                                            </div>
-                                                        </div>
-                                                        <div class="modal-footer">
-                                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                                            <button type="submit" id="actionBtn{{ reel.id }}" class="btn btn-warning fw-bold">Confirm Sell</button>
-                                                        </div>
-                                                    </form>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div class="modal fade text-start" id="deleteModal{{ reel.id }}" tabindex="-1" aria-hidden="true">
-                                            <div class="modal-dialog">
-                                                <div class="modal-content">
-                                                    <div class="modal-header bg-danger text-white">
-                                                        <h5 class="modal-title">Delete Reel: {{ reel.reel_number }}</h5>
-                                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                                                    </div>
-                                                    <form action="{{ url_for('delete_reel', id=reel.id) }}" method="POST">
-                                                        <div class="modal-body">
-                                                            <p class="text-danger fw-bold">ප්‍රවේශම් වන්න! මෙම රීල් එක පද්ධතියෙන් සම්පූර්ණයෙන්ම මැකී යනු ඇත.</p>
-                                                            <p>ඔබට මෙය මැකීමට අවශ්‍ය බව ස්ථිරද?</p>
-                                                        </div>
-                                                        <div class="modal-footer">
-                                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">No</button>
-                                                            <button type="submit" class="btn btn-danger">Yes, Delete</button>
-                                                        </div>
-                                                    </form>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            {% else %}
-                                <tr><td colspan="7" class="text-center text-muted">No full reels available.</td></tr>
-                            {% endif %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <div class="tab-pane fade" id="used-reels" role="tabpanel">
-            <div class="card shadow-sm border-0">
-                <div class="table-responsive">
-                    <table class="table table-striped table-hover align-middle mb-0" id="usedReelsTable">
-                        <thead class="table-dark">
-                            <tr>
-                                <th>Reel Number</th>
-                                <th>Material Name</th>
-                                <th>Size (cm)</th>
-                                <th>Current Weight (kg)</th>
-                                <th>GSM</th>
-                                <th>Location</th>
-                                <th class="text-center">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% if used_reels %}
-                                {% for reel in used_reels %}
-                                <tr class="reel-row used-reel-row">
-                                    <td class="fw-bold search-target-number">{{ reel.reel_number }}</td>
-                                    <td class="search-target-name">{{ reel.paper_name }}</td>
-                                    <td class="search-target-size">{{ reel.size_cm }}</td>
-                                    <td class="fw-bold text-info search-target-weight" data-weight="{{ reel.weight_kg }}">{{ reel.weight_kg }} kg</td>
-                                    <td class="search-target-gsm">{{ reel.gsm if reel.gsm else '0' }}</td>
-                                    <td><span class="badge bg-secondary">{{ reel.store_location }}</span></td>
-                                    <td class="text-center">
-                                        <div class="btn-group gap-1">
-                                            <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#issueModalUsed{{ reel.id }}">Issue</button>
-                                            <button type="button" class="btn btn-warning btn-sm text-dark fw-bold" data-bs-toggle="modal" data-bs-target="#sellDamageModalUsed{{ reel.id }}">Sell/Damage</button>
-                                            <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteModalUsed{{ reel.id }}">Delete</button>
-                                        </div>
-
-                                        <div class="modal fade text-start" id="issueModalUsed{{ reel.id }}" tabindex="-1" aria-hidden="true">
-                                            <div class="modal-dialog">
-                                                <div class="modal-content">
-                                                    <div class="modal-header bg-success text-white">
-                                                        <h5 class="modal-title">Issue Partial Reel: {{ reel.reel_number }}</h5>
-                                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                                                    </div>
-                                                    <form action="{{ url_for('issue_reel', id=reel.id) }}" method="POST">
-                                                        <div class="modal-body">
-                                                            <div class="mb-3">
-                                                                <label class="form-label fw-bold">Document Type</label>
-                                                                <select class="form-select" name="doc_type" required>
-                                                                    <option value="Gate Pass">Gate Pass</option>
-                                                                    <option value="SR">SR Number</option>
-                                                                </select>
-                                                            </div>
-                                                            <div class="mb-3">
-                                                                <label class="form-label fw-bold">Document Number / Reference</label>
-                                                                <input type="text" class="form-control" name="doc_number" required placeholder="Enter reference code">
-                                                            </div>
-                                                        </div>
-                                                        <div class="modal-footer">
-                                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                                            <button type="submit" class="btn btn-success">Confirm Issue</button>
-                                                        </div>
-                                                    </form>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div class="modal fade text-start" id="sellDamageModalUsed{{ reel.id }}" tabindex="-1" aria-hidden="true">
-                                            <div class="modal-dialog">
-                                                <div class="modal-content">
-                                                    <div class="modal-header bg-warning text-dark">
-                                                        <h5 class="modal-title fw-bold">Sell or Damage Partial Reel: {{ reel.reel_number }}</h5>
-                                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                                    </div>
-                                                    <form id="actionForm{{ reel.id }}" action="{{ url_for('sell_reel', id=reel.id) }}" method="POST">
-                                                        <div class="modal-body">
-                                                            <div class="mb-3">
-                                                                <label class="form-label fw-bold">Action Type</label>
-                                                                <select class="form-select border-dark" id="actionType{{ reel.id }}" onchange="updateActionModal('{{ reel.id }}', '{{ url_for('sell_reel', id=reel.id) }}', '{{ url_for('damage_reel', id=reel.id) }}')">
-                                                                    <option value="sell">Sell Item</option>
-                                                                    <option value="damage">Mark as Damage</option>
-                                                                </select>
-                                                            </div>
-                                                            <div class="mb-3">
-                                                                <label class="form-label fw-bold" id="actionLabel{{ reel.id }}">Invoice / Reference Number</label>
-                                                                <input type="text" class="form-control" id="actionInput{{ reel.id }}" name="invoice_number" required placeholder="Enter Invoice Number">
-                                                            </div>
-                                                        </div>
-                                                        <div class="modal-footer">
-                                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                                            <button type="submit" id="actionBtn{{ reel.id }}" class="btn btn-warning fw-bold">Confirm Sell</button>
-                                                        </div>
-                                                    </form>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div class="modal fade text-start" id="deleteModalUsed{{ reel.id }}" tabindex="-1" aria-hidden="true">
-                                            <div class="modal-dialog">
-                                                <div class="modal-content">
-                                                    <div class="modal-header bg-danger text-white">
-                                                        <h5 class="modal-title">Delete Partial Reel: {{ reel.reel_number }}</h5>
-                                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                                                    </div>
-                                                    <form action="{{ url_for('delete_reel', id=reel.id) }}" method="POST">
-                                                        <div class="modal-body">
-                                                            <p class="text-danger fw-bold">ප්‍රවේශම් වන්න! මෙම රීල් එක පද්ධතියෙන් සම්පූර්ණයෙන්ම මැකී යනු ඇත.</p>
-                                                            <p>ඔබට මෙය මැකීමට අවශ්‍ය බව ස්ථිරද?</p>
-                                                        </div>
-                                                        <div class="modal-footer">
-                                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">No</button>
-                                                            <button type="submit" class="btn btn-danger">Yes, Delete</button>
-                                                        </div>
-                                                    </form>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            {% else %}
-                                <tr><td colspan="7" class="text-center text-muted">No partially used reels available.</td></tr>
-                            {% endif %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+    <!-- Used Reels Table -->
+    <div class="card shadow border-0">
+        <div class="card-header bg-warning text-dark fw-bold"><i class="bi bi-scissors"></i> Used / Partial Reels List</div>
+        <div class="table-responsive">
+            <table class="table table-striped align-middle mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Reel No</th><th>Material</th><th>Paper Name</th><th>Size</th><th>GSM</th><th>Balance Weight</th><th>Location</th><th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="usedReelsBody">
+                    {% for reel in used_reels %}
+                    <tr class="reel-row" data-type="used">
+                        <td class="fw-bold r-no">{{ reel.reel_number }}</td>
+                        <td class="r-mat">{{ reel.paper_name }}</td>
+                        <td class="r-pname">{{ reel.reel_type }}</td>
+                        <td class="r-size" data-val="{{ reel.size_cm }}">{{ reel.size_cm }} cm</td>
+                        <td class="r-gsm" data-val="{{ reel.gsm }}">{{ reel.gsm }}</td>
+                        <td class="fw-bold text-danger r-weight" data-val="{{ reel.weight_kg }}">{{ reel.weight_kg }} kg</td>
+                        <td>{{ reel.store_location }}</td>
+                        <td>
+                            <button class="btn btn-sm btn-dark fw-bold" data-bs-toggle="modal" data-bs-target="#issueModal{{ reel.id }}"><i class="bi bi-send"></i> Issue</button>
+                            <button class="btn btn-sm btn-danger fw-bold" data-bs-toggle="modal" data-bs-target="#damageModal{{ reel.id }}"><i class="bi bi-exclamation-triangle"></i> Damage/Sell</button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
 
 <script>
-document.getElementById('reelSearchInput').addEventListener('input', function() {
-    let filterText = this.value.toLowerCase().replace(/\s+/g, '');
+document.getElementById('liveSearchInput').addEventListener('input', function() {
+    let inputVal = this.value.toLowerCase().replace(/\s+/g, '');
     let rows = document.querySelectorAll('.reel-row');
-    let tokens = filterText.match(/\d+|[a-z]+/ig) || [];
-    
-    // සජීවීව ගණනය කිරීම සඳහා වේරියබල්ස් නිර්මාණය
-    let currentFullCount = 0;
-    let currentFullWeight = 0;
-    let currentUsedCount = 0;
-    let currentUsedWeight = 0;
-    
-    rows.forEach(function(row) {
-        let reelNumber = row.querySelector('.search-target-number').textContent.toLowerCase().replace(/\s+/g, '');
-        let paperName = row.querySelector('.search-target-name').textContent.toLowerCase().replace(/[^a-z0-9]/g, '');
+    let tokens = inputVal.match(/\d+|[a-z]+/ig) || [];
+
+    let fCount = 0, fWeight = 0, uCount = 0, uWeight = 0;
+
+    rows.forEach(row => {
+        let matched = false;
+        let rNo = row.querySelector('.r-no').textContent.toLowerCase().replace(/\s+/g, '');
+        let rMat = row.querySelector('.r-mat').textContent.toLowerCase().replace(/[^a-z0-9]/g, '');
+        let rPname = row.querySelector('.r-pname').textContent.toLowerCase().replace(/[^a-z0-9]/g, '');
         
-        let sizeText = row.querySelector('.search-target-size').textContent.replace(/[^\d.]/g, '');
-        let sizeNum = parseFloat(sizeText);
-        let size = isNaN(sizeNum) ? '' : sizeNum.toString().replace('.', ''); 
-        
-        let gsmText = row.querySelector('.search-target-gsm').textContent.replace(/[^\d.]/g, '');
-        let gsmNum = parseFloat(gsmText);
-        let gsm = isNaN(gsmNum) ? '' : gsmNum.toString().replace('.', '');
+        let size = parseFloat(row.querySelector('.r-size').getAttribute('data-val')).toString().replace('.', '');
+        let gsm = row.querySelector('.r-gsm').getAttribute('data-val');
+        let weight = parseFloat(row.querySelector('.r-weight').getAttribute('data-val')) || 0;
         
         let combinedNumbers = size + gsm;
-        let isMatch = false;
-        
-        if (filterText === '') {
-            isMatch = true;
-        } else if (reelNumber.includes(filterText)) {
-            isMatch = true;
+        let combinedText = rMat + rPname;
+
+        if (inputVal === '') {
+            matched = true;
+        } else if (rNo.includes(inputVal)) {
+            matched = true;
         } else if (tokens.length > 0) {
-            let allTokensMatch = true;
-            for (let i = 0; i < tokens.length; i++) {
-                let token = tokens[i];
+            let matchesAll = true;
+            tokens.forEach(token => {
                 if (/^\d+$/.test(token)) {
-                    if (!combinedNumbers.includes(token)) {
-                        allTokensMatch = false;
-                        break;
-                    }
+                    if (!combinedNumbers.includes(token)) matchesAll = false;
                 } else {
-                    if (!paperName.includes(token)) {
-                        allTokensMatch = false;
-                        break;
-                    }
+                    if (!combinedText.includes(token)) matchesAll = false;
                 }
-            }
-            isMatch = allTokensMatch;
+            });
+            matched = matchesAll;
         }
-        
-        // Row එක Filter වීමට අදාළ කොටස සහ බර ගණනය කිරීම
-        if (isMatch) {
+
+        if (matched) {
             row.style.display = '';
-            
-            // data-weight වෙතින් බර ලබා ගැනීම
-            let weightCell = row.querySelector('.search-target-weight');
-            let weightVal = parseFloat(weightCell.getAttribute('data-weight')) || 0;
-            
-            // Full ද Used ද කියා වෙන් කර Live එකතු කිරීම
-            if (row.classList.contains('full-reel-row')) {
-                currentFullCount++;
-                currentFullWeight += weightVal;
-            } else if (row.classList.contains('used-reel-row')) {
-                currentUsedCount++;
-                currentUsedWeight += weightVal;
-            }
+            if (row.getAttribute('data-type') === 'full') { fCount++; fWeight += weight; }
+            else { uCount++; uWeight += weight; }
         } else {
             row.style.display = 'none';
         }
     });
-    
-    // HTML Elements වල අගයන් සජීවීව වෙනස් කිරීම (Live DOM Update)
-    document.getElementById('displayFullCount').innerText = currentFullCount;
-    document.getElementById('displayFullWeight').innerText = currentFullWeight.toFixed(2);
-    document.getElementById('tabFullCount').innerText = currentFullCount;
-    
-    document.getElementById('displayUsedCount').innerText = currentUsedCount;
-    document.getElementById('displayUsedWeight').innerText = currentUsedWeight.toFixed(2);
-    document.getElementById('tabUsedCount').innerText = currentUsedCount;
+
+    document.getElementById('sumFullCount').innerText = fCount;
+    document.getElementById('sumFullWeight').innerText = fWeight.toFixed(2);
+    document.getElementById('sumUsedCount').innerText = uCount;
+    document.getElementById('sumUsedWeight').innerText = uWeight.toFixed(2);
 });
-
-// Modal Controller
-function updateActionModal(reelId, sellUrl, damageUrl) {
-    let select = document.getElementById('actionType' + reelId);
-    let form = document.getElementById('actionForm' + reelId);
-    let label = document.getElementById('actionLabel' + reelId);
-    let input = document.getElementById('actionInput' + reelId);
-    let btn = document.getElementById('actionBtn' + reelId);
-
-    if (select.value === 'sell') {
-        form.action = sellUrl;
-        label.innerText = 'Invoice / Reference Number';
-        input.name = 'invoice_number';
-        input.placeholder = 'Enter Invoice Number';
-        btn.innerText = 'Confirm Sell';
-        btn.className = 'btn btn-warning fw-bold';
-    } else {
-        form.action = damageUrl;
-        label.innerText = 'Damage Reason / Comment';
-        input.name = 'damage_reason';
-        input.placeholder = 'Enter Damage Reason...';
-        btn.innerText = 'Confirm Damage';
-        btn.className = 'btn btn-danger fw-bold';
-    }
-}
 </script>
-
 {% endblock %}
