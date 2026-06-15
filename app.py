@@ -6,31 +6,21 @@ import pytz
 app = Flask(__name__)
 app.secret_key = 'viscor_packwell_ultimate_secure_key'
 
-# ==============================================================================
-# ⚠️ DATABASE CONFIGURATION WITH SSL (RENDER & AIVEN COMPATIBLE)
-# ==============================================================================
+# DATABASE CONFIGURATION WITH SSL
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://avnadmin:AVNS_gHRTw4Hzio_XlhXcm7d@mysql-3e9936af-viscorquality-0270.g.aivencloud.com:28643/defaultdb'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
-app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-    "connect_args": {
-        "ssl": {}
-    }
-}
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = { "connect_args": { "ssl": {} } }
 
 db = SQLAlchemy(app)
 colombo_tz = pytz.timezone('Asia/Colombo')
 
-# Role සංසන්දනය පහසු කිරීමට සාදන ලද විශේෂ Class එකක්
 class SmartRole(str):
     def __eq__(self, other):
         if not isinstance(other, str): return False
         return self.lower().replace(" ", "") == other.lower().replace(" ", "")
     def __ne__(self, other): return not self.__eq__(other)
 
-# ==============================================================================
-# 🗄️ DATABASE MODELS (කිසිදු ව්‍යුහයක් වෙනස් කර නැත)
-# ==============================================================================
+# DATABASE MODELS
 class Reel(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     reel_number = db.Column(db.String(100), unique=True, nullable=False)
@@ -47,21 +37,7 @@ class Reel(db.Model):
     supplier = db.Column(db.String(100), default='N/A', nullable=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(colombo_tz))
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(colombo_tz), onupdate=lambda: datetime.now(colombo_tz))
-    
     histories = db.relationship('ReelHistory', backref='reel', lazy='joined', cascade="all, delete-orphan")
-
-    @property
-    def reel_no(self): return self.reel_number
-    @property
-    def size(self): return self.size_cm
-    @property
-    def type(self): return self.reel_type or 'Liner(T)'
-    @property
-    def weight(self): return self.weight_kg or 0.0
-    @property
-    def sr_no(self): return self.sr_number or '-'
-    @property
-    def gate_pass(self): return self.gate_pass_number or '-'
 
 class ReelHistory(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -70,15 +46,6 @@ class ReelHistory(db.Model):
     weight_used = db.Column(db.Float, default=0.0)
     action_type = db.Column(db.String(50), default='LOG') 
     timestamp = db.Column(db.DateTime, default=lambda: datetime.now(colombo_tz))
-
-    @property
-    def logged_at(self): return self.timestamp
-    @property
-    def reel_no(self): return self.reel.reel_number if self.reel else ''
-    @property
-    def store_location(self): return self.reel.store_location if self.reel else 'Viscor Lanka'
-    @property
-    def used_weight(self): return self.weight_used or 0.0
 
 AUTHORIZED_USERS = {
     "admin": "admin@0123", "dataop1": "viscor@2468", "dataop2": "packwell@8642",
@@ -103,9 +70,6 @@ def handle_session_and_security():
     if request.endpoint not in allowed_routes and 'role' not in session:
         return redirect(url_for('login'))
 
-# ==============================================================================
-# CONTROLLERS & ROUTES
-# ==============================================================================
 @app.route('/')
 def home():
     return redirect(url_for('dashboard')) if 'role' in session else redirect(url_for('login'))
@@ -134,7 +98,6 @@ def dashboard():
     user_role = session.get('role')
     active_query = Reel.query.filter(Reel.status.in_(['Full Reel', 'Used Reel']))
     
-    # 1 & 2. Dashboard එකෙහිද Role අනුව දත්ත සීමා කිරීම
     if user_role == 'dataop1':
         active_query = active_query.filter(Reel.store_location == 'Viscor Lanka')
     elif user_role == 'dataop2':
@@ -160,15 +123,12 @@ def active_stock():
     full_query = Reel.query.filter_by(status='Full Reel')
     used_query = Reel.query.filter_by(status='Used Reel')
 
-    # 1. DataOp 1 ට Viscor Lanka පමණක් පෙන්වීම
     if user_role == 'dataop1':
         full_query = full_query.filter(Reel.store_location == 'Viscor Lanka')
         used_query = used_query.filter(Reel.store_location == 'Viscor Lanka')
-    # 2. DataOp 2 ට Packwell 1-7 පමණක් පෙන්වීම
     elif user_role == 'dataop2':
         full_query = full_query.filter(Reel.store_location.like('Packwell W%'))
         used_query = used_query.filter(Reel.store_location.like('Packwell W%'))
-    # 3. Super 1 & 2 සඳහා Location Filter එක ලබාදීම
     elif user_role in ['super1', 'super2', 'admin'] and selected_loc:
         full_query = full_query.filter(Reel.store_location == selected_loc)
         used_query = used_query.filter(Reel.store_location == selected_loc)
@@ -176,17 +136,12 @@ def active_stock():
     full_reels = full_query.all()
     used_reels = used_query.all()
 
-    total_full_weight = sum(float(r.weight_kg or 0) for r in full_reels)
-    total_used_weight = sum(float(r.weight_kg or 0) for r in used_reels)
-
     return render_template(
         'active_stock.html', 
         full_reels=full_reels, 
         used_reels=used_reels,
         total_full_count=len(full_reels),
         total_used_count=len(used_reels),
-        total_full_weight=total_full_weight,
-        total_used_weight=total_used_weight,
         user_role=user_role,
         selected_loc=selected_loc
     )
@@ -282,7 +237,6 @@ def reject_viscor(id):
     flash(f'Reel {reel.reel_number} was Unaccepted and returned to Packwell.', 'warning')
     return redirect(url_for('viscor_issue'))
 
-# 4. Damage Reel Conditionally Approved Log Management
 @app.route('/issue_damaged_reel/<int:id>', methods=['POST'])
 def issue_damaged_reel(id):
     reel = Reel.query.get_or_404(id)
