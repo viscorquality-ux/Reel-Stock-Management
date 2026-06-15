@@ -1,14 +1,13 @@
 {% extends 'base.html' %}
 {% block content %}
 <div class="container mt-4">
-    <!-- Requirement 4: Conditionally Approved Real-Time Logs Section -->
-    <h3 class="text-primary fw-bold mb-3"><i class="bi bi-shield-check"></i> Conditional Approval History Log</h3>
+    <h3 class="text-primary fw-bold mb-3"><i class="bi bi-shield-check"></i> Conditional Release Audit Trail</h3>
     <div class="card shadow border-0 mb-5 border-start border-primary border-4">
         <div class="table-responsive">
             <table class="table table-striped table-hover align-middle mb-0">
                 <thead class="table-primary">
                     <tr>
-                        <th>Date & Time</th><th>Reel Number</th><th>Action Logged</th><th>Approval Remarks & Docs</th>
+                        <th>Date & Time</th><th>Reel Number</th><th>Action Flag</th><th>Approval Justification Notes</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -22,14 +21,13 @@
                         </tr>
                         {% endfor %}
                     {% else %}
-                        <tr><td colspan="4" class="text-center text-muted py-3">No conditional issue actions found in historical logs.</td></tr>
+                        <tr><td colspan="4" class="text-center text-muted py-3">No conditional issue logs archived.</td></tr>
                     {% endif %}
                 </tbody>
             </table>
         </div>
     </div>
 
-    <!-- Damaged Reels List -->
     <h3 class="text-danger fw-bold mb-3"><i class="bi bi-cone-striped"></i> Damaged Stock Isolation</h3>
     <div class="card shadow border-0 mb-5">
         <div class="table-responsive">
@@ -52,7 +50,6 @@
                             </td>
                         </tr>
 
-                        <!-- Conditional Approval Form Modal -->
                         <div class="modal fade" id="condModal{{ reel.id }}">
                             <div class="modal-content mx-auto my-5 p-4 border-0 shadow" style="max-width:450px;">
                                 <h5 class="fw-bold text-primary mb-3"><i class="bi bi-shield-exclamation"></i> Conditional Release Form</h5>
@@ -69,8 +66,8 @@
                                         <input type="text" name="doc_number" class="form-control" required placeholder="Enter reference ID...">
                                     </div>
                                     <div class="mb-3">
-                                        <label class="form-label fw-bold">Supervisor/Manager Approval Note</label>
-                                        <textarea name="approval_remark" class="form-control" rows="3" required placeholder="Write down reasons for approving damaged material..."></textarea>
+                                        <label class="form-label fw-bold">Supervisor Approval Reason</label>
+                                        <textarea name="approval_remark" class="form-control" rows="3" required placeholder="Provide reason for clearing damaged reel..."></textarea>
                                     </div>
                                     <div class="d-flex gap-2 justify-content-end mt-4">
                                         <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Close</button>
@@ -81,35 +78,7 @@
                         </div>
                         {% endfor %}
                     {% else %}
-                        <tr><td colspan="5" class="text-center text-muted py-3">No isolated materials in damage classification.</td></tr>
-                    {% endif %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <!-- Disposed / Sold Stock Table -->
-    <h3 class="text-success fw-bold mb-3"><i class="bi bi-currency-dollar"></i> Disposed / Sold Realized Log</h3>
-    <div class="card shadow border-0">
-        <div class="table-responsive">
-            <table class="table table-striped align-middle mb-0">
-                <thead class="table-dark">
-                    <tr>
-                        <th>Reel Number</th><th>Material Classification</th><th>Size & Specs</th><th>Final Registered Weight</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% if sold_reels %}
-                        {% for reel in sold_reels %}
-                        <tr>
-                            <td class="fw-bold">{{ reel.reel_number }}</td>
-                            <td>{{ reel.paper_name }} ({{ reel.reel_type }})</td>
-                            <td>{{ reel.size_cm }} cm / {{ reel.gsm }} GSM</td>
-                            <td class="fw-bold text-success">{{ reel.weight_kg }} kg</td>
-                        </tr>
-                        {% endfor %}
-                    {% else %}
-                        <tr><td colspan="4" class="text-center text-muted py-3">No materials recorded as sold or cleared out.</td></tr>
+                        <tr><td colspan="5" class="text-center text-muted py-3">No inventory under damaged flag.</td></tr>
                     {% endif %}
                 </tbody>
             </table>
