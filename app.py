@@ -80,7 +80,6 @@ class ReelHistory(db.Model):
     @property
     def used_weight(self): return self.weight_used or 0.0
 
-# පරිශීලක ලැයිස්තුව
 AUTHORIZED_USERS = {
     "admin": "admin@0123", "dataop1": "viscor@2468", "dataop2": "packwell@8642",
     "super1": "vissuper@00", "super2": "packsuper@11"
@@ -105,7 +104,7 @@ def handle_session_and_security():
         return redirect(url_for('login'))
 
 # ==============================================================================
-# 🗺️ ROUTING AND CONTROLLERS
+# CONTROLLERS & ROUTES
 # ==============================================================================
 @app.route('/')
 def home():
@@ -135,7 +134,7 @@ def dashboard():
     user_role = session.get('role')
     active_query = Reel.query.filter(Reel.status.in_(['Full Reel', 'Used Reel']))
     
-    # Dashboard එකෙහිද Role අනුව දත්ත වෙන් කර පෙන්වීම
+    # 1 & 2. Dashboard එකෙහිද Role අනුව දත්ත සීමා කිරීම
     if user_role == 'dataop1':
         active_query = active_query.filter(Reel.store_location == 'Viscor Lanka')
     elif user_role == 'dataop2':
@@ -161,14 +160,15 @@ def active_stock():
     full_query = Reel.query.filter_by(status='Full Reel')
     used_query = Reel.query.filter_by(status='Used Reel')
 
-    # Requirement 1 & 2: DataOp භූමිකාවන් සඳහා ස්ථාන (Location) සීමා කිරීම
+    # 1. DataOp 1 ට Viscor Lanka පමණක් පෙන්වීම
     if user_role == 'dataop1':
         full_query = full_query.filter(Reel.store_location == 'Viscor Lanka')
         used_query = used_query.filter(Reel.store_location == 'Viscor Lanka')
+    # 2. DataOp 2 ට Packwell 1-7 පමණක් පෙන්වීම
     elif user_role == 'dataop2':
         full_query = full_query.filter(Reel.store_location.like('Packwell W%'))
         used_query = used_query.filter(Reel.store_location.like('Packwell W%'))
-    # Requirement 3: Super 1, Super 2 සහ Admin සඳහා ඕනෑම ස්ථානයක් පෙරීමට (Filter) ඉඩ දීම
+    # 3. Super 1 & 2 සඳහා Location Filter එක ලබාදීම
     elif user_role in ['super1', 'super2', 'admin'] and selected_loc:
         full_query = full_query.filter(Reel.store_location == selected_loc)
         used_query = used_query.filter(Reel.store_location == selected_loc)
@@ -282,7 +282,7 @@ def reject_viscor(id):
     flash(f'Reel {reel.reel_number} was Unaccepted and returned to Packwell.', 'warning')
     return redirect(url_for('viscor_issue'))
 
-# Requirement 4: Conditionally Approved ලොග් වෙනම තබා ගැනීම
+# 4. Damage Reel Conditionally Approved Log Management
 @app.route('/issue_damaged_reel/<int:id>', methods=['POST'])
 def issue_damaged_reel(id):
     reel = Reel.query.get_or_404(id)
@@ -294,7 +294,6 @@ def issue_damaged_reel(id):
     if doc_type == 'SR': reel.sr_number = doc_number
     else: reel.gate_pass_number = doc_number
     
-    # COND_ISSUE ලෙස වෙනම Action Type එකකින් ඉතිහාසයට එක් කිරීම
     db.session.add(ReelHistory(
         reel_id=reel.id, 
         usage_details=f"Conditionally Issued via {doc_type}: {doc_number}. Remarks: {approval_remark}", 
@@ -322,8 +321,6 @@ def finish_reel(id):
 def damage_sell_stock():
     damaged_reels = Reel.query.filter_by(status='Damaged').all()
     sold_reels = Reel.query.filter_by(status='Sold').all()
-    
-    # COND_ISSUE ලොග් පමණක් වෙන් කර ලබා ගැනීම
     cond_logs = ReelHistory.query.filter_by(action_type='COND_ISSUE').order_by(ReelHistory.timestamp.desc()).all()
     return render_template('damage_sell_stock.html', damaged_reels=damaged_reels, sold_reels=sold_reels, cond_logs=cond_logs)
 
