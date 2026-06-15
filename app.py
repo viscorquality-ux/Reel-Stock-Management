@@ -372,9 +372,6 @@ def finished_usage_stock():
                            total_finished_weight=sum((r.weight_kg or 0.0) for r in finished_reels),
                            total_used_weight_log=sum((log.weight_used or 0.0) for log in usage_logs))
 
-@app.route('/usage_logs')
-def usage_logs():
-    return render_template('usage_logs.html', logs=ReelHistory.query.order_by(ReelHistory.timestamp.desc()).all())
 
 if __name__ == '__main__':
     app.run(debug=True)
