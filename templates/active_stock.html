@@ -9,10 +9,10 @@
                     <h5 class="text-success fw-bold"><i class="bi bi-box-seam"></i> Total Full Reels</h5>
                     <div class="d-flex justify-content-between align-items-center mt-2">
                         <div>
-                            <span class="fs-4 fw-bold text-dark">{{ total_full_count if total_full_count else 0 }}</span> <small class="text-muted">Reels</small>
+                            <span class="fs-4 fw-bold text-dark" id="displayFullCount">{{ total_full_count if total_full_count else 0 }}</span> <small class="text-muted">Reels</small>
                         </div>
                         <div>
-                            <span class="fs-4 fw-bold text-dark">{{ "%.2f"|format(total_full_weight if total_full_weight else 0.0) }}</span> <small class="text-muted">kg</small>
+                            <span class="fs-4 fw-bold text-dark" id="displayFullWeight">{{ "%.2f"|format(total_full_weight if total_full_weight else 0.0) }}</span> <small class="text-muted">kg</small>
                         </div>
                     </div>
                 </div>
@@ -24,10 +24,10 @@
                     <h5 class="text-info fw-bold"><i class="bi bi-scissors"></i> Total Used/Partial Reels</h5>
                     <div class="d-flex justify-content-between align-items-center mt-2">
                         <div>
-                            <span class="fs-4 fw-bold text-dark">{{ total_used_count if total_used_count else 0 }}</span> <small class="text-muted">Reels</small>
+                            <span class="fs-4 fw-bold text-dark" id="displayUsedCount">{{ total_used_count if total_used_count else 0 }}</span> <small class="text-muted">Reels</small>
                         </div>
                         <div>
-                            <span class="fs-4 fw-bold text-dark">{{ "%.2f"|format(total_used_weight if total_used_weight else 0.0) }}</span> <small class="text-muted">kg</small>
+                            <span class="fs-4 fw-bold text-dark" id="displayUsedWeight">{{ "%.2f"|format(total_used_weight if total_used_weight else 0.0) }}</span> <small class="text-muted">kg</small>
                         </div>
                     </div>
                 </div>
@@ -47,12 +47,12 @@
     <ul class="nav nav-tabs mb-3" id="stockTabs" role="tablist">
         <li class="nav-item" role="presentation">
             <button class="nav-link active fw-bold text-success" id="full-reels-tab" data-bs-toggle="tab" data-bs-target="#full-reels" type="button" role="tab">
-                Full Reels ({{ full_reels|length if full_reels else 0 }})
+                Full Reels (<span id="tabFullCount">{{ full_reels|length if full_reels else 0 }}</span>)
             </button>
         </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link fw-bold text-info" id="used-reels-tab" data-bs-toggle="tab" data-bs-target="#used-reels" type="button" role="tab">
-                Partially Used Reels ({{ used_reels|length if used_reels else 0 }})
+                Partially Used Reels (<span id="tabUsedCount">{{ used_reels|length if used_reels else 0 }}</span>)
             </button>
         </li>
     </ul>
@@ -76,12 +76,12 @@
                         <tbody>
                             {% if full_reels %}
                                 {% for reel in full_reels %}
-                                <tr class="reel-row">
+                                <tr class="reel-row full-reel-row">
                                     <td class="fw-bold search-target-number">{{ reel.reel_number }}</td>
                                     <td class="search-target-name">{{ reel.paper_name }}</td>
                                     <td class="search-target-size">{{ reel.size_cm }}</td>
-                                    <td>{{ reel.weight_kg }} kg</td>
-                                    <td class="search-target-gsm">{{ reel.gsm if reel.gsm else 'N/A' }}</td>
+                                    <td class="search-target-weight" data-weight="{{ reel.weight_kg }}">{{ reel.weight_kg }} kg</td>
+                                    <td class="search-target-gsm">{{ reel.gsm if reel.gsm else '0' }}</td>
                                     <td><span class="badge bg-secondary">{{ reel.store_location }}</span></td>
                                     <td class="text-center">
                                         <div class="btn-group gap-1">
@@ -201,12 +201,12 @@
                         <tbody>
                             {% if used_reels %}
                                 {% for reel in used_reels %}
-                                <tr class="reel-row">
+                                <tr class="reel-row used-reel-row">
                                     <td class="fw-bold search-target-number">{{ reel.reel_number }}</td>
                                     <td class="search-target-name">{{ reel.paper_name }}</td>
                                     <td class="search-target-size">{{ reel.size_cm }}</td>
-                                    <td class="fw-bold text-info">{{ reel.weight_kg }} kg</td>
-                                    <td class="search-target-gsm">{{ reel.gsm if reel.gsm else 'N/A' }}</td>
+                                    <td class="fw-bold text-info search-target-weight" data-weight="{{ reel.weight_kg }}">{{ reel.weight_kg }} kg</td>
+                                    <td class="search-target-gsm">{{ reel.gsm if reel.gsm else '0' }}</td>
                                     <td><span class="badge bg-secondary">{{ reel.store_location }}</span></td>
                                     <td class="text-center">
                                         <div class="btn-group gap-1">
@@ -314,8 +314,13 @@
 document.getElementById('reelSearchInput').addEventListener('input', function() {
     let filterText = this.value.toLowerCase().replace(/\s+/g, '');
     let rows = document.querySelectorAll('.reel-row');
-    
     let tokens = filterText.match(/\d+|[a-z]+/ig) || [];
+    
+    // සජීවීව ගණනය කිරීම සඳහා වේරියබල්ස් නිර්මාණය
+    let currentFullCount = 0;
+    let currentFullWeight = 0;
+    let currentUsedCount = 0;
+    let currentUsedWeight = 0;
     
     rows.forEach(function(row) {
         let reelNumber = row.querySelector('.search-target-number').textContent.toLowerCase().replace(/\s+/g, '');
@@ -355,15 +360,38 @@ document.getElementById('reelSearchInput').addEventListener('input', function() 
             isMatch = allTokensMatch;
         }
         
+        // Row එක Filter වීමට අදාළ කොටස සහ බර ගණනය කිරීම
         if (isMatch) {
             row.style.display = '';
+            
+            // data-weight වෙතින් බර ලබා ගැනීම
+            let weightCell = row.querySelector('.search-target-weight');
+            let weightVal = parseFloat(weightCell.getAttribute('data-weight')) || 0;
+            
+            // Full ද Used ද කියා වෙන් කර Live එකතු කිරීම
+            if (row.classList.contains('full-reel-row')) {
+                currentFullCount++;
+                currentFullWeight += weightVal;
+            } else if (row.classList.contains('used-reel-row')) {
+                currentUsedCount++;
+                currentUsedWeight += weightVal;
+            }
         } else {
             row.style.display = 'none';
         }
     });
+    
+    // HTML Elements වල අගයන් සජීවීව වෙනස් කිරීම (Live DOM Update)
+    document.getElementById('displayFullCount').innerText = currentFullCount;
+    document.getElementById('displayFullWeight').innerText = currentFullWeight.toFixed(2);
+    document.getElementById('tabFullCount').innerText = currentFullCount;
+    
+    document.getElementById('displayUsedCount').innerText = currentUsedCount;
+    document.getElementById('displayUsedWeight').innerText = currentUsedWeight.toFixed(2);
+    document.getElementById('tabUsedCount').innerText = currentUsedCount;
 });
 
-// ආරක්ෂිතව නිවැරදි කරන ලද Modal Controller (Hardcoded URLs ඉවත් කර ඇත)
+// Modal Controller
 function updateActionModal(reelId, sellUrl, damageUrl) {
     let select = document.getElementById('actionType' + reelId);
     let form = document.getElementById('actionForm' + reelId);
@@ -379,7 +407,7 @@ function updateActionModal(reelId, sellUrl, damageUrl) {
         btn.innerText = 'Confirm Sell';
         btn.className = 'btn btn-warning fw-bold';
     } else {
-        form.action = damageUrl; // Flask වෙතින් එන සැබෑ damage URL එක කෙලින්ම ආදේශ වේ
+        form.action = damageUrl;
         label.innerText = 'Damage Reason / Comment';
         input.name = 'damage_reason';
         input.placeholder = 'Enter Damage Reason...';
