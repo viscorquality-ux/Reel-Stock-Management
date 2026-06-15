@@ -7,8 +7,8 @@
             <h4 class="mb-0"><i class="bi bi-plus-circle"></i> Add New Raw Material Stock Entry</h4>
         </div>
         <div class="card-body p-4">
-            <!-- පරිශීලකයා කවුදැයි JavaScript වලට හඳුනාගැනීම සඳහා සැඟවුණු Input එකක් (Hidden Field) -->
-            <input type="hidden" id="currentUserRole" value="{{ current_user.role }}">
+            <!-- app.py වෙතින් එන user_role අගය JavaScript වලට ලබා ගැනීමට මෙතන නිවැරදි කර ඇත -->
+            <input type="hidden" id="currentUserRole" value="{{ user_role }}">
 
             <form action="{{ url_for('add_stock') }}" method="POST" id="rawMaterialForm">
                 
@@ -50,23 +50,23 @@
                     </div>
                 </div>
 
-                <!-- Warehouse Location (User Role එක අනුව Block වන කොටස) -->
+                <!-- Warehouse Location (user_role එක අනුව Block වන කොටස) -->
                 <div class="mb-4">
                     <label for="store_location" class="form-label fw-bold">Warehouse Location</label>
                     <select class="form-select" id="store_location" name="store_location" required>
                         <option value="" selected disabled>Select Warehouse Location...</option>
                         
-                        <!-- dataop1 ට ලොග් වී ඇත්නම් Packwell 1-7 Block (Disabled) වේ -->
-                        <option value="Packwell 1-7" {% if current_user.role == 'dataop1' %} disabled class="text-muted bg-light" {% endif %}>
-                            Packwell 1-7 {% if current_user.role == 'dataop1' %} (Blocked for DataOp 1) {% endif %}
+                        <!-- user_role එක dataop1 නම් Packwell 1-7 Block වේ -->
+                        <option value="Packwell 1-7" {% if user_role == 'dataop1' %} disabled class="text-muted bg-light" {% endif %}>
+                            Packwell 1-7 {% if user_role == 'dataop1' %} (Blocked for DataOp 1) {% endif %}
                         </option>
                         
-                        <!-- dataop2 ට ලොග් වී ඇත්නම් Viscor Lanka Block (Disabled) වේ -->
-                        <option value="Viscor Lanka" {% if current_user.role == 'dataop2' %} disabled class="text-muted bg-light" {% endif %}>
-                            Viscor Lanka {% if current_user.role == 'dataop2' %} (Blocked for DataOp 2) {% endif %}
+                        <!-- user_role එක dataop2 නම් Viscor Lanka Block වේ -->
+                        <option value="Viscor Lanka" {% if user_role == 'dataop2' %} disabled class="text-muted bg-light" {% endif %}>
+                            Viscor Lanka {% if user_role == 'dataop2' %} (Blocked for DataOp 2) {% endif %}
                         </option>
 
-                        <!-- අනෙකුත් සාමාන්‍ය Locations -->
+                        <!-- අනෙකුත් Locations -->
                         <option value="Main Store">Main Store</option>
                         <option value="Yard 02">Yard 02</option>
                     </select>
@@ -86,23 +86,22 @@
 <!-- Dynamic Restriction JavaScript -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    let userRole = document.getElementById('currentUserRole').value;
+    let userRole = document.getElementById('currentUserRole').value.toLowerCase().trim();
     let locationSelect = document.getElementById('store_location');
     let warningDiv = document.getElementById('locationWarning');
 
-    // යම් හෙයකින් HTML attributes මඟ හැරුණහොත්, JavaScript මඟින්ද පාලනය කිරීම
     locationSelect.addEventListener('change', function() {
         let selectedValue = this.value;
         
         if (userRole === 'dataop1' && selectedValue === 'Packwell 1-7') {
             warningDiv.innerText = "❌ You are not authorized to select Packwell 1-7 Location.";
             warningDiv.style.display = 'block';
-            this.value = ""; // Reset Selection
+            this.value = ""; 
         } 
         else if (userRole === 'dataop2' && selectedValue === 'Viscor Lanka') {
             warningDiv.innerText = "❌ You are not authorized to select Viscor Lanka Location.";
             warningDiv.style.display = 'block';
-            this.value = ""; // Reset Selection
+            this.value = ""; 
         } 
         else {
             warningDiv.style.display = 'none';
