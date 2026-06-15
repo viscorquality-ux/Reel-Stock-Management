@@ -2,7 +2,7 @@
 {% block content %}
 
 <div class="container mt-4">
-    <!-- Form එකේ size එක 500px දක්වා මෙතනින් අඩු කර ඇත -->
+    <!-- Form එක Compact 500px සයිස් එකෙන්ම තබා ඇත -->
     <div class="card shadow border-0 mx-auto" style="max-width: 500px;">
         <div class="card-header bg-dark text-white fw-bold py-3 text-center">
             <h5 class="mb-0"><i class="bi bi-plus-circle"></i> Add New Stock Entry</h5>
@@ -50,7 +50,7 @@
                     </select>
                 </div>
 
-                <!-- 5️⃣ Size (cm) & GSM (එක පෙළට ලස්සනට තබා ඇත) -->
+                <!-- 5️⃣ Size (cm) & GSM -->
                 <div class="row g-2 mb-3">
                     <div class="col-6">
                         <label for="size_cm" class="form-label fw-bold mb-1">Size (cm)</label>
@@ -68,17 +68,25 @@
                     <input type="number" step="0.01" class="form-control" id="weight_kg" name="weight_kg" placeholder="e.g., 450.50" required>
                 </div>
 
-                <!-- 7️⃣ Warehouse Location -->
+                <!-- 7️⃣ Warehouse Location (Packwell 1 - 7 දක්වා වෙන් කර ඇත) -->
                 <div class="mb-4">
                     <label for="store_location" class="form-label fw-bold mb-1">Warehouse Location</label>
                     <select class="form-select" id="store_location" name="store_location" required>
                         <option value="" selected disabled>Select Warehouse Location...</option>
-                        <option value="Packwell 1-7" {% if user_role == 'dataop1' %} disabled class="text-muted bg-light" {% endif %}>
-                            Packwell 1-7 {% if user_role == 'dataop1' %} (Blocked) {% endif %}
-                        </option>
+                        
+                        <!-- Viscor Lanka Option (DataOp 2 ට Block වේ) -->
                         <option value="Viscor Lanka" {% if user_role == 'dataop2' %} disabled class="text-muted bg-light" {% endif %}>
                             Viscor Lanka {% if user_role == 'dataop2' %} (Blocked) {% endif %}
                         </option>
+
+                        <!-- Packwell Options 1 to 7 (DataOp 1 ට Block වේ) -->
+                        <option value="Packwell W 1" {% if user_role == 'dataop1' %} disabled class="text-muted bg-light" {% endif %}>Packwell W 1 {% if user_role == 'dataop1' %} (Blocked) {% endif %}</option>
+                        <option value="Packwell W 2" {% if user_role == 'dataop1' %} disabled class="text-muted bg-light" {% endif %}>Packwell W 2 {% if user_role == 'dataop1' %} (Blocked) {% endif %}</option>
+                        <option value="Packwell W 3" {% if user_role == 'dataop1' %} disabled class="text-muted bg-light" {% endif %}>Packwell W 3 {% if user_role == 'dataop1' %} (Blocked) {% endif %}</option>
+                        <option value="Packwell W 4" {% if user_role == 'dataop1' %} disabled class="text-muted bg-light" {% endif %}>Packwell W 4 {% if user_role == 'dataop1' %} (Blocked) {% endif %}</option>
+                        <option value="Packwell W 5" {% if user_role == 'dataop1' %} disabled class="text-muted bg-light" {% endif %}>Packwell W 5 {% if user_role == 'dataop1' %} (Blocked) {% endif %}</option>
+                        <option value="Packwell W 6" {% if user_role == 'dataop1' %} disabled class="text-muted bg-light" {% endif %}>Packwell W 6 {% if user_role == 'dataop1' %} (Blocked) {% endif %}</option>
+                        <option value="Packwell W 7" {% if user_role == 'dataop1' %} disabled class="text-muted bg-light" {% endif %}>Packwell W 7 {% if user_role == 'dataop1' %} (Blocked) {% endif %}</option>
                     </select>
                     <div id="locationWarning" class="form-text text-danger fw-bold mt-1" style="display: none;"></div>
                 </div>
@@ -103,11 +111,13 @@ document.addEventListener('DOMContentLoaded', function() {
     locationSelect.addEventListener('change', function() {
         let selectedValue = this.value;
         
-        if (userRole === 'dataop1' && selectedValue === 'Packwell 1-7') {
-            warningDiv.innerText = "❌ Not authorized for Packwell 1-7";
+        // DataOp 1 නම් සහ "Packwell" අඩංගු ඕනෑම එකක් තේරුවොත් වළක්වයි
+        if (userRole === 'dataop1' && selectedValue.startsWith('Packwell')) {
+            warningDiv.innerText = "❌ Not authorized for Packwell Warehouses";
             warningDiv.style.display = 'block';
             this.value = ""; 
         } 
+        // DataOp 2 නම් සහ Viscor Lanka තේරුවොත් වළක්වයි
         else if (userRole === 'dataop2' && selectedValue === 'Viscor Lanka') {
             warningDiv.innerText = "❌ Not authorized for Viscor Lanka";
             warningDiv.style.display = 'block';
