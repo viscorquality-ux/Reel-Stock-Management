@@ -61,7 +61,7 @@
                 <div class="mb-4">
                     <label for="store_location" class="form-label fw-bold mb-1">Warehouse Location</label>
                     <select class="form-select" id="store_location" name="store_location" required>
-                        <option value="" selected disabled>Select Warehouse Location...</option>
+                        <option value="" selected disabled>Select Warehouse...</option>
                         <option value="Viscor Lanka" {% if user_role == 'dataop2' %} disabled class="text-muted bg-light" {% endif %}>Viscor Lanka {% if user_role == 'dataop2' %} (Blocked) {% endif %}</option>
                         <option value="Packwell W 1" {% if user_role == 'dataop1' %} disabled class="text-muted bg-light" {% endif %}>Packwell W 1 {% if user_role == 'dataop1' %} (Blocked) {% endif %}</option>
                         <option value="Packwell W 2" {% if user_role == 'dataop1' %} disabled class="text-muted bg-light" {% endif %}>Packwell W 2 {% if user_role == 'dataop1' %} (Blocked) {% endif %}</option>
