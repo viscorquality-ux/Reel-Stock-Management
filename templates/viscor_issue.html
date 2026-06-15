@@ -8,7 +8,7 @@
             <table class="table table-striped align-middle mb-0">
                 <thead class="table-dark">
                     <tr>
-                        <th>Reel Number</th><th>Material</th><th>Size</th><th>Weight</th><th>Doc Reference</th><th>Verification Status</th>
+                        <th>Reel Number</th><th>Material & Paper</th><th>Size</th><th>Weight</th><th>Tracking Refs</th><th>Verification Status</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -24,7 +24,6 @@
                                 <small class="d-block text-muted">GP: {{ reel.gate_pass }}</small>
                             </td>
                             <td>
-                                <!-- Requirement 2: DataOp 2 ට Action Buttons සම්පූර්ණයෙන්ම Hide කර ඇත, DataOp 1 ට පමණක් පෙනේ -->
                                 {% if session.get('role') == 'dataop1' or session.get('role') == 'admin' %}
                                     <div class="d-flex gap-2">
                                         <form action="{{ url_for('accept_viscor', id=reel.id) }}" method="POST">
@@ -35,13 +34,13 @@
                                         </form>
                                     </div>
                                 {% else %}
-                                    <span class="badge bg-secondary p-2"><i class="bi bi-lock-fill"></i> View Only (Pending DataOp 1 Action)</span>
+                                    <span class="badge bg-secondary p-2"><i class="bi bi-lock-fill"></i> View Only (Pending DataOp 1 Verification)</span>
                                 {% endif %}
                             </td>
                         </tr>
                         {% endfor %}
                     {% else %}
-                        <tr><td colspan="6" class="text-center text-muted py-4">No reels currently pending Viscor verification.</td></tr>
+                        <tr><td colspan="6" class="text-center text-muted py-4">No reels pending Viscor verification.</td></tr>
                     {% endif %}
                 </tbody>
             </table>
