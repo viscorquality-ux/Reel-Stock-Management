@@ -131,7 +131,7 @@
                                                         <div class="modal-body">
                                                             <div class="mb-3">
                                                                 <label class="form-label fw-bold">Action Type</label>
-                                                                <select class="form-select border-dark" id="actionType{{ reel.id }}" onchange="updateActionModal('{{ reel.id }}', '{{ url_for('sell_reel', id=reel.id) }}')">
+                                                                <select class="form-select border-dark" id="actionType{{ reel.id }}" onchange="updateActionModal('{{ reel.id }}', '{{ url_for('sell_reel', id=reel.id) }}', '{{ url_for('damage_reel', id=reel.id) }}')">
                                                                     <option value="sell">Sell Item</option>
                                                                     <option value="damage">Mark as Damage</option>
                                                                 </select>
@@ -256,7 +256,7 @@
                                                         <div class="modal-body">
                                                             <div class="mb-3">
                                                                 <label class="form-label fw-bold">Action Type</label>
-                                                                <select class="form-select border-dark" id="actionType{{ reel.id }}" onchange="updateActionModal('{{ reel.id }}', '{{ url_for('sell_reel', id=reel.id) }}')">
+                                                                <select class="form-select border-dark" id="actionType{{ reel.id }}" onchange="updateActionModal('{{ reel.id }}', '{{ url_for('sell_reel', id=reel.id) }}', '{{ url_for('damage_reel', id=reel.id) }}')">
                                                                     <option value="sell">Sell Item</option>
                                                                     <option value="damage">Mark as Damage</option>
                                                                 </select>
@@ -315,7 +315,6 @@ document.getElementById('reelSearchInput').addEventListener('input', function() 
     let filterText = this.value.toLowerCase().replace(/\s+/g, '');
     let rows = document.querySelectorAll('.reel-row');
     
-    // අකුරු සහ ඉලක්කම් වෙන වෙනම වෙන් කරගැනීම
     let tokens = filterText.match(/\d+|[a-z]+/ig) || [];
     
     rows.forEach(function(row) {
@@ -330,7 +329,6 @@ document.getElementById('reelSearchInput').addEventListener('input', function() 
         let gsmNum = parseFloat(gsmText);
         let gsm = isNaN(gsmNum) ? '' : gsmNum.toString().replace('.', '');
         
-        // Size සහ GSM එකට එකතු කිරීම
         let combinedNumbers = size + gsm;
         let isMatch = false;
         
@@ -365,8 +363,8 @@ document.getElementById('reelSearchInput').addEventListener('input', function() 
     });
 });
 
-// Sell / Damage Modal Controller
-function updateActionModal(reelId, sellUrl) {
+// ආරක්ෂිතව නිවැරදි කරන ලද Modal Controller (Hardcoded URLs ඉවත් කර ඇත)
+function updateActionModal(reelId, sellUrl, damageUrl) {
     let select = document.getElementById('actionType' + reelId);
     let form = document.getElementById('actionForm' + reelId);
     let label = document.getElementById('actionLabel' + reelId);
@@ -381,8 +379,8 @@ function updateActionModal(reelId, sellUrl) {
         btn.innerText = 'Confirm Sell';
         btn.className = 'btn btn-warning fw-bold';
     } else {
-        form.action = '/damage_reel/' + reelId;
-        label.innerText = 'Damage Reason / Command';
+        form.action = damageUrl; // Flask වෙතින් එන සැබෑ damage URL එක කෙලින්ම ආදේශ වේ
+        label.innerText = 'Damage Reason / Comment';
         input.name = 'damage_reason';
         input.placeholder = 'Enter Damage Reason...';
         btn.innerText = 'Confirm Damage';
