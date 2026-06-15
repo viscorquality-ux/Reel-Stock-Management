@@ -135,28 +135,25 @@ def dashboard():
     return render_template('dashboard.html', active_count=active_count, active_weight=active_weight,
                            pending_viscor_count=pending_viscor, issued=issued, finished=finished, damage_sell_count=damage_sell_count)
 
+# 🛠️ FIXED: Route Decorator එක එක් කර, Status Name එක නිවැරදි කර ඇත
+@app.route('/active_stock')
 def active_stock():
     try:
-        # 1. Database එකෙන් Full සහ Used රීල් වෙන වෙනම ලබා ගැනීම
-        # (ඔබේ පද්ධතියේ status වල නම් 'Full' සහ 'Used' වෙනුවට වෙනත් එකක් නම් එය දමන්න)
-        full_reels = Reel.query.filter_by(status='Full').all()
-        used_reels = Reel.query.filter_by(status='Used').all()
+        # Database එකෙන් Full සහ Used රීල් නිවැරදි status නාමයෙන් ලබා ගැනීම
+        full_reels = Reel.query.filter_by(status='Full Reel').all()
+        used_reels = Reel.query.filter_by(status='Used Reel').all()
 
         if not full_reels:
             full_reels = []
         if not used_reels:
             used_reels = []
 
-        # 2. සුරක්ෂිතව ගණන (Count) ලබා ගැනීම
         total_full_count = len(full_reels)
         total_used_count = len(used_reels)
 
-        # 3. සුරක්ෂිතව මුළු බර (Total Weight) ගණනය කිරීම 
-        # (කිසිදු දත්තයක් නැති වුවද Crash නොවන ලෙස 'if reel.weight_kg' යොදා ඇත)
         total_full_weight = sum(float(reel.weight_kg) for reel in full_reels if reel.weight_kg) or 0.0
         total_used_weight = sum(float(reel.weight_kg) for reel in used_reels if reel.weight_kg) or 0.0
 
-        # 4. සියලුම දත්ත නිවැරදිව HTML එක වෙත Pass කිරීම
         return render_template(
             'active_stock.html', 
             full_reels=full_reels, 
@@ -168,9 +165,9 @@ def active_stock():
         )
 
     except Exception as e:
-        # සේවාදායකයේ (Server) සිදුවන සැබෑම දෝෂය terminal එකේ බලාගැනීමට මුද්‍රණය කරයි
         print(f"--- [ERROR IN ACTIVE STOCK] --- : {str(e)}")
         return f"Backend Error: {str(e)}. Please check Terminal.", 500
+
 @app.route('/add_stock', methods=['GET', 'POST'])
 def add_stock():
     user_role = session.get('role', 'dataop1')
@@ -217,7 +214,6 @@ def issue_reel(id):
     if doc_type == 'SR': reel.sr_number = doc_number
     else: reel.gate_pass_number = doc_number
 
-    # DataOp2 Viscor Lanka Tick Check
     if send_to_viscor == 'yes' and session.get('role') == 'dataop2':
         reel.status = 'Pending Viscor'
         db.session.add(ReelHistory(reel_id=reel.id, usage_details=f"Sent to Viscor Lanka via {doc_type}: {doc_number}", action_type='TRANSIT'))
@@ -230,10 +226,8 @@ def issue_reel(id):
     db.session.commit()
     return redirect(request.referrer or url_for('active_stock'))
 
-# 🛠️ FIXED: Viscor Issue Routes for DataOp1 Verifications
 @app.route('/viscor_issue')
 def viscor_issue():
-    # Only show reels that were transferred to Viscor and are pending verification
     reels = Reel.query.filter_by(status='Pending Viscor').all()
     return render_template('viscor_issue.html', reels=reels)
 
@@ -244,7 +238,7 @@ def accept_viscor(id):
         return redirect(url_for('viscor_issue'))
         
     reel = Reel.query.get_or_404(id)
-    reel.status = 'Full Reel' # Add back to active stock
+    reel.status = 'Full Reel' 
     reel.store_location = 'Viscor Lanka'
     db.session.add(ReelHistory(reel_id=reel.id, usage_details="Verified & Accepted by Viscor Lanka", action_type='ACCEPTED'))
     db.session.commit()
@@ -258,8 +252,8 @@ def reject_viscor(id):
         return redirect(url_for('viscor_issue'))
         
     reel = Reel.query.get_or_404(id)
-    reel.status = 'Full Reel' # Revert back to active stock
-    reel.store_location = 'Packwell W 1' # Return to Packwell
+    reel.status = 'Full Reel' 
+    reel.store_location = 'Packwell W 1' 
     db.session.add(ReelHistory(reel_id=reel.id, usage_details="Unaccepted & Returned by Viscor Lanka", action_type='REJECTED'))
     db.session.commit()
     flash(f'Reel {reel.reel_number} was Unaccepted and returned to Packwell.', 'warning')
@@ -319,6 +313,17 @@ def mark_damage_sell(id):
     flash(f"Reel successfully marked as {status_type}.", "warning")
     return redirect(url_for('active_stock'))
 
+# 🛠️ FIXED: Damage Reel Route එක එක් කරන ලදී
+@app.route('/damage_reel/<int:id>', methods=['POST'])
+def damage_reel(id):
+    reel = Reel.query.get_or_404(id)
+    damage_reason = request.form.get('damage_reason', 'No Reason')
+    reel.status = 'Damaged'
+    db.session.add(ReelHistory(reel_id=reel.id, usage_details=f"Marked as Damaged: {damage_reason}", action_type='DAMAGED'))
+    db.session.commit()
+    flash(f"Reel {reel.reel_number} marked as Damaged.", "danger")
+    return redirect(url_for('active_stock'))
+
 @app.route('/damage_sell_stock')
 def damage_sell_stock():
     damaged_reels = Reel.query.filter_by(status='Damaged').all()
@@ -329,6 +334,7 @@ def damage_sell_stock():
 def sell_reel(id):
     reel = Reel.query.get_or_404(id)
     reel.status = 'Sold'
+    db.session.add(ReelHistory(reel_id=reel.id, usage_details="Marked as Sold", action_type='SOLD'))
     db.session.commit()
     flash(f"Reel {reel.reel_number} marked as Sold.", "success")
     return redirect(url_for('active_stock'))
