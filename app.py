@@ -135,18 +135,14 @@ def dashboard():
     return render_template('dashboard.html', active_count=active_count, active_weight=active_weight,
                            pending_viscor_count=pending_viscor, issued=issued, finished=finished, damage_sell_count=damage_sell_count)
 
-# 🛠️ FIXED: Route Decorator එක එක් කර, Status Name එක නිවැරදි කර ඇත
 @app.route('/active_stock')
 def active_stock():
     try:
-        # Database එකෙන් Full සහ Used රීල් නිවැරදි status නාමයෙන් ලබා ගැනීම
         full_reels = Reel.query.filter_by(status='Full Reel').all()
         used_reels = Reel.query.filter_by(status='Used Reel').all()
 
-        if not full_reels:
-            full_reels = []
-        if not used_reels:
-            used_reels = []
+        if not full_reels: full_reels = []
+        if not used_reels: used_reels = []
 
         total_full_count = len(full_reels)
         total_used_count = len(used_reels)
@@ -163,7 +159,6 @@ def active_stock():
             total_full_weight=total_full_weight,
             total_used_weight=total_used_weight
         )
-
     except Exception as e:
         print(f"--- [ERROR IN ACTIVE STOCK] --- : {str(e)}")
         return f"Backend Error: {str(e)}. Please check Terminal.", 500
@@ -291,13 +286,21 @@ def update_location(id):
     flash('Location updated successfully.', 'success')
     return redirect(request.referrer)
 
+# 🛠️ FIXED: weight_kg = 0.0 කිරීම ඉවත් කර ඇත. එවිට Finished එකේ බර පෙන්වයි.
 @app.route('/finish_reel/<int:id>', methods=['POST'])
 def finish_reel(id):
     reel = Reel.query.get_or_404(id)
     used_weight = reel.weight_kg or 0.0
-    reel.weight_kg = 0.0
+    
+    # රීල් එකේ අවසන් බර අමතක නොවීම සඳහා weight_kg අගය එලෙසම තබා status එක පමණක් මාරු කරයි.
     reel.status = 'Finished'
-    db.session.add(ReelHistory(reel_id=reel.id, usage_details="Marked 100% finished", weight_used=used_weight, action_type='FINISHED'))
+    
+    db.session.add(ReelHistory(
+        reel_id=reel.id, 
+        usage_details="Marked 100% finished", 
+        weight_used=used_weight, 
+        action_type='FINISHED'
+    ))
     db.session.commit()
     flash('Reel marked as completely finished.', 'success')
     return redirect(url_for('issued_stock'))
@@ -313,7 +316,6 @@ def mark_damage_sell(id):
     flash(f"Reel successfully marked as {status_type}.", "warning")
     return redirect(url_for('active_stock'))
 
-# 🛠️ FIXED: Damage Reel Route එක එක් කරන ලදී
 @app.route('/damage_reel/<int:id>', methods=['POST'])
 def damage_reel(id):
     reel = Reel.query.get_or_404(id)
@@ -364,7 +366,9 @@ def process_return():
 def finished_usage_stock():
     finished_reels = Reel.query.filter_by(status='Finished').all()
     usage_logs = ReelHistory.query.join(Reel).filter(ReelHistory.action_type.in_(['PARTIAL RETURN', 'FINISHED'])).all()
-    return render_template('finished_stock.html', finished_reels=finished_reels, usage_logs=usage_logs,
+    return render_template('finished_stock.html', 
+                           finished_reels=finished_reels, 
+                           usage_logs=usage_logs,
                            total_finished_weight=sum((r.weight_kg or 0.0) for r in finished_reels),
                            total_used_weight_log=sum((log.weight_used or 0.0) for log in usage_logs))
 
