@@ -193,7 +193,6 @@ def issue_reel(id):
     else: reel.gate_pass_number = doc_number
 
     if return_to_packwell == 'yes':
-        # Encoding original state into temporary routing status
         reel.status = 'Pending Packwell Full' if reel.status == 'Full Reel' else 'Pending Packwell Used'
         db.session.add(ReelHistory(reel_id=reel.id, usage_details=f"Returned back to Packwell via {doc_type}: {doc_number}", action_type='RETURN_TRANSIT'))
         flash(f'Reel {reel.reel_number} returned to Packwell. Pending dataop2 acceptance.', 'warning')
@@ -341,15 +340,34 @@ def process_return():
     flash('Partial return registered successfully.', 'info')
     return redirect(url_for('active_stock'))
 
+# -- යාවත්කාලීන කළ Date Filter සහිත Finished Route එක --
 @app.route('/finished_usage_stock')
 def finished_usage_stock():
-    finished_reels = Reel.query.filter_by(status='Finished').all()
-    usage_logs = ReelHistory.query.join(Reel).filter(ReelHistory.action_type.in_(['PARTIAL RETURN', 'FINISHED'])).all()
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+
+    finished_query = Reel.query.filter_by(status='Finished')
+    logs_query = ReelHistory.query.join(Reel).filter(ReelHistory.action_type.in_(['PARTIAL RETURN', 'FINISHED']))
+
+    if start_date and end_date:
+        try:
+            s_date = datetime.strptime(start_date, '%Y-%m-%d')
+            e_date = datetime.strptime(end_date, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
+            finished_query = finished_query.filter(Reel.updated_at >= s_date, Reel.updated_at <= e_date)
+            logs_query = logs_query.filter(ReelHistory.timestamp >= s_date, ReelHistory.timestamp <= e_date)
+        except ValueError:
+            pass
+
+    finished_reels = finished_query.all()
+    usage_logs = logs_query.all()
+
     return render_template('finished_stock.html', 
                            finished_reels=finished_reels, 
                            usage_logs=usage_logs,
                            total_finished_weight=sum((r.weight_kg or 0.0) for r in finished_reels),
-                           total_used_weight_log=sum((log.weight_used or 0.0) for log in usage_logs))
+                           total_used_weight_log=sum((log.weight_used or 0.0) for log in usage_logs),
+                           start_date=start_date or '',
+                           end_date=end_date or '')
 
 if __name__ == '__main__':
     app.run(debug=True)
