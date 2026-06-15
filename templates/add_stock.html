@@ -2,93 +2,113 @@
 {% block content %}
 
 <div class="container mt-4">
-    <div class="card shadow">
-        <div class="card-header bg-primary text-white">
-            <h4 class="mb-0">Add New Raw Material Stock Entry</h4>
+    <div class="card shadow-sm border-0 max-width-700 mx-auto">
+        <div class="card-header bg-dark text-white fw-bold py-3">
+            <h4 class="mb-0"><i class="bi bi-plus-circle"></i> Add New Raw Material Stock Entry</h4>
         </div>
-        <div class="card-body">
-            <form action="{{ url_for('add_stock') }}" method="POST">
+        <div class="card-body p-4">
+            <!-- පරිශීලකයා කවුදැයි JavaScript වලට හඳුනාගැනීම සඳහා සැඟවුණු Input එකක් (Hidden Field) -->
+            <input type="hidden" id="currentUserRole" value="{{ current_user.role }}">
+
+            <form action="{{ url_for('add_stock') }}" method="POST" id="rawMaterialForm">
                 
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold">Reel Number *</label>
-                        <input type="text" class="form-control" name="reel_number" required placeholder="e.g. R-10254">
+                <!-- Material Type -->
+                <div class="mb-3">
+                    <label for="paper_name" class="form-label fw-bold">Material / Paper Name</label>
+                    <select class="form-select" id="paper_name" name="paper_name" required>
+                        <option value="" selected disabled>Select Material...</option>
+                        <option value="Box Board">Box Board</option>
+                        <option value="Kraft Paper">Kraft Paper</option>
+                        <option value="Art Board">Art Board</option>
+                        <option value="Duplex Board">Duplex Board</option>
+                    </select>
+                </div>
+
+                <div class="row">
+                    <!-- Size -->
+                    <div class="col-md-6 mb-3">
+                        <label for="size_cm" class="form-label fw-bold">Size (cm)</label>
+                        <input type="number" step="0.1" class="form-control" id="size_cm" name="size_cm" placeholder="e.g., 100" required>
                     </div>
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold">Paper Name / Material *</label>
-                        <input type="text" class="form-control" name="paper_name" required placeholder="e.g. Kraft Paper">
+                    <!-- GSM -->
+                    <div class="col-md-6 mb-3">
+                        <label for="gsm" class="form-label fw-bold">GSM</label>
+                        <input type="number" class="form-control" id="gsm" name="gsm" placeholder="e.g., 140" required>
                     </div>
                 </div>
 
-                <div class="row mb-3">
-                    <div class="col-md-4">
-                        <label class="form-label fw-bold">Size (cm) *</label>
-                        <input type="number" step="0.01" class="form-control" name="size_cm" required>
+                <div class="row">
+                    <!-- Weight -->
+                    <div class="col-md-6 mb-3">
+                        <label for="weight_kg" class="form-label fw-bold">Weight (kg)</label>
+                        <input type="number" step="0.01" class="form-control" id="weight_kg" name="weight_kg" placeholder="e.g., 450.50" required>
                     </div>
-                    <div class="col-md-4">
-                        <label class="form-label fw-bold">Weight (kg) *</label>
-                        <input type="number" step="0.01" class="form-control" name="weight_kg" required>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label fw-bold">GSM</label>
-                        <input type="number" class="form-control" name="gsm">
+                    <!-- Reel Number -->
+                    <div class="col-md-6 mb-3">
+                        <label for="reel_number" class="form-label fw-bold">Reel Number</label>
+                        <input type="text" class="form-control" id="reel_number" name="reel_number" placeholder="e.g., REEL-9901" required>
                     </div>
                 </div>
 
-                <div class="row mb-3">
-                    <div class="col-md-4">
-                        <label class="form-label fw-bold text-primary">Reel Quality Type *</label>
-                        <!-- 🛠️ FIXED: Added the specific drop-down items requested -->
-                        <select class="form-select" name="reel_type" required>
-                            <option value="Liner(T)">Liner(T)</option>
-                            <option value="Medium(C)">Medium(C)</option>
-                            <option value="Kraft(K)">Kraft(K)</option>
-                            <option value="White(WT)">White(WT)</option>
-                            <option value="White Kraft(WK)">White Kraft(WK)</option>
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label fw-bold text-success">Initial Status *</label>
-                        <div class="mt-2 border p-2 rounded bg-light">
-                            <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="radio" name="status" id="statusFull" value="Full Reel" checked>
-                                <label class="form-check-label text-success fw-bold" for="statusFull">Full Reel</label>
-                            </div>
-                            <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="radio" name="status" id="statusUsed" value="Used Reel">
-                                <label class="form-check-label text-warning fw-bold" for="statusUsed">Used Reel</label>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label fw-bold text-info">Warehouse Location *</label>
-                        <select class="form-select" name="store_location" required>
-                            {% for loc in locations %}
-                                <option value="{{ loc }}">{{ loc }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
+                <!-- Warehouse Location (User Role එක අනුව Block වන කොටස) -->
+                <div class="mb-4">
+                    <label for="store_location" class="form-label fw-bold">Warehouse Location</label>
+                    <select class="form-select" id="store_location" name="store_location" required>
+                        <option value="" selected disabled>Select Warehouse Location...</option>
+                        
+                        <!-- dataop1 ට ලොග් වී ඇත්නම් Packwell 1-7 Block (Disabled) වේ -->
+                        <option value="Packwell 1-7" {% if current_user.role == 'dataop1' %} disabled class="text-muted bg-light" {% endif %}>
+                            Packwell 1-7 {% if current_user.role == 'dataop1' %} (Blocked for DataOp 1) {% endif %}
+                        </option>
+                        
+                        <!-- dataop2 ට ලොග් වී ඇත්නම් Viscor Lanka Block (Disabled) වේ -->
+                        <option value="Viscor Lanka" {% if current_user.role == 'dataop2' %} disabled class="text-muted bg-light" {% endif %}>
+                            Viscor Lanka {% if current_user.role == 'dataop2' %} (Blocked for DataOp 2) {% endif %}
+                        </option>
+
+                        <!-- අනෙකුත් සාමාන්‍ය Locations -->
+                        <option value="Main Store">Main Store</option>
+                        <option value="Yard 02">Yard 02</option>
+                    </select>
+                    <div id="locationWarning" class="form-text text-danger fw-bold mt-1" style="display: none;"></div>
                 </div>
 
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label class="form-label">Gate Pass Number (Optional)</label>
-                        <input type="text" class="form-control" name="gate_pass_number">
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label">Supplier Name (Optional)</label>
-                        <input type="text" class="form-control" name="supplier" placeholder="e.g. Supplier Pvt Ltd">
-                    </div>
-                </div>
-
-                <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
-                    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary me-md-2">Cancel</a>
-                    <button type="submit" class="btn btn-primary px-5 fw-bold">Save Stock Entry</button>
+                <!-- Submit Button -->
+                <div class="d-grid">
+                    <button type="submit" class="btn btn-dark btn-lg fw-bold"><i class="bi bi-plus-circle"></i> Save Stock Entry</button>
                 </div>
 
             </form>
         </div>
     </div>
 </div>
+
+<!-- Dynamic Restriction JavaScript -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let userRole = document.getElementById('currentUserRole').value;
+    let locationSelect = document.getElementById('store_location');
+    let warningDiv = document.getElementById('locationWarning');
+
+    // යම් හෙයකින් HTML attributes මඟ හැරුණහොත්, JavaScript මඟින්ද පාලනය කිරීම
+    locationSelect.addEventListener('change', function() {
+        let selectedValue = this.value;
+        
+        if (userRole === 'dataop1' && selectedValue === 'Packwell 1-7') {
+            warningDiv.innerText = "❌ You are not authorized to select Packwell 1-7 Location.";
+            warningDiv.style.display = 'block';
+            this.value = ""; // Reset Selection
+        } 
+        else if (userRole === 'dataop2' && selectedValue === 'Viscor Lanka') {
+            warningDiv.innerText = "❌ You are not authorized to select Viscor Lanka Location.";
+            warningDiv.style.display = 'block';
+            this.value = ""; // Reset Selection
+        } 
+        else {
+            warningDiv.style.display = 'none';
+        }
+    });
+});
+</script>
 
 {% endblock %}
