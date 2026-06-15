@@ -135,15 +135,42 @@ def dashboard():
     return render_template('dashboard.html', active_count=active_count, active_weight=active_weight,
                            pending_viscor_count=pending_viscor, issued=issued, finished=finished, damage_sell_count=damage_sell_count)
 
-@app.route('/active_stock')
 def active_stock():
-    full_reels = Reel.query.filter_by(status='Full Reel').all()
-    used_reels = Reel.query.filter_by(status='Used Reel').all()
-    return render_template('active_stock.html', 
-                           full_reels=full_reels, used_reels=used_reels,
-                           total_full_count=len(full_reels), total_full_weight=sum((r.weight_kg or 0.0) for r in full_reels),
-                           total_used_count=len(used_reels), total_used_weight=sum((r.weight_kg or 0.0) for r in used_reels))
+    try:
+        # 1. Database එකෙන් Full සහ Used රීල් වෙන වෙනම ලබා ගැනීම
+        # (ඔබේ පද්ධතියේ status වල නම් 'Full' සහ 'Used' වෙනුවට වෙනත් එකක් නම් එය දමන්න)
+        full_reels = Reel.query.filter_by(status='Full').all()
+        used_reels = Reel.query.filter_by(status='Used').all()
 
+        if not full_reels:
+            full_reels = []
+        if not used_reels:
+            used_reels = []
+
+        # 2. සුරක්ෂිතව ගණන (Count) ලබා ගැනීම
+        total_full_count = len(full_reels)
+        total_used_count = len(used_reels)
+
+        # 3. සුරක්ෂිතව මුළු බර (Total Weight) ගණනය කිරීම 
+        # (කිසිදු දත්තයක් නැති වුවද Crash නොවන ලෙස 'if reel.weight_kg' යොදා ඇත)
+        total_full_weight = sum(float(reel.weight_kg) for reel in full_reels if reel.weight_kg) or 0.0
+        total_used_weight = sum(float(reel.weight_kg) for reel in used_reels if reel.weight_kg) or 0.0
+
+        # 4. සියලුම දත්ත නිවැරදිව HTML එක වෙත Pass කිරීම
+        return render_template(
+            'active_stock.html', 
+            full_reels=full_reels, 
+            used_reels=used_reels,
+            total_full_count=total_full_count,
+            total_used_count=total_used_count,
+            total_full_weight=total_full_weight,
+            total_used_weight=total_used_weight
+        )
+
+    except Exception as e:
+        # සේවාදායකයේ (Server) සිදුවන සැබෑම දෝෂය terminal එකේ බලාගැනීමට මුද්‍රණය කරයි
+        print(f"--- [ERROR IN ACTIVE STOCK] --- : {str(e)}")
+        return f"Backend Error: {str(e)}. Please check Terminal.", 500
 @app.route('/add_stock', methods=['GET', 'POST'])
 def add_stock():
     user_role = session.get('role', 'dataop1')
