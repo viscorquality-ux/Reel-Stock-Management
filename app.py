@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime
+from datetime import datetime, timedelta
 import pytz
 
 app = Flask(__name__)
@@ -123,6 +123,19 @@ def dashboard():
     return render_template('dashboard.html', active_count=active_count, active_weight=active_weight,
                            pending_viscor_count=pending_viscor, issued=issued, finished=finished, damage_sell_count=damage_sell_count)
 
+# අලුතින් එක් කළ Active Stock Route එක (404 දෝෂය මගහරවා ඇත)
+@app.route('/active_stock')
+def active_stock():
+    user_role = session.get('role')
+    query = Reel.query.filter(Reel.status.in_(['Full Reel', 'Used Reel']))
+    
+    if user_role == 'dataop1':
+        query = query.filter(Reel.store_location == 'Viscor Lanka')
+    elif user_role == 'dataop2':
+        query = query.filter(Reel.store_location.like('Packwell W%'))
+        
+    return render_template('active_stock.html', active_stocks=query.all())
+
 # නිවැරදි කළ Add Stock Route එක
 @app.route('/add_stock', methods=['GET', 'POST'])
 def add_stock():
@@ -203,7 +216,7 @@ def mark_damage_sell(id):
     # මේ සඳහා අවශ්‍ය කේතය (Logic එක) පසුව එකතු කරන්න
     return redirect(url_for('damage_sell_stock'))
 
-
+# සම්පූර්ණ කළ සහ නිවැරදි කළ Finished Usage Stock Route එක (500 Error එක මගහරවා ඇත)
 @app.route('/finished_usage_stock')
 def finished_usage_stock():
     user_role = session.get('role')
@@ -220,11 +233,17 @@ def finished_usage_stock():
         finished_query = finished_query.filter(Reel.store_location.like('Packwell W%'))
         logs_query = logs_query.filter(Reel.store_location.like('Packwell W%'))
 
+    # දින (Date) අනුව filter කිරීමේ කේතය අලුතින් එක් කරන ලදී
     if start_date and end_date:
         try:
             s_date = datetime.strptime(start_date, '%Y-%m-%d')
-            # මෙතනට දිනයන් අනුව filter වන කේතයක් අවශ්‍ය නම් එක් කර ගන්න
+            # දවසේ අවසානය දක්වා ඇතුළත් කිරීමට දින 1ක් එකතු කෙරේ
+            e_date = datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1)
+            
+            finished_query = finished_query.filter(Reel.updated_at >= s_date, Reel.updated_at < e_date)
+            logs_query = logs_query.filter(ReelHistory.timestamp >= s_date, ReelHistory.timestamp < e_date)
         except Exception as e:
+            print(f"Date Parsing Error: {e}")
             pass
 
     return render_template('finished_usage_stock.html',
