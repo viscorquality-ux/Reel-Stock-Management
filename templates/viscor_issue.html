@@ -170,14 +170,23 @@
                                             <td><i class="bi bi-geo-alt-fill text-danger"></i> {{ reel.location }}</td>
                                             <td>
                                                 {% if user_role == 'dataop2' or user_role == 'admin' %}
-                                                <form action="{{ url_for('accept_packwell', id=reel.id) }}" method="POST" style="display:inline;">
+                                                <form action="{{ url_for('accept_packwell', id=reel.id) }}" method="POST" class="d-flex align-items-center gap-1 justify-content-center">
+                                                    <select name="accept_location" class="form-select form-select-sm border-warning fw-bold w-auto" required title="Select Warehouse Location">
+                                                        <option value="Packwell W 1">W 1</option>
+                                                        <option value="Packwell W 2">W 2</option>
+                                                        <option value="Packwell W 3">W 3</option>
+                                                        <option value="Packwell W 4">W 4</option>
+                                                        <option value="Packwell W 5">W 5</option>
+                                                        <option value="Packwell W 6">W 6</option>
+                                                        <option value="Packwell W 7">W 7</option>
+                                                    </select>
                                                     <button type="submit" class="btn btn-sm btn-warning fw-bold text-dark">
-                                                        <i class="bi bi-arrow-counterclockwise"></i> Accept Return
+                                                        <i class="bi bi-check-circle-fill"></i> Accept
                                                     </button>
                                                 </form>
                                                 {% else %}
                                                 <button class="btn btn-sm btn-secondary fw-bold" disabled title="Only dataop2 or admin can accept Packwell returns">
-                                                    <i class="bi bi-slash-circle"></i> Return Accept Disabled
+                                                    <i class="bi bi-slash-circle"></i> Disabled
                                                 </button>
                                                 {% endif %}
                                             </td>
