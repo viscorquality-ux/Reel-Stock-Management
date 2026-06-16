@@ -2,16 +2,18 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Viscor Quality Stock - Login</title>
+    <title>Inventory Management - Login</title>
+    <!-- Bootstrap CSS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
-    <!-- FontAwesome added only for the Eye Icon -->
+    <!-- FontAwesome CSS (Eye Icon එක සඳහා අනිවාර්ය වේ) -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body class="bg-light">
 <div class="container mt-5" style="max-width: 450px;">
     <div class="card p-4 shadow-sm mt-5">
-        <h3 class="text-center mb-4 text-primary">Inventory Management System</h3>
+        <h3 class="text-center mb-4 text-primary">System Login</h3>
         
+        <!-- Flash Messages පෙන්වීම -->
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
             {% for category, message in messages %}
@@ -21,13 +23,15 @@
         {% endwith %}
 
         <form method="POST" action="{{ url_for('login') }}">
+            <!-- Username Field -->
             <div class="mb-3">
                 <label class="form-label">Username</label>
                 <input type="text" name="username" class="form-control" placeholder="Enter username" required>
             </div>
+            
+            <!-- Password Field with Eye Icon -->
             <div class="mb-3">
                 <label class="form-label">Password</label>
-                <!-- Eye icon setup applied here without changing overall form structure -->
                 <div class="input-group">
                     <input type="password" name="password" id="password" class="form-control" placeholder="Enter password" required>
                     <button class="btn btn-outline-secondary" type="button" id="togglePassword" style="border-left: none;">
@@ -35,26 +39,31 @@
                     </button>
                 </div>
             </div>
+            
             <button type="submit" class="btn btn-primary w-100 mt-2">Login</button>
         </form>
     </div>
 </div>
 
-<!-- Simple Script for Eye Icon functionality -->
+<!-- Password පෙන්වීමට සහ සැඟවීමට අදාළ JavaScript -->
 <script>
     document.getElementById('togglePassword').addEventListener('click', function () {
         const passwordField = document.getElementById('password');
         const eyeIcon = document.getElementById('eyeIcon');
+        
+        // Password එක පෙනෙන/නොපෙනෙන තත්ත්වයට මාරු කිරීම
         if (passwordField.type === 'password') {
             passwordField.type = 'text';
             eyeIcon.classList.remove('fa-eye');
-            eyeIcon.classList.add('fa-eye-slash');
+            eyeIcon.classList.add('fa-eye-slash'); // ඉරක් සහිත ඇසේ අයිකනය
         } else {
             passwordField.type = 'password';
             eyeIcon.classList.remove('fa-eye-slash');
-            eyeIcon.classList.add('fa-eye');
+            eyeIcon.classList.add('fa-eye'); // සාමාන්‍ය ඇසේ අයිකනය
         }
     });
 </script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
