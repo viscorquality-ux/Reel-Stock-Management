@@ -168,12 +168,17 @@ def active_stock():
         
     full_reels = full_query.all()
     used_reels = used_query.all()
+    
+    total_full_weight = sum((r.weight_kg or 0.0) for r in full_reels)
+    total_used_weight = sum((r.weight_kg or 0.0) for r in used_reels)
 
     return render_template('active_stock.html', 
                            full_reels=full_reels, 
                            used_reels=used_reels,
                            total_full_count=len(full_reels),
                            total_used_count=len(used_reels),
+                           total_full_weight=round(total_full_weight, 2),
+                           total_used_weight=round(total_used_weight, 2),
                            user_role=user_role)
 
 @app.route('/add_stock', methods=['GET', 'POST'])
