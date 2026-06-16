@@ -32,7 +32,7 @@ class Reel(db.Model):
     gate_pass_number = db.Column(db.String(50), nullable=True)
     sr_number = db.Column(db.String(50), nullable=True) 
     routing_type = db.Column(db.String(50), nullable=True)
-    location = db.Column(db.String(100), default='Viscor Lanka')
+    location = db.Column(db.String(100), default='Viscor Lanka') # මෙහි නම 'location' වේ
     gsm = db.Column(db.Integer, default=0)
     reel_type = db.Column(db.String(100), default='Liner(T)') 
     supplier = db.Column(db.String(100), default='N/A', nullable=True)
@@ -67,19 +67,21 @@ def inject_global_facilities():
 def handle_session_and_security():
     if 'role' in session and session['role']:
         session['role'] = SmartRole(session['role'])
-    allowed_routes = ['login', 'login_submit', 'static']
+    # fix_db route එක allowed_routes වලට එකතු කර ඇත
+    allowed_routes = ['login', 'login_submit', 'static', 'fix_db']
     if request.endpoint not in allowed_routes and 'role' not in session:
         return redirect(url_for('login'))
+
 @app.route('/fix_db')
 def fix_db():
     try:
         with db.engine.connect() as conn:
-            # Database එකට location column එක අලුතින් එකතු කිරීමේ SQL විධානය
             conn.execute(text("ALTER TABLE reel ADD COLUMN location VARCHAR(100) DEFAULT 'Viscor Lanka';"))
             conn.commit()
         return "Database එක සාර්ථකව Update විය! දැන් Dashboard එකට යන්න පුළුවන්."
     except Exception as e:
         return f"දෝෂයක්: {e}"
+
 @app.route('/')
 def home():
     return redirect(url_for('dashboard')) if 'role' in session else redirect(url_for('login'))
@@ -90,18 +92,17 @@ def login():
         username = request.form.get('username').strip()
         password = request.form.get('password').strip()
         
-        # User accounts සහ Passwords (මෙය ඔබගේ Database එකක් නම් ඒ හරහා check කරන්න)
         users = {
             'admin': 'admin@0123',
             'dataop1': 'viscor@2468',
-            'dataop2': 'packwell@8642', # Packwell සඳහා අලුත් user
+            'dataop2': 'packwell@8642',
             'super1': 'viscor@1357',
             'super2': 'packwell@7531'
         }
         
         if username in users and users[username] == password:
-            # නිවැරදිව Session එකට අදාළ User ව ඇතුලත් කිරීම
-            session['username'] = username
+            # මෙහිදී 'username' වෙනුවට 'role' ලෙස session එක සෑදීම නිවැරදි කර ඇත
+            session['role'] = username
             flash(f'Successfully logged in as {username}!', 'success')
             return redirect(url_for('dashboard'))
         else:
@@ -109,39 +110,23 @@ def login():
             
     return render_template('login.html')
 
-# --- 2. LOGOUT ROUTE එක (නැතිනම් එකතු කරගන්න) ---
 @app.route('/logout')
 def logout():
-    session.pop('username', None)
+    session.pop('role', None)
     return redirect(url_for('login'))
 
-# --- 3. DASHBOARD / ACTIVE STOCK ROUTE එක වෙනස් කිරීම ---
-@app.route('/dashboard') # මෙය ඔබගේ අදාළ route එක ලෙස වෙනස් කරගන්න (උදා: /active_stock)
+@app.route('/dashboard') 
 def dashboard():
-    # ලොග් වී නැත්නම් login පිටුවට යැවීම
-    if 'username' not in session:
-        return redirect(url_for('login'))
-        
-    current_user = session['username']
-    query = Reel.query # ඔබගේ Database Model එක (Reel)
+    current_user = session.get('role')
+    query = Reel.query
     
-    # --- Location Filtering Logic ---
     if current_user == 'dataop1':
-        # dataop1 ට Viscor Lanka පමණක් පෙන්වීම
         query = query.filter_by(location='Viscor Lanka')
-        
     elif current_user == 'dataop2':
-        # dataop2 ට Packwell 1 සිට 7 දක්වා පමණක් පෙන්වීම
-        packwell_locations = [f'Packwell {i}' for i in range(1, 8)]
-        query = query.filter(Reel.location.in_(packwell_locations))
+        # Packwell සෙවීම LIKE හරහා පහසුවෙන් කිරීමට සකසා ඇත
+        query = query.filter(Reel.location.like('Packwell W%'))
         
-    # admin, super1, super2 හට කිසිදු filter එකක් නැත, සියල්ල පෙනේ.
-    
-    # අවසාන දත්ත ලබාගැනීම
     reels_data = query.all()
-    
-    # --- Action Buttons Disable කිරීමේ Logic ---
-    # super1 හෝ super2 නම් is_read_only = True වේ.
     is_read_only = True if current_user in ['super1', 'super2'] else False
     
     return render_template('dashboard.html', 
@@ -155,9 +140,9 @@ def active_stock():
     query = Reel.query.filter(Reel.status.in_(['Full Reel', 'Used Reel']))
     
     if user_role == 'dataop1':
-        query = query.filter(Reel.store_location == 'Viscor Lanka')
+        query = query.filter(Reel.location == 'Viscor Lanka') # store_location යන්න location ලෙස වෙනස් විය
     elif user_role == 'dataop2':
-        query = query.filter(Reel.store_location.like('Packwell W%'))
+        query = query.filter(Reel.location.like('Packwell W%'))
         
     return render_template('active_stock.html', active_stocks=query.all())
 
@@ -179,7 +164,7 @@ def viscor_issue():
         packwell_reels = []
     elif user_role == 'dataop2':
         viscor_reels = []
-        packwell_reels = Reel.query.filter(Reel.status.in_(['Pending Packwell Full', 'Pending Packwell Used']), Reel.store_location.like('Packwell W%')).all()
+        packwell_reels = Reel.query.filter(Reel.status.in_(['Pending Packwell Full', 'Pending Packwell Used']), Reel.location.like('Packwell W%')).all()
     else:
         viscor_reels = Reel.query.filter_by(status='Pending Viscor').all()
         packwell_reels = Reel.query.filter(Reel.status.in_(['Pending Packwell Full', 'Pending Packwell Used'])).all()
@@ -196,9 +181,9 @@ def issued_stock():
     query = Reel.query.filter_by(status='Issued')
     
     if user_role == 'dataop1':
-        query = query.filter(Reel.store_location == 'Viscor Lanka')
+        query = query.filter(Reel.location == 'Viscor Lanka')
     elif user_role == 'dataop2':
-        query = query.filter(Reel.store_location.like('Packwell W%'))
+        query = query.filter(Reel.location.like('Packwell W%'))
         
     return render_template('issued_stock.html', stocks=query.all())
 
@@ -214,13 +199,13 @@ def damage_sell_stock():
     cond_query = ReelHistory.query.filter_by(action_type='COND_ISSUE')
 
     if user_role == 'dataop1':
-        damaged_query = damaged_query.filter(Reel.store_location == 'Viscor Lanka')
-        sold_query = sold_query.filter(Reel.store_location == 'Viscor Lanka')
-        cond_query = cond_query.join(Reel).filter(Reel.store_location == 'Viscor Lanka')
+        damaged_query = damaged_query.filter(Reel.location == 'Viscor Lanka')
+        sold_query = sold_query.filter(Reel.location == 'Viscor Lanka')
+        cond_query = cond_query.join(Reel).filter(Reel.location == 'Viscor Lanka')
     elif user_role == 'dataop2':
-        damaged_query = damaged_query.filter(Reel.store_location.like('Packwell W%'))
-        sold_query = sold_query.filter(Reel.store_location.like('Packwell W%'))
-        cond_query = cond_query.join(Reel).filter(Reel.store_location.like('Packwell W%'))
+        damaged_query = damaged_query.filter(Reel.location.like('Packwell W%'))
+        sold_query = sold_query.filter(Reel.location.like('Packwell W%'))
+        cond_query = cond_query.join(Reel).filter(Reel.location.like('Packwell W%'))
 
     damaged_reels = damaged_query.all()
     sold_reels = sold_query.all()
@@ -232,7 +217,6 @@ def damage_sell_stock():
 def mark_damage_sell(id):
     return redirect(url_for('damage_sell_stock'))
 
-# සම්පූර්ණයෙන්ම ආරක්ෂිතව නිවැරදි කරන ලද Finished Usage Stock Route එක
 @app.route('/finished_usage_stock')
 def finished_usage_stock():
     user_role = session.get('role')
@@ -247,11 +231,11 @@ def finished_usage_stock():
         logs_query = ReelHistory.query.join(Reel).filter(ReelHistory.action_type.in_(['PARTIAL RETURN', 'FINISHED']))
 
         if user_role == 'dataop1':
-            finished_query = finished_query.filter(Reel.store_location == 'Viscor Lanka')
-            logs_query = logs_query.filter(Reel.store_location == 'Viscor Lanka')
+            finished_query = finished_query.filter(Reel.location == 'Viscor Lanka')
+            logs_query = logs_query.filter(Reel.location == 'Viscor Lanka')
         elif user_role == 'dataop2':
-            finished_query = finished_query.filter(Reel.store_location.like('Packwell W%'))
-            logs_query = logs_query.filter(Reel.store_location.like('Packwell W%'))
+            finished_query = finished_query.filter(Reel.location.like('Packwell W%'))
+            logs_query = logs_query.filter(Reel.location.like('Packwell W%'))
 
         if start_date and end_date:
             try:
@@ -263,12 +247,11 @@ def finished_usage_stock():
             except ValueError:
                 pass
 
-        # දත්ත ලබාගැනීම ප්‍රධාන Try බ්ලොක් එක ඇතුලත සිදුකරන බැවින් කිසිවිටෙකත් 500 Error එකක් නොදේ
         finished_data = finished_query.all()
         logs_data = logs_query.all()
 
     except Exception as e:
-        db.session.rollback() # Database session එක reset කරයි
+        db.session.rollback() 
         print(f"Database Error in finished_usage_stock: {e}")
         flash("දත්ත පද්ධතියෙන් දත්ත ලබාගැනීමේදී දෝෂයක් සිදුවිය.", "danger")
 
