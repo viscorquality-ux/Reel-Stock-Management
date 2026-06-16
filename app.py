@@ -181,6 +181,22 @@ def add_stock():
             
     return render_template('add_stock.html', user_role=user_role)
 
+# -- Active Reel Edit Route අලුතින් එක් කළ කොටස --
+@app.route('/edit_active_reel/<int:id>', methods=['POST'])
+def edit_active_reel(id):
+    reel = Reel.query.get_or_404(id)
+    reel.reel_number = request.form.get('reel_number', reel.reel_number)
+    reel.paper_name = request.form.get('paper_name', reel.paper_name)
+    reel.reel_type = request.form.get('reel_type', reel.reel_type)
+    reel.size_cm = request.form.get('size_cm', reel.size_cm, type=float)
+    reel.gsm = request.form.get('gsm', reel.gsm, type=int)
+    reel.weight_kg = request.form.get('weight_kg', reel.weight_kg, type=float)
+    
+    db.session.add(ReelHistory(reel_id=reel.id, usage_details="Reel details manually edited", action_type='EDIT'))
+    db.session.commit()
+    flash(f"Reel {reel.reel_number} updated successfully.", "success")
+    return redirect(url_for('active_stock'))
+
 @app.route('/issue_reel/<int:id>', methods=['POST'])
 def issue_reel(id):
     reel = Reel.query.get_or_404(id)
@@ -340,7 +356,6 @@ def process_return():
     flash('Partial return registered successfully.', 'info')
     return redirect(url_for('active_stock'))
 
-# -- යාවත්කාලීන කළ Date Filter සහිත Finished Route එක --
 @app.route('/finished_usage_stock')
 def finished_usage_stock():
     start_date = request.args.get('start_date')
@@ -368,6 +383,22 @@ def finished_usage_stock():
                            total_used_weight_log=sum((log.weight_used or 0.0) for log in usage_logs),
                            start_date=start_date or '',
                            end_date=end_date or '')
+
+# -- Finished SR Update Route අලුතින් එක් කළ කොටස --
+@app.route('/update_finished_sr/<int:id>', methods=['POST'])
+def update_finished_sr(id):
+    if session.get('role') != 'dataop1':
+        flash("Unauthorized action. Only DataOp1 can update Finished SR Numbers.", "danger")
+        return redirect(url_for('finished_usage_stock'))
+        
+    reel = Reel.query.get_or_404(id)
+    new_sr = request.form.get('sr_number', '').strip()
+    reel.sr_number = new_sr
+    
+    db.session.add(ReelHistory(reel_id=reel.id, usage_details=f"Finished SR Number updated to {new_sr}", action_type='SR_UPDATE'))
+    db.session.commit()
+    flash(f"SR Number for Finished Reel {reel.reel_number} updated successfully.", "success")
+    return redirect(url_for('finished_usage_stock'))
 
 if __name__ == '__main__':
     app.run(debug=True)
