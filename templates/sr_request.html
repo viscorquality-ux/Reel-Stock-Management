@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SR Request Management - Viscor & Packwell</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <style>
+        body { background-color: #f8f9fa; }
+        .nav-link.active { font-weight: bold; }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
+        <div class="container-fluid">
+            <a class="navbar-brand fw-bold" href="/"><i class="bi bi-box-seam"></i> Stock Management</a>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item"><a class="nav-link" href="/dashboard">Dashboard</a></li>
+                    {% if user_role in ['admin', 'dataop1', 'dataop2'] %}
+                    <li class="nav-item"><a class="nav-link" href="/add_stock">Add Stock</a></li>
+                    {% endif %}
+                    <li class="nav-item"><a class="nav-link" href="/active_stock">Active Stock</a></li>
+                    <li class="nav-item"><a class="nav-link active" href="/sr_request">SR Request</a></li>
+                </ul>
+                <ul class="navbar-nav">
+                    <li class="nav-item"><a class="nav-link text-danger fw-bold" href="/logout"><i class="bi bi-power"></i> Logout ({{ session.get('username') }})</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container my-5" style="max-width: 1000px;">
+        <div class="card shadow border-0 mb-4 bg-white text-dark">
+            <div class="card-body p-4">
+                <h3 class="fw-bold mb-3"><i class="bi bi-file-earmark-text text-warning"></i> SR Request System Hub</h3>
+                
+                <ul class="nav nav-tabs" id="srTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active fw-bold text-dark" id="form-tab" data-bs-toggle="tab" data-bs-target="#form-pane" type="button" role="tab">1. SR Form</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link fw-bold text-dark" id="log-tab" data-bs-toggle="tab" data-bs-target="#log-pane" type="button" role="tab">2. SR Log Dashboard</button>
+                    </li>
+                </ul>
+
+                <div class="tab-content mt-4" id="srTabsContent">
+                    
+                    <div class="tab-pane fade show active" id="form-pane" role="tabpanel">
+                        {% if user_role == 'programmer' %}
+                        <form action="/sr_request" method="POST" id="srEntryForm">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Reel Size</label>
+                                    <input type="number" step="0.01" name="reel_size" class="form-control" placeholder="Enter Reel Size" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">PO Number</label>
+                                    <input type="text" name="po_number" class="form-control" placeholder="Enter PO Number" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Quantity (Qty)</label>
+                                    <input type="number" id="qty" name="qty" class="form-control" oninput="calculateSRWeight()" placeholder="Enter Qty" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">GSM</label>
+                                    <input type="number" id="gsm" name="gsm" class="form-control" oninput="calculateSRWeight()" placeholder="Enter GSM" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Board Size - Width (cm)</label>
+                                    <input type="number" step="0.01" id="board_width" name="board_width" class="form-control" oninput="calculateSRWeight()" placeholder="e.g. 120" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Board Size - Length (cm)</label>
+                                    <input type="number" step="0.01" id="board_length" name="board_length" class="form-control" oninput="calculateSRWeight()" placeholder="e.g. 100" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Material Name</label>
+                                    <input type="text" name="material_name" class="form-control" placeholder="Enter Material Name" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold d-block">Layer Type Specification Selection</label>
+                                    <div class="form-check form-check-inline mt-2">
+                                        <input class="form-check-input" type="radio" name="layer_type" id="layerTop" value="Top" checked onchange="calculateSRWeight()">
+                                        <label class="form-check-label fw-bold" for="layerTop">Top (*1)</label>
+                                    </div>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="radio" name="layer_type" id="layerBottom" value="Bottom" onchange="calculateSRWeight()">
+                                        <label class="form-check-label fw-bold" for="layerBottom">Bottom (*1)</label>
+                                    </div>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="radio" name="layer_type" id="layerCorru" value="Corru" onchange="calculateSRWeight()">
+                                        <label class="form-check-label fw-bold" for="layerCorru">Corru (*1.5)</label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card bg-light p-3 my-4 border-0 shadow-sm text-dark">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="fw-bold text-uppercase fs-7 text-muted">Automated Calculated Weight (kg):</span>
+                                    <span class="fs-4 fw-black text-primary" id="weightDisplay">0.00 kg</span>
+                                </div>
+                            </div>
+
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-dark fw-bold py-2"><i class="bi bi-send"></i> Submit SR Request Form</button>
+                            </div>
+                        </form>
+                        {% else %}
+                        <div class="alert alert-warning text-center fw-bold">
+                            <i class="bi bi-lock-fill"></i> Only the designated Programmer Account can use the SR Request Input Creation Form.
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="tab-pane fade" id="log-pane" role="tabpanel">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>ID</th><th>PO Number</th><th>Reel Size</th><th>GSM</th><th>Qty</th>
+                                        <th>Board Size</th><th>Material</th><th>Layer</th><th>Weight (kg)</th><th>Status</th><th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for log in sr_logs %}
+                                    <tr>
+                                        <td><strong>#{{ log.id }}</strong></td>
+                                        <td><span class="badge bg-secondary">{{ log.po_number }}</span></td>
+                                        <td>{{ log.reel_size }}</td>
+                                        <td>{{ log.gsm }}</td>
+                                        <td>{{ log.qty }}</td>
+                                        <td><code>{{ log.board_size }}</code></td>
+                                        <td>{{ log.material_name }}</td>
+                                        <td><span class="badge bg-light text-dark border">{{ log.layer_type }}</span></td>
+                                        <td class="fw-bold text-primary">{{ "%.2f"|format(log.calculated_weight) }} kg</td>
+                                        <td>
+                                            {% if log.status == 'Pending Approval' %}
+                                            <span class="badge bg-warning text-dark"><i class="bi bi-clock-history"></i> Pending</span>
+                                            {% elif log.status == 'Approved' %}
+                                            <span class="badge bg-success"><i class="bi bi-check-circle"></i> Approved</span>
+                                            {% else %}
+                                            <span class="badge bg-info text-dark"><i class="bi bi-flag-fill"></i> Proceeded</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if user_role in ['super1', 'super2', 'admin'] and log.status == 'Pending Approval' %}
+                                            <form action="/approve_sr/{{ log.id }}" method="POST" class="d-inline">
+                                                <button type="submit" class="btn btn-sm btn-success fw-bold"><i class="bi bi-check2"></i> Approve</button>
+                                            </form>
+                                            
+                                            {% elif user_role in ['dataop1', 'dataop2', 'admin'] and log.status == 'Approved' %}
+                                            <form action="/proceed_sr/{{ log.id }}" method="POST" class="d-inline">
+                                                <button type="submit" class="btn btn-sm btn-info fw-bold text-dark"><i class="bi bi-arrow-right-circle"></i> Proceed</button>
+                                            </form>
+                                            {% else %}
+                                            <span class="text-muted fs-7">No Action Open</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="11" class="text-center text-muted">No SR requests found in history tracking system logs.</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    function calculateSRWeight() {
+        let width = parseFloat(document.getElementById('board_width').value) || 0.0;
+        let length = parseFloat(document.getElementById('board_length').value) || 0.0;
+        let gsm = parseFloat(document.getElementById('gsm').value) || 0.0;
+        let qty = parseInt(document.getElementById('qty').value) || 0;
+        
+        let multiplier = 1.0;
+        if (document.getElementById('layerCorru') && document.getElementById('layerCorru').checked) {
+            multiplier = 1.5;
+        }
+
+        // Formula Implementation: ((w * l) * (gsm / 1000) * multiplier) / 2 * qty
+        let totalWeight = ((width * length) * (gsm / 1000.0) * multiplier) / 2.0 * qty;
+        
+        if (document.getElementById('weightDisplay')) {
+            document.getElementById('weightDisplay').innerText = totalWeight.toFixed(2) + " kg";
+        }
+    }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
