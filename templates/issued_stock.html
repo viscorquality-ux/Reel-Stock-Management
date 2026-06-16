@@ -69,13 +69,14 @@
                                     <td>{{ stock.location }}</td>
                                     <td>
                                         <div class="d-flex justify-content-center gap-2">
-                                            <!-- Partial Return Button -->
-                                            <button type="button" class="btn btn-sm btn-outline-warning fw-bold text-dark" data-bs-toggle="modal" data-bs-target="#partialModal{{ stock.id }}">
+                                            <!-- Partial Return Button (Disabled for super1, super2) -->
+                                            <button type="button" class="btn btn-sm btn-outline-warning fw-bold text-dark" data-bs-toggle="modal" data-bs-target="#partialModal{{ stock.id }}" {% if session.get('role') in ['super1', 'super2'] %}disabled title="Super users cannot perform actions"{% endif %}>
                                                 <i class="bi bi-arrow-return-left"></i> Partial Return
                                             </button>
-                                            <!-- Mark as Finished Button -->
+                                            
+                                            <!-- Mark as Finished Button (Disabled for super1, super2) -->
                                             <form action="{{ url_for('finish_reel', id=stock.id) }}" method="POST" style="display:inline;">
-                                                <button type="submit" class="btn btn-sm btn-success fw-bold">
+                                                <button type="submit" class="btn btn-sm btn-success fw-bold" {% if session.get('role') in ['super1', 'super2'] %}disabled title="Super users cannot perform actions"{% endif %}>
                                                     <i class="bi bi-check-all"></i> Mark Finished
                                                 </button>
                                             </form>
@@ -93,7 +94,7 @@
         </div>
     </div>
 
-    <!-- ⚠️ MODALS SECTION (TABLE එකෙන් පිටතට වෙනමම ලූප් එකක් මඟින් දමා ඇත - දැන් 100% ක් වැඩ කරයි) -->
+    <!-- MODALS SECTION -->
     {% if stocks %}
         {% for stock in stocks %}
         <div class="modal fade" id="partialModal{{ stock.id }}" tabindex="-1" aria-labelledby="partialModalLabel{{ stock.id }}" aria-hidden="true">
