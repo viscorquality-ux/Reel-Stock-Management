@@ -128,7 +128,6 @@ def dashboard():
     return render_template('dashboard.html', active_count=active_count, active_weight=active_weight,
                            pending_viscor_count=pending_viscor, issued=issued, finished=finished, damage_sell_count=damage_sell_count)
 
-@@ -181,7 +189,6 @@
 
     return render_template('add_stock.html', user_role=user_role)
 
