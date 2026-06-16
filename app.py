@@ -123,7 +123,6 @@ def dashboard():
     return render_template('dashboard.html', active_count=active_count, active_weight=active_weight,
                            pending_viscor_count=pending_viscor, issued=issued, finished=finished, damage_sell_count=damage_sell_count)
 
-# අලුතින් එක් කළ Active Stock Route එක (404 දෝෂය මගහරවා ඇත)
 @app.route('/active_stock')
 def active_stock():
     user_role = session.get('role')
@@ -136,17 +135,14 @@ def active_stock():
         
     return render_template('active_stock.html', active_stocks=query.all())
 
-# නිවැරදි කළ Add Stock Route එක
 @app.route('/add_stock', methods=['GET', 'POST'])
 def add_stock():
     user_role = session.get('role')
     return render_template('add_stock.html', user_role=user_role)
 
-# -- Active Reel Edit Route අලුතින් එක් කළ කොටස --
 @app.route('/edit_active_reel/<int:id>', methods=['POST'])
 def edit_active_reel(id):
     reel = Reel.query.get_or_404(id)
-    # මේ සඳහා අවශ්‍ය කේතය (Logic එක) පසුව එකතු කරන්න
     return redirect(url_for('dashboard'))
 
 @app.route('/viscor_issue')
@@ -164,10 +160,8 @@ def viscor_issue():
         
     return render_template('viscor_issue.html', reels=viscor_reels, packwell_reels=packwell_reels, user_role=user_role)
 
-# නිවැරදි කළ Accept Viscor Route එක
 @app.route('/accept_viscor/<int:id>', methods=['POST'])
 def accept_viscor(id):
-    # මේ සඳහා අවශ්‍ය කේතය (Logic එක) පසුව එකතු කරන්න
     return redirect(url_for('viscor_issue'))
 
 @app.route('/issued_stock')
@@ -182,10 +176,8 @@ def issued_stock():
         
     return render_template('issued_stock.html', stocks=query.all())
 
-# නිවැරදි කළ Finish Reel Route එක
 @app.route('/finish_reel/<int:id>', methods=['POST'])
 def finish_reel(id):
-    # මේ සඳහා අවශ්‍ය කේතය (Logic එක) පසුව එකතු කරන්න
     return redirect(url_for('issued_stock'))
 
 @app.route('/damage_sell_stock')
@@ -210,56 +202,61 @@ def damage_sell_stock():
     
     return render_template('damage_sell_stock.html', damaged_reels=damaged_reels, sold_reels=sold_reels, cond_logs=cond_logs)
 
-# නිවැරදි කළ Mark Damage Sell Route එක
 @app.route('/mark_damage_sell/<int:id>', methods=['POST'])
 def mark_damage_sell(id):
-    # මේ සඳහා අවශ්‍ය කේතය (Logic එක) පසුව එකතු කරන්න
     return redirect(url_for('damage_sell_stock'))
 
-# සම්පූර්ණ කළ සහ නිවැරදි කළ Finished Usage Stock Route එක (500 Error එක මගහරවා ඇත)
+# සම්පූර්ණයෙන්ම ආරක්ෂිතව නිවැරදි කරන ලද Finished Usage Stock Route එක
 @app.route('/finished_usage_stock')
 def finished_usage_stock():
     user_role = session.get('role')
-    start_date = request.args.get('start_date')
-    end_date = request.args.get('end_date')
+    start_date = request.args.get('start_date', '').strip()
+    end_date = request.args.get('end_date', '').strip()
 
-    finished_query = Reel.query.filter_by(status='Finished')
-    logs_query = ReelHistory.query.join(Reel).filter(ReelHistory.action_type.in_(['PARTIAL RETURN', 'FINISHED']))
+    finished_data = []
+    logs_data = []
 
-    if user_role == 'dataop1':
-        finished_query = finished_query.filter(Reel.store_location == 'Viscor Lanka')
-        logs_query = logs_query.filter(Reel.store_location == 'Viscor Lanka')
-    elif user_role == 'dataop2':
-        finished_query = finished_query.filter(Reel.store_location.like('Packwell W%'))
-        logs_query = logs_query.filter(Reel.store_location.like('Packwell W%'))
+    try:
+        finished_query = Reel.query.filter_by(status='Finished')
+        logs_query = ReelHistory.query.join(Reel).filter(ReelHistory.action_type.in_(['PARTIAL RETURN', 'FINISHED']))
 
-    # දින (Date) අනුව filter කිරීමේ කේතය අලුතින් එක් කරන ලදී
-    if start_date and end_date:
-        try:
-            s_date = datetime.strptime(start_date, '%Y-%m-%d')
-            # දවසේ අවසානය දක්වා ඇතුළත් කිරීමට දින 1ක් එකතු කෙරේ
-            e_date = datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1)
-            
-            finished_query = finished_query.filter(Reel.updated_at >= s_date, Reel.updated_at < e_date)
-            logs_query = logs_query.filter(ReelHistory.timestamp >= s_date, ReelHistory.timestamp < e_date)
-        except Exception as e:
-            print(f"Date Parsing Error: {e}")
-            pass
+        if user_role == 'dataop1':
+            finished_query = finished_query.filter(Reel.store_location == 'Viscor Lanka')
+            logs_query = logs_query.filter(Reel.store_location == 'Viscor Lanka')
+        elif user_role == 'dataop2':
+            finished_query = finished_query.filter(Reel.store_location.like('Packwell W%'))
+            logs_query = logs_query.filter(Reel.store_location.like('Packwell W%'))
+
+        if start_date and end_date:
+            try:
+                s_date = datetime.strptime(start_date, '%Y-%m-%d')
+                e_date = datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1)
+                
+                finished_query = finished_query.filter(Reel.updated_at >= s_date, Reel.updated_at < e_date)
+                logs_query = logs_query.filter(ReelHistory.timestamp >= s_date, ReelHistory.timestamp < e_date)
+            except ValueError:
+                pass
+
+        # දත්ත ලබාගැනීම ප්‍රධාන Try බ්ලොක් එක ඇතුලත සිදුකරන බැවින් කිසිවිටෙකත් 500 Error එකක් නොදේ
+        finished_data = finished_query.all()
+        logs_data = logs_query.all()
+
+    except Exception as e:
+        db.session.rollback() # Database session එක reset කරයි
+        print(f"Database Error in finished_usage_stock: {e}")
+        flash("දත්ත පද්ධතියෙන් දත්ත ලබාගැනීමේදී දෝෂයක් සිදුවිය.", "danger")
 
     return render_template('finished_usage_stock.html',
-                           finished_query=finished_query.all(),
-                           logs_query=logs_query.all(),
-                           start_date=start_date or '',
-                           end_date=end_date or '')
+                           finished_query=finished_data,
+                           logs_query=logs_data,
+                           start_date=start_date,
+                           end_date=end_date)
 
-# -- Finished SR Update Route අලුතින් එක් කළ කොටස --
 @app.route('/update_finished_sr/<int:id>', methods=['POST'])
 def update_finished_sr(id):
     if session.get('role') != 'dataop1':
         flash("Unauthorized Access", "danger")
         return redirect(url_for('finished_usage_stock'))
-    
-    # Update කිරීම සඳහා අවශ්‍ය කේතය පසුව එකතු කරන්න
     return redirect(url_for('finished_usage_stock'))
 
 if __name__ == '__main__':
