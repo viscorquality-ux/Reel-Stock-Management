@@ -4,14 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Viscor & Packwell Stock System</title>
-    <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <style>
         body { background-color: #f8f9fa; }
         .nav-link.active { font-weight: bold; }
-        
-        /* Print Layout Rules */
         @media print {
             .navbar, .alert, .btn-close, .no-print { display: none !important; }
             body { background-color: white !important; color: black !important; padding-top: 0 !important; }
@@ -19,7 +16,7 @@
             .container { max-width: 100% !important; margin: 0 !important; padding: 0 !important; }
             .table { width: 100% !important; border-collapse: collapse !important; }
             .table th, .table td { border: 1px solid #ddd !important; }
-            .tab-pane { display: block !important; opacity: 1 !important; visibility: visible !important; margin-bottom: 2rem; }
+            .tab-pane:not(.active) { display: none !important; }
             .nav-tabs { display: none !important; }
         }
     </style>
@@ -28,96 +25,56 @@
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
         <div class="container-fluid">
             <a class="navbar-brand fw-bold" href="/"><i class="bi bi-box-seam"></i> Stock Management</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
-                    
                     <li class="nav-item"><a class="nav-link" href="/dashboard">Dashboard</a></li>
+                    {% if session.get('role') not in ['super1', 'super2'] %}
                     <li class="nav-item"><a class="nav-link" href="/add_stock">Add Stock</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/active_stock">Active Stock</a></li>
+                    {% endif %}
+                    <li class="nav-item"><a class="nav-link active" href="/active_stock">Active Stock</a></li>
                     <li class="nav-item"><a class="nav-link" href="/viscor_issue">Verify / Returns</a></li>
                     <li class="nav-item"><a class="nav-link" href="/issued_stock">Issued Stock</a></li>
                     <li class="nav-item"><a class="nav-link" href="/finished_usage_stock">Finished / Usage</a></li>
                     <li class="nav-item"><a class="nav-link text-warning" href="/damage_sell_stock">Damage / Sell Stock</a></li>
-                    
                 </ul>
-                
                 <ul class="navbar-nav">
-                    <li class="nav-item"><a class="nav-link text-danger fw-bold" href="/logout"><i class="bi bi-power"></i> Logout (admin)</a></li>
+                    <li class="nav-item"><a class="nav-link text-danger fw-bold" href="/logout"><i class="bi bi-power"></i> Logout ({{ session.get('username') }})</a></li>
                 </ul>
-                
             </div>
         </div>
     </nav>
 
     <div class="container mt-3">
-        
-          
-        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert alert-{{ category }}">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
     </div>
-
-    
-
-<!-- Print Layout: Hide inactive tabs during printing -->
-<style>
-    @media print {
-        .tab-pane:not(.active) {
-            display: none !important;
-            opacity: 0 !important;
-            visibility: hidden !important;
-        }
-    }
-</style>
 
 <div class="container mt-4 mb-5">
     <div class="d-flex justify-content-between align-items-center mb-4 no-print">
         <h2 class="text-secondary fw-bold mb-0"><i class="bi bi-layers"></i> Active Raw Material Stock</h2>
-        
         <div class="d-flex gap-2">
-            
-            <form method="GET" action="/active_stock" class="d-flex align-items-center gap-2 bg-light p-2 rounded shadow-sm border">
-                <label class="fw-bold text-dark mb-0 text-nowrap"><i class="bi bi-funnel"></i> Location:</label>
-                <select name="location" class="form-select form-select-sm" onchange="this.form.submit()">
-                    <option value="">All Locations</option>
-                    
-                        <option value="Viscor Lanka" >Viscor Lanka</option>
-                    
-                        <option value="Packwell W 1" >Packwell W 1</option>
-                    
-                        <option value="Packwell W 2" >Packwell W 2</option>
-                    
-                        <option value="Packwell W 3" >Packwell W 3</option>
-                    
-                        <option value="Packwell W 4" >Packwell W 4</option>
-                    
-                        <option value="Packwell W 5" >Packwell W 5</option>
-                    
-                        <option value="Packwell W 6" >Packwell W 6</option>
-                    
-                        <option value="Packwell W 7" >Packwell W 7</option>
-                    
-                </select>
-            </form>
-            
             <button class="btn btn-secondary fw-bold shadow-sm" onclick="window.print()"><i class="bi bi-printer"></i> Print Report</button>
         </div>
     </div>
 
     <div class="mb-4 no-print">
-        <input type="text" id="liveSearchInput" class="form-control form-control-lg shadow-sm border-2 border-primary" placeholder="Search by continuous typing: SizeGSMName (e.g. 100140Kraft) or Reel Number...">
+        <input type="text" id="liveSearchInput" class="form-control form-control-lg shadow-sm border-2 border-primary" placeholder="Search by continuous typing...">
     </div>
 
     <ul class="nav nav-tabs mb-3 no-print" id="stockTabs" role="tablist">
         <li class="nav-item">
             <button class="nav-link active fw-bold text-success fs-5" id="full-tab" data-bs-toggle="tab" data-bs-target="#full" type="button">
-                <i class="bi bi-box-fill"></i> Full Reels (<span id="sumFullCountTab">5</span>)
+                <i class="bi bi-box-fill"></i> Full Reels (<span id="sumFullCountTab">{{ total_full_count }}</span>)
             </button>
         </li>
         <li class="nav-item">
             <button class="nav-link fw-bold text-warning fs-5" id="used-tab" data-bs-toggle="tab" data-bs-target="#used" type="button">
-                <i class="bi bi-scissors"></i> Used Reels (<span id="sumUsedCountTab">2</span>)
+                <i class="bi bi-scissors"></i> Used Reels (<span id="sumUsedCountTab">{{ total_used_count }}</span>)
             </button>
         </li>
     </ul>
@@ -125,91 +82,33 @@
     <div class="tab-content" id="stockTabsContent">
         <div class="tab-pane fade show active" id="full">
             <div class="card shadow border-0 border-top border-success border-4 mb-4">
-                <div class="card-header bg-white d-none d-print-block"><h4 class="mb-0 fw-bold text-success">Full Reels Stock</h4></div>
                 <div class="table-responsive">
                     <table class="table table-striped table-hover align-middle mb-0">
                         <thead class="table-dark">
                             <tr>
-                                <th>Reel No</th><th>Material</th><th>Paper Type</th><th>Size</th><th>GSM</th><th>Weight</th><th>Location</th><th class="text-center no-print">Action</th>
+                                <th>Reel No</th><th>Material</th><th>Paper Type</th><th>Size</th><th>GSM</th><th>Weight</th><th>Location</th>
+                                {% if session.get('role') not in ['super1', 'super2'] %}<th class="text-center no-print">Action</th>{% endif %}
                             </tr>
                         </thead>
-                        <tbody id="fullReelsBody">
-                            
+                        <tbody>
+                            {% for reel in full_reels %}
                             <tr class="reel-row" data-type="full">
-                                <td class="fw-bold r-no text-success">1245/8</td>
-                                <td class="r-mat">TIDG</td>
-                                <td class="r-pname">Liner(T)</td>
-                                <td class="r-size" data-val="105.0">105.0 cm</td>
-                                <td class="r-gsm" data-val="125">125</td>
-                                <td class="fw-bold r-weight" data-val="1045.0">1045.0 kg</td>
-                                <td>Viscor Lanka</td>
+                                <td class="fw-bold r-no text-success">{{ reel.reel_number }}</td>
+                                <td class="r-mat">{{ reel.paper_name }}</td>
+                                <td class="r-pname">{{ reel.reel_type }}</td>
+                                <td class="r-size" data-val="{{ reel.size_cm }}">{{ reel.size_cm }} cm</td>
+                                <td class="r-gsm" data-val="{{ reel.gsm }}">{{ reel.gsm }}</td>
+                                <td class="fw-bold r-weight" data-val="{{ reel.weight_kg }}">{{ reel.weight_kg }} kg</td>
+                                <td>{{ reel.location }}</td>
+                                {% if session.get('role') not in ['super1', 'super2'] %}
                                 <td class="text-center no-print text-nowrap">
-                                    <button class="btn btn-sm btn-dark fw-bold me-1" data-bs-toggle="modal" data-bs-target="#issueModal16"><i class="bi bi-send"></i> Issue</button>
-                                    <button class="btn btn-sm btn-primary fw-bold me-1" data-bs-toggle="modal" data-bs-target="#editModal16"><i class="bi bi-pencil"></i> Edit</button>
-                                    <button class="btn btn-sm btn-danger fw-bold" data-bs-toggle="modal" data-bs-target="#damageModal16"><i class="bi bi-exclamation-triangle"></i> D/S</button>
+                                    <button class="btn btn-sm btn-dark fw-bold me-1" data-bs-toggle="modal" data-bs-target="#issueModal{{ reel.id }}"><i class="bi bi-send"></i> Issue</button>
+                                    <button class="btn btn-sm btn-primary fw-bold me-1" data-bs-toggle="modal" data-bs-target="#editModal{{ reel.id }}"><i class="bi bi-pencil"></i> Edit</button>
+                                    <button class="btn btn-sm btn-danger fw-bold" data-bs-toggle="modal" data-bs-target="#damageModal{{ reel.id }}"><i class="bi bi-exclamation-triangle"></i> D/S</button>
                                 </td>
+                                {% endif %}
                             </tr>
-                            
-                            <tr class="reel-row" data-type="full">
-                                <td class="fw-bold r-no text-success">2789/8</td>
-                                <td class="r-mat">TSLNY</td>
-                                <td class="r-pname">Liner(T)</td>
-                                <td class="r-size" data-val="105.0">105.0 cm</td>
-                                <td class="r-gsm" data-val="140">140</td>
-                                <td class="fw-bold r-weight" data-val="1065.0">1065.0 kg</td>
-                                <td>Viscor Lanka</td>
-                                <td class="text-center no-print text-nowrap">
-                                    <button class="btn btn-sm btn-dark fw-bold me-1" data-bs-toggle="modal" data-bs-target="#issueModal17"><i class="bi bi-send"></i> Issue</button>
-                                    <button class="btn btn-sm btn-primary fw-bold me-1" data-bs-toggle="modal" data-bs-target="#editModal17"><i class="bi bi-pencil"></i> Edit</button>
-                                    <button class="btn btn-sm btn-danger fw-bold" data-bs-toggle="modal" data-bs-target="#damageModal17"><i class="bi bi-exclamation-triangle"></i> D/S</button>
-                                </td>
-                            </tr>
-                            
-                            <tr class="reel-row" data-type="full">
-                                <td class="fw-bold r-no text-success">3000/1</td>
-                                <td class="r-mat">TSLNY</td>
-                                <td class="r-pname">Liner(T)</td>
-                                <td class="r-size" data-val="140.0">140.0 cm</td>
-                                <td class="r-gsm" data-val="125">125</td>
-                                <td class="fw-bold r-weight" data-val="1025.0">1025.0 kg</td>
-                                <td>Viscor Lanka</td>
-                                <td class="text-center no-print text-nowrap">
-                                    <button class="btn btn-sm btn-dark fw-bold me-1" data-bs-toggle="modal" data-bs-target="#issueModal19"><i class="bi bi-send"></i> Issue</button>
-                                    <button class="btn btn-sm btn-primary fw-bold me-1" data-bs-toggle="modal" data-bs-target="#editModal19"><i class="bi bi-pencil"></i> Edit</button>
-                                    <button class="btn btn-sm btn-danger fw-bold" data-bs-toggle="modal" data-bs-target="#damageModal19"><i class="bi bi-exclamation-triangle"></i> D/S</button>
-                                </td>
-                            </tr>
-                            
-                            <tr class="reel-row" data-type="full">
-                                <td class="fw-bold r-no text-success">3000/5</td>
-                                <td class="r-mat">TIDG</td>
-                                <td class="r-pname">Liner(T)</td>
-                                <td class="r-size" data-val="125.0">125.0 cm</td>
-                                <td class="r-gsm" data-val="150">150</td>
-                                <td class="fw-bold r-weight" data-val="1265.0">1265.0 kg</td>
-                                <td>Viscor Lanka</td>
-                                <td class="text-center no-print text-nowrap">
-                                    <button class="btn btn-sm btn-dark fw-bold me-1" data-bs-toggle="modal" data-bs-target="#issueModal20"><i class="bi bi-send"></i> Issue</button>
-                                    <button class="btn btn-sm btn-primary fw-bold me-1" data-bs-toggle="modal" data-bs-target="#editModal20"><i class="bi bi-pencil"></i> Edit</button>
-                                    <button class="btn btn-sm btn-danger fw-bold" data-bs-toggle="modal" data-bs-target="#damageModal20"><i class="bi bi-exclamation-triangle"></i> D/S</button>
-                                </td>
-                            </tr>
-                            
-                            <tr class="reel-row" data-type="full">
-                                <td class="fw-bold r-no text-success">3001/5</td>
-                                <td class="r-mat">KUSA</td>
-                                <td class="r-pname">Kraft(K)</td>
-                                <td class="r-size" data-val="130.0">130.0 cm</td>
-                                <td class="r-gsm" data-val="170">170</td>
-                                <td class="fw-bold r-weight" data-val="1342.0">1342.0 kg</td>
-                                <td>Viscor Lanka</td>
-                                <td class="text-center no-print text-nowrap">
-                                    <button class="btn btn-sm btn-dark fw-bold me-1" data-bs-toggle="modal" data-bs-target="#issueModal21"><i class="bi bi-send"></i> Issue</button>
-                                    <button class="btn btn-sm btn-primary fw-bold me-1" data-bs-toggle="modal" data-bs-target="#editModal21"><i class="bi bi-pencil"></i> Edit</button>
-                                    <button class="btn btn-sm btn-danger fw-bold" data-bs-toggle="modal" data-bs-target="#damageModal21"><i class="bi bi-exclamation-triangle"></i> D/S</button>
-                                </td>
-                            </tr>
-                            
+                            {% endfor %}
                         </tbody>
                     </table>
                 </div>
@@ -218,46 +117,33 @@
 
         <div class="tab-pane fade" id="used">
             <div class="card shadow border-0 border-top border-warning border-4">
-                <div class="card-header bg-white d-none d-print-block"><h4 class="mb-0 fw-bold text-warning">Used Reels Stock</h4></div>
                 <div class="table-responsive">
                     <table class="table table-striped table-hover align-middle mb-0">
                         <thead class="table-dark">
                             <tr>
-                                <th>Reel No</th><th>Material</th><th>Paper Type</th><th>Size</th><th>GSM</th><th>Weight</th><th>Location</th><th class="text-center no-print">Action</th>
+                                <th>Reel No</th><th>Material</th><th>Paper Type</th><th>Size</th><th>GSM</th><th>Weight</th><th>Location</th>
+                                {% if session.get('role') not in ['super1', 'super2'] %}<th class="text-center no-print">Action</th>{% endif %}
                             </tr>
                         </thead>
-                        <tbody id="usedReelsBody">
-                            
+                        <tbody>
+                            {% for reel in used_reels %}
                             <tr class="reel-row" data-type="used">
-                                <td class="fw-bold r-no text-warning">2145/7</td>
-                                <td class="r-mat">TSLNY</td>
-                                <td class="r-pname">Liner(T)</td>
-                                <td class="r-size" data-val="125.0">125.0 cm</td>
-                                <td class="r-gsm" data-val="112">112</td>
-                                <td class="fw-bold text-danger r-weight" data-val="1000.0">1000.0 kg</td>
-                                <td>Viscor Lanka</td>
+                                <td class="fw-bold r-no text-warning">{{ reel.reel_number }}</td>
+                                <td class="r-mat">{{ reel.paper_name }}</td>
+                                <td class="r-pname">{{ reel.reel_type }}</td>
+                                <td class="r-size" data-val="{{ reel.size_cm }}">{{ reel.size_cm }} cm</td>
+                                <td class="r-gsm" data-val="{{ reel.gsm }}">{{ reel.gsm }}</td>
+                                <td class="fw-bold text-danger r-weight" data-val="{{ reel.weight_kg }}">{{ reel.weight_kg }} kg</td>
+                                <td>{{ reel.location }}</td>
+                                {% if session.get('role') not in ['super1', 'super2'] %}
                                 <td class="text-center no-print text-nowrap">
-                                    <button class="btn btn-sm btn-dark fw-bold me-1" data-bs-toggle="modal" data-bs-target="#issueModal11"><i class="bi bi-send"></i> Issue</button>
-                                    <button class="btn btn-sm btn-primary fw-bold me-1" data-bs-toggle="modal" data-bs-target="#editModal11"><i class="bi bi-pencil"></i> Edit</button>
-                                    <button class="btn btn-sm btn-danger fw-bold" data-bs-toggle="modal" data-bs-target="#damageModal11"><i class="bi bi-exclamation-triangle"></i> D/S</button>
+                                    <button class="btn btn-sm btn-dark fw-bold me-1" data-bs-toggle="modal" data-bs-target="#issueModal{{ reel.id }}"><i class="bi bi-send"></i> Issue</button>
+                                    <button class="btn btn-sm btn-primary fw-bold me-1" data-bs-toggle="modal" data-bs-target="#editModal{{ reel.id }}"><i class="bi bi-pencil"></i> Edit</button>
+                                    <button class="btn btn-sm btn-danger fw-bold" data-bs-toggle="modal" data-bs-target="#damageModal{{ reel.id }}"><i class="bi bi-exclamation-triangle"></i> D/S</button>
                                 </td>
+                                {% endif %}
                             </tr>
-                            
-                            <tr class="reel-row" data-type="used">
-                                <td class="fw-bold r-no text-warning">2447/9</td>
-                                <td class="r-mat">TSLNY</td>
-                                <td class="r-pname">Liner(T)</td>
-                                <td class="r-size" data-val="105.0">105.0 cm</td>
-                                <td class="r-gsm" data-val="125">125</td>
-                                <td class="fw-bold text-danger r-weight" data-val="654.0">654.0 kg</td>
-                                <td>Viscor Lanka</td>
-                                <td class="text-center no-print text-nowrap">
-                                    <button class="btn btn-sm btn-dark fw-bold me-1" data-bs-toggle="modal" data-bs-target="#issueModal13"><i class="bi bi-send"></i> Issue</button>
-                                    <button class="btn btn-sm btn-primary fw-bold me-1" data-bs-toggle="modal" data-bs-target="#editModal13"><i class="bi bi-pencil"></i> Edit</button>
-                                    <button class="btn btn-sm btn-danger fw-bold" data-bs-toggle="modal" data-bs-target="#damageModal13"><i class="bi bi-exclamation-triangle"></i> D/S</button>
-                                </td>
-                            </tr>
-                            
+                            {% endfor %}
                         </tbody>
                     </table>
                 </div>
@@ -266,45 +152,44 @@
     </div>
 </div>
 
-<!-- MODALS SECTION -->
-
-
-    <!-- Edit Modal -->
-    <div class="modal fade no-print" id="editModal16" tabindex="-1">
+{% set all_reels = full_reels + used_reels %}
+{% for reel in all_reels %}
+    {% if session.get('role') not in ['super1', 'super2'] %}
+    <div class="modal fade no-print" id="editModal{{ reel.id }}" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-0 shadow">
                 <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title fw-bold"><i class="bi bi-pencil-square"></i> Edit Reel: 1245/8</h5>
+                    <h5 class="modal-title fw-bold"><i class="bi bi-pencil-square"></i> Edit Reel: {{ reel.reel_number }}</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body p-4">
-                    <form action="/edit_active_reel/16" method="POST">
+                    <form action="/edit_active_reel/{{ reel.id }}" method="POST">
                         <div class="mb-3">
                             <label class="form-label fw-bold">Reel Number</label>
-                            <input type="text" name="reel_number" class="form-control" value="1245/8" required>
+                            <input type="text" name="reel_number" class="form-control" value="{{ reel.reel_number }}" required>
                         </div>
                         <div class="row">
                             <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold">Paper Name (Material)</label>
-                                <input type="text" name="paper_name" class="form-control" value="TIDG" required>
+                                <label class="form-label fw-bold">Paper Name</label>
+                                <input type="text" name="paper_name" class="form-control" value="{{ reel.paper_name }}" required>
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="form-label fw-bold">Paper Type</label>
-                                <input type="text" name="reel_type" class="form-control" value="Liner(T)" required>
+                                <input type="text" name="reel_type" class="form-control" value="{{ reel.reel_type }}" required>
                             </div>
                         </div>
                         <div class="row">
                             <div class="col-md-4 mb-3">
                                 <label class="form-label fw-bold">Size (cm)</label>
-                                <input type="number" step="0.01" name="size_cm" class="form-control" value="105.0" required>
+                                <input type="number" step="0.01" name="size_cm" class="form-control" value="{{ reel.size_cm }}" required>
                             </div>
                             <div class="col-md-4 mb-3">
                                 <label class="form-label fw-bold">GSM</label>
-                                <input type="number" name="gsm" class="form-control" value="125" required>
+                                <input type="number" name="gsm" class="form-control" value="{{ reel.gsm }}" required>
                             </div>
                             <div class="col-md-4 mb-3">
                                 <label class="form-label fw-bold">Weight (kg)</label>
-                                <input type="number" step="0.01" name="weight_kg" class="form-control" value="1045.0" required>
+                                <input type="number" step="0.01" name="weight_kg" class="form-control" value="{{ reel.weight_kg }}" required>
                             </div>
                         </div>
                         <div class="d-flex gap-2 justify-content-end mt-4">
@@ -317,16 +202,15 @@
         </div>
     </div>
 
-    <!-- Issue Modal -->
-    <div class="modal fade no-print" id="issueModal16" tabindex="-1">
+    <div class="modal fade no-print" id="issueModal{{ reel.id }}" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-0 shadow">
                 <div class="modal-header bg-dark text-white">
-                    <h5 class="modal-title fw-bold"><i class="bi bi-send-fill text-primary"></i> Issue Reel: 1245/8</h5>
+                    <h5 class="modal-title fw-bold"><i class="bi bi-send-fill text-primary"></i> Issue Reel: {{ reel.reel_number }}</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body p-4">
-                    <form action="/issue_reel/16" method="POST">
+                    <form action="/issue_reel/{{ reel.id }}" method="POST">
                         <div class="mb-3">
                             <label class="form-label fw-bold">Document Type</label>
                             <select name="doc_type" class="form-select" required>
@@ -338,7 +222,6 @@
                             <label class="form-label fw-bold">Document Number</label>
                             <input type="text" name="doc_number" class="form-control" required placeholder="Enter Document Reference...">
                         </div>
-                        
                         <div class="mb-3">
                             <label class="form-label fw-bold">Send to Viscor Lanka?</label>
                             <select name="send_to_viscor" class="form-select" required>
@@ -346,7 +229,6 @@
                                 <option value="yes">Yes (Pending Verification Transfer)</option>
                             </select>
                         </div>
-                        
                         <div class="d-flex gap-2 justify-content-end mt-4">
                             <button type="button" class="btn btn-light border fw-bold" data-bs-dismiss="modal">Cancel</button>
                             <button type="submit" class="btn btn-primary fw-bold">Confirm Release</button>
@@ -357,8 +239,7 @@
         </div>
     </div>
 
-    <!-- Damage Modal -->
-    <div class="modal fade no-print" id="damageModal16" tabindex="-1">
+    <div class="modal fade no-print" id="damageModal{{ reel.id }}" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-0 shadow">
                 <div class="modal-header bg-danger text-white">
@@ -366,7 +247,7 @@
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body p-4">
-                    <form action="/mark_damage_sell/16" method="POST">
+                    <form action="/mark_damage_sell/{{ reel.id }}" method="POST">
                         <div class="mb-3">
                             <label class="form-label fw-bold">Select Action</label>
                             <select name="status_type" class="form-select" required>
@@ -387,754 +268,18 @@
             </div>
         </div>
     </div>
-
-    <!-- Edit Modal -->
-    <div class="modal fade no-print" id="editModal17" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 shadow">
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title fw-bold"><i class="bi bi-pencil-square"></i> Edit Reel: 2789/8</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body p-4">
-                    <form action="/edit_active_reel/17" method="POST">
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Reel Number</label>
-                            <input type="text" name="reel_number" class="form-control" value="2789/8" required>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold">Paper Name (Material)</label>
-                                <input type="text" name="paper_name" class="form-control" value="TSLNY" required>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold">Paper Type</label>
-                                <input type="text" name="reel_type" class="form-control" value="Liner(T)" required>
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label fw-bold">Size (cm)</label>
-                                <input type="number" step="0.01" name="size_cm" class="form-control" value="105.0" required>
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label fw-bold">GSM</label>
-                                <input type="number" name="gsm" class="form-control" value="140" required>
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label fw-bold">Weight (kg)</label>
-                                <input type="number" step="0.01" name="weight_kg" class="form-control" value="1065.0" required>
-                            </div>
-                        </div>
-                        <div class="d-flex gap-2 justify-content-end mt-4">
-                            <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancel</button>
-                            <button type="submit" class="btn btn-primary fw-bold">Save Changes</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Issue Modal -->
-    <div class="modal fade no-print" id="issueModal17" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 shadow">
-                <div class="modal-header bg-dark text-white">
-                    <h5 class="modal-title fw-bold"><i class="bi bi-send-fill text-primary"></i> Issue Reel: 2789/8</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body p-4">
-                    <form action="/issue_reel/17" method="POST">
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Document Type</label>
-                            <select name="doc_type" class="form-select" required>
-                                <option value="Gate Pass">Gate Pass</option>
-                                <option value="SR">SR Number</option>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Document Number</label>
-                            <input type="text" name="doc_number" class="form-control" required placeholder="Enter Document Reference...">
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Send to Viscor Lanka?</label>
-                            <select name="send_to_viscor" class="form-select" required>
-                                <option value="no">No (Direct Floor Dispatch)</option>
-                                <option value="yes">Yes (Pending Verification Transfer)</option>
-                            </select>
-                        </div>
-                        
-                        <div class="d-flex gap-2 justify-content-end mt-4">
-                            <button type="button" class="btn btn-light border fw-bold" data-bs-dismiss="modal">Cancel</button>
-                            <button type="submit" class="btn btn-primary fw-bold">Confirm Release</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Damage Modal -->
-    <div class="modal fade no-print" id="damageModal17" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 shadow">
-                <div class="modal-header bg-danger text-white">
-                    <h5 class="modal-title fw-bold"><i class="bi bi-exclamation-octagon-fill"></i> Damage / Sell Action</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body p-4">
-                    <form action="/mark_damage_sell/17" method="POST">
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Select Action</label>
-                            <select name="status_type" class="form-select" required>
-                                <option value="Damaged">Mark as Damaged Reel</option>
-                                <option value="Sold">Mark as Sold Out</option>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Internal tracking Notes</label>
-                            <textarea name="notes" class="form-control" rows="3" required placeholder="Write internal auditing reason..."></textarea>
-                        </div>
-                        <div class="d-flex gap-2 justify-content-end mt-4">
-                            <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Close</button>
-                            <button type="submit" class="btn btn-danger fw-bold">Apply Action</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Edit Modal -->
-    <div class="modal fade no-print" id="editModal19" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 shadow">
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title fw-bold"><i class="bi bi-pencil-square"></i> Edit Reel: 3000/1</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body p-4">
-                    <form action="/edit_active_reel/19" method="POST">
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Reel Number</label>
-                            <input type="text" name="reel_number" class="form-control" value="3000/1" required>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold">Paper Name (Material)</label>
-                                <input type="text" name="paper_name" class="form-control" value="TSLNY" required>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold">Paper Type</label>
-                                <input type="text" name="reel_type" class="form-control" value="Liner(T)" required>
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label fw-bold">Size (cm)</label>
-                                <input type="number" step="0.01" name="size_cm" class="form-control" value="140.0" required>
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label fw-bold">GSM</label>
-                                <input type="number" name="gsm" class="form-control" value="125" required>
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label fw-bold">Weight (kg)</label>
-                                <input type="number" step="0.01" name="weight_kg" class="form-control" value="1025.0" required>
-                            </div>
-                        </div>
-                        <div class="d-flex gap-2 justify-content-end mt-4">
-                            <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancel</button>
-                            <button type="submit" class="btn btn-primary fw-bold">Save Changes</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Issue Modal -->
-    <div class="modal fade no-print" id="issueModal19" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 shadow">
-                <div class="modal-header bg-dark text-white">
-                    <h5 class="modal-title fw-bold"><i class="bi bi-send-fill text-primary"></i> Issue Reel: 3000/1</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body p-4">
-                    <form action="/issue_reel/19" method="POST">
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Document Type</label>
-                            <select name="doc_type" class="form-select" required>
-                                <option value="Gate Pass">Gate Pass</option>
-                                <option value="SR">SR Number</option>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Document Number</label>
-                            <input type="text" name="doc_number" class="form-control" required placeholder="Enter Document Reference...">
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Send to Viscor Lanka?</label>
-                            <select name="send_to_viscor" class="form-select" required>
-                                <option value="no">No (Direct Floor Dispatch)</option>
-                                <option value="yes">Yes (Pending Verification Transfer)</option>
-                            </select>
-                        </div>
-                        
-                        <div class="d-flex gap-2 justify-content-end mt-4">
-                            <button type="button" class="btn btn-light border fw-bold" data-bs-dismiss="modal">Cancel</button>
-                            <button type="submit" class="btn btn-primary fw-bold">Confirm Release</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Damage Modal -->
-    <div class="modal fade no-print" id="damageModal19" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 shadow">
-                <div class="modal-header bg-danger text-white">
-                    <h5 class="modal-title fw-bold"><i class="bi bi-exclamation-octagon-fill"></i> Damage / Sell Action</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body p-4">
-                    <form action="/mark_damage_sell/19" method="POST">
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Select Action</label>
-                            <select name="status_type" class="form-select" required>
-                                <option value="Damaged">Mark as Damaged Reel</option>
-                                <option value="Sold">Mark as Sold Out</option>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Internal tracking Notes</label>
-                            <textarea name="notes" class="form-control" rows="3" required placeholder="Write internal auditing reason..."></textarea>
-                        </div>
-                        <div class="d-flex gap-2 justify-content-end mt-4">
-                            <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Close</button>
-                            <button type="submit" class="btn btn-danger fw-bold">Apply Action</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Edit Modal -->
-    <div class="modal fade no-print" id="editModal20" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 shadow">
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title fw-bold"><i class="bi bi-pencil-square"></i> Edit Reel: 3000/5</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body p-4">
-                    <form action="/edit_active_reel/20" method="POST">
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Reel Number</label>
-                            <input type="text" name="reel_number" class="form-control" value="3000/5" required>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold">Paper Name (Material)</label>
-                                <input type="text" name="paper_name" class="form-control" value="TIDG" required>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold">Paper Type</label>
-                                <input type="text" name="reel_type" class="form-control" value="Liner(T)" required>
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label fw-bold">Size (cm)</label>
-                                <input type="number" step="0.01" name="size_cm" class="form-control" value="125.0" required>
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label fw-bold">GSM</label>
-                                <input type="number" name="gsm" class="form-control" value="150" required>
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label fw-bold">Weight (kg)</label>
-                                <input type="number" step="0.01" name="weight_kg" class="form-control" value="1265.0" required>
-                            </div>
-                        </div>
-                        <div class="d-flex gap-2 justify-content-end mt-4">
-                            <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancel</button>
-                            <button type="submit" class="btn btn-primary fw-bold">Save Changes</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Issue Modal -->
-    <div class="modal fade no-print" id="issueModal20" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 shadow">
-                <div class="modal-header bg-dark text-white">
-                    <h5 class="modal-title fw-bold"><i class="bi bi-send-fill text-primary"></i> Issue Reel: 3000/5</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body p-4">
-                    <form action="/issue_reel/20" method="POST">
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Document Type</label>
-                            <select name="doc_type" class="form-select" required>
-                                <option value="Gate Pass">Gate Pass</option>
-                                <option value="SR">SR Number</option>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Document Number</label>
-                            <input type="text" name="doc_number" class="form-control" required placeholder="Enter Document Reference...">
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Send to Viscor Lanka?</label>
-                            <select name="send_to_viscor" class="form-select" required>
-                                <option value="no">No (Direct Floor Dispatch)</option>
-                                <option value="yes">Yes (Pending Verification Transfer)</option>
-                            </select>
-                        </div>
-                        
-                        <div class="d-flex gap-2 justify-content-end mt-4">
-                            <button type="button" class="btn btn-light border fw-bold" data-bs-dismiss="modal">Cancel</button>
-                            <button type="submit" class="btn btn-primary fw-bold">Confirm Release</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Damage Modal -->
-    <div class="modal fade no-print" id="damageModal20" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 shadow">
-                <div class="modal-header bg-danger text-white">
-                    <h5 class="modal-title fw-bold"><i class="bi bi-exclamation-octagon-fill"></i> Damage / Sell Action</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body p-4">
-                    <form action="/mark_damage_sell/20" method="POST">
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Select Action</label>
-                            <select name="status_type" class="form-select" required>
-                                <option value="Damaged">Mark as Damaged Reel</option>
-                                <option value="Sold">Mark as Sold Out</option>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Internal tracking Notes</label>
-                            <textarea name="notes" class="form-control" rows="3" required placeholder="Write internal auditing reason..."></textarea>
-                        </div>
-                        <div class="d-flex gap-2 justify-content-end mt-4">
-                            <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Close</button>
-                            <button type="submit" class="btn btn-danger fw-bold">Apply Action</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Edit Modal -->
-    <div class="modal fade no-print" id="editModal21" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 shadow">
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title fw-bold"><i class="bi bi-pencil-square"></i> Edit Reel: 3001/5</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body p-4">
-                    <form action="/edit_active_reel/21" method="POST">
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Reel Number</label>
-                            <input type="text" name="reel_number" class="form-control" value="3001/5" required>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold">Paper Name (Material)</label>
-                                <input type="text" name="paper_name" class="form-control" value="KUSA" required>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold">Paper Type</label>
-                                <input type="text" name="reel_type" class="form-control" value="Kraft(K)" required>
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label fw-bold">Size (cm)</label>
-                                <input type="number" step="0.01" name="size_cm" class="form-control" value="130.0" required>
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label fw-bold">GSM</label>
-                                <input type="number" name="gsm" class="form-control" value="170" required>
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label fw-bold">Weight (kg)</label>
-                                <input type="number" step="0.01" name="weight_kg" class="form-control" value="1342.0" required>
-                            </div>
-                        </div>
-                        <div class="d-flex gap-2 justify-content-end mt-4">
-                            <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancel</button>
-                            <button type="submit" class="btn btn-primary fw-bold">Save Changes</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Issue Modal -->
-    <div class="modal fade no-print" id="issueModal21" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 shadow">
-                <div class="modal-header bg-dark text-white">
-                    <h5 class="modal-title fw-bold"><i class="bi bi-send-fill text-primary"></i> Issue Reel: 3001/5</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body p-4">
-                    <form action="/issue_reel/21" method="POST">
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Document Type</label>
-                            <select name="doc_type" class="form-select" required>
-                                <option value="Gate Pass">Gate Pass</option>
-                                <option value="SR">SR Number</option>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Document Number</label>
-                            <input type="text" name="doc_number" class="form-control" required placeholder="Enter Document Reference...">
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Send to Viscor Lanka?</label>
-                            <select name="send_to_viscor" class="form-select" required>
-                                <option value="no">No (Direct Floor Dispatch)</option>
-                                <option value="yes">Yes (Pending Verification Transfer)</option>
-                            </select>
-                        </div>
-                        
-                        <div class="d-flex gap-2 justify-content-end mt-4">
-                            <button type="button" class="btn btn-light border fw-bold" data-bs-dismiss="modal">Cancel</button>
-                            <button type="submit" class="btn btn-primary fw-bold">Confirm Release</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Damage Modal -->
-    <div class="modal fade no-print" id="damageModal21" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 shadow">
-                <div class="modal-header bg-danger text-white">
-                    <h5 class="modal-title fw-bold"><i class="bi bi-exclamation-octagon-fill"></i> Damage / Sell Action</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body p-4">
-                    <form action="/mark_damage_sell/21" method="POST">
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Select Action</label>
-                            <select name="status_type" class="form-select" required>
-                                <option value="Damaged">Mark as Damaged Reel</option>
-                                <option value="Sold">Mark as Sold Out</option>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Internal tracking Notes</label>
-                            <textarea name="notes" class="form-control" rows="3" required placeholder="Write internal auditing reason..."></textarea>
-                        </div>
-                        <div class="d-flex gap-2 justify-content-end mt-4">
-                            <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Close</button>
-                            <button type="submit" class="btn btn-danger fw-bold">Apply Action</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Edit Modal -->
-    <div class="modal fade no-print" id="editModal11" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 shadow">
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title fw-bold"><i class="bi bi-pencil-square"></i> Edit Reel: 2145/7</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body p-4">
-                    <form action="/edit_active_reel/11" method="POST">
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Reel Number</label>
-                            <input type="text" name="reel_number" class="form-control" value="2145/7" required>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold">Paper Name (Material)</label>
-                                <input type="text" name="paper_name" class="form-control" value="TSLNY" required>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold">Paper Type</label>
-                                <input type="text" name="reel_type" class="form-control" value="Liner(T)" required>
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label fw-bold">Size (cm)</label>
-                                <input type="number" step="0.01" name="size_cm" class="form-control" value="125.0" required>
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label fw-bold">GSM</label>
-                                <input type="number" name="gsm" class="form-control" value="112" required>
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label fw-bold">Weight (kg)</label>
-                                <input type="number" step="0.01" name="weight_kg" class="form-control" value="1000.0" required>
-                            </div>
-                        </div>
-                        <div class="d-flex gap-2 justify-content-end mt-4">
-                            <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancel</button>
-                            <button type="submit" class="btn btn-primary fw-bold">Save Changes</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Issue Modal -->
-    <div class="modal fade no-print" id="issueModal11" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 shadow">
-                <div class="modal-header bg-dark text-white">
-                    <h5 class="modal-title fw-bold"><i class="bi bi-send-fill text-primary"></i> Issue Reel: 2145/7</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body p-4">
-                    <form action="/issue_reel/11" method="POST">
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Document Type</label>
-                            <select name="doc_type" class="form-select" required>
-                                <option value="Gate Pass">Gate Pass</option>
-                                <option value="SR">SR Number</option>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Document Number</label>
-                            <input type="text" name="doc_number" class="form-control" required placeholder="Enter Document Reference...">
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Send to Viscor Lanka?</label>
-                            <select name="send_to_viscor" class="form-select" required>
-                                <option value="no">No (Direct Floor Dispatch)</option>
-                                <option value="yes">Yes (Pending Verification Transfer)</option>
-                            </select>
-                        </div>
-                        
-                        <div class="d-flex gap-2 justify-content-end mt-4">
-                            <button type="button" class="btn btn-light border fw-bold" data-bs-dismiss="modal">Cancel</button>
-                            <button type="submit" class="btn btn-primary fw-bold">Confirm Release</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Damage Modal -->
-    <div class="modal fade no-print" id="damageModal11" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 shadow">
-                <div class="modal-header bg-danger text-white">
-                    <h5 class="modal-title fw-bold"><i class="bi bi-exclamation-octagon-fill"></i> Damage / Sell Action</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body p-4">
-                    <form action="/mark_damage_sell/11" method="POST">
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Select Action</label>
-                            <select name="status_type" class="form-select" required>
-                                <option value="Damaged">Mark as Damaged Reel</option>
-                                <option value="Sold">Mark as Sold Out</option>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Internal tracking Notes</label>
-                            <textarea name="notes" class="form-control" rows="3" required placeholder="Write internal auditing reason..."></textarea>
-                        </div>
-                        <div class="d-flex gap-2 justify-content-end mt-4">
-                            <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Close</button>
-                            <button type="submit" class="btn btn-danger fw-bold">Apply Action</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Edit Modal -->
-    <div class="modal fade no-print" id="editModal13" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 shadow">
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title fw-bold"><i class="bi bi-pencil-square"></i> Edit Reel: 2447/9</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body p-4">
-                    <form action="/edit_active_reel/13" method="POST">
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Reel Number</label>
-                            <input type="text" name="reel_number" class="form-control" value="2447/9" required>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold">Paper Name (Material)</label>
-                                <input type="text" name="paper_name" class="form-control" value="TSLNY" required>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold">Paper Type</label>
-                                <input type="text" name="reel_type" class="form-control" value="Liner(T)" required>
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label fw-bold">Size (cm)</label>
-                                <input type="number" step="0.01" name="size_cm" class="form-control" value="105.0" required>
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label fw-bold">GSM</label>
-                                <input type="number" name="gsm" class="form-control" value="125" required>
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label fw-bold">Weight (kg)</label>
-                                <input type="number" step="0.01" name="weight_kg" class="form-control" value="654.0" required>
-                            </div>
-                        </div>
-                        <div class="d-flex gap-2 justify-content-end mt-4">
-                            <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancel</button>
-                            <button type="submit" class="btn btn-primary fw-bold">Save Changes</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Issue Modal -->
-    <div class="modal fade no-print" id="issueModal13" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 shadow">
-                <div class="modal-header bg-dark text-white">
-                    <h5 class="modal-title fw-bold"><i class="bi bi-send-fill text-primary"></i> Issue Reel: 2447/9</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body p-4">
-                    <form action="/issue_reel/13" method="POST">
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Document Type</label>
-                            <select name="doc_type" class="form-select" required>
-                                <option value="Gate Pass">Gate Pass</option>
-                                <option value="SR">SR Number</option>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Document Number</label>
-                            <input type="text" name="doc_number" class="form-control" required placeholder="Enter Document Reference...">
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Send to Viscor Lanka?</label>
-                            <select name="send_to_viscor" class="form-select" required>
-                                <option value="no">No (Direct Floor Dispatch)</option>
-                                <option value="yes">Yes (Pending Verification Transfer)</option>
-                            </select>
-                        </div>
-                        
-                        <div class="d-flex gap-2 justify-content-end mt-4">
-                            <button type="button" class="btn btn-light border fw-bold" data-bs-dismiss="modal">Cancel</button>
-                            <button type="submit" class="btn btn-primary fw-bold">Confirm Release</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Damage Modal -->
-    <div class="modal fade no-print" id="damageModal13" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 shadow">
-                <div class="modal-header bg-danger text-white">
-                    <h5 class="modal-title fw-bold"><i class="bi bi-exclamation-octagon-fill"></i> Damage / Sell Action</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body p-4">
-                    <form action="/mark_damage_sell/13" method="POST">
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Select Action</label>
-                            <select name="status_type" class="form-select" required>
-                                <option value="Damaged">Mark as Damaged Reel</option>
-                                <option value="Sold">Mark as Sold Out</option>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Internal tracking Notes</label>
-                            <textarea name="notes" class="form-control" rows="3" required placeholder="Write internal auditing reason..."></textarea>
-                        </div>
-                        <div class="d-flex gap-2 justify-content-end mt-4">
-                            <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Close</button>
-                            <button type="submit" class="btn btn-danger fw-bold">Apply Action</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
+    {% endif %}
+{% endfor %}
 
 <script>
 document.getElementById('liveSearchInput').addEventListener('input', function() {
     let inputVal = this.value.toLowerCase().replace(/\s+/g, '');
     let rows = document.querySelectorAll('.reel-row');
-    let tokens = inputVal.match(/\d+|[a-z]+/ig) || [];
     let fCount = 0, uCount = 0;
 
     rows.forEach(row => {
-        let matched = false;
-        let rNo = row.querySelector('.r-no').textContent.toLowerCase().replace(/\s+/g, '');
-        let rMat = row.querySelector('.r-mat').textContent.toLowerCase().replace(/[^a-z0-9]/g, '');
-        let rPname = row.querySelector('.r-pname').textContent.toLowerCase().replace(/[^a-z0-9]/g, '');
-        let size = parseFloat(row.querySelector('.r-size').getAttribute('data-val')).toString().replace('.', '');
-        let gsm = row.querySelector('.r-gsm').getAttribute('data-val');
-        let combinedNumbers = size + gsm;
-        let combinedText = rMat + rPname;
-
-        if (inputVal === '') matched = true;
-        else if (rNo.includes(inputVal)) matched = true;
-        else if (tokens.length > 0) {
-            let matchesAll = true;
-            tokens.forEach(token => {
-                if (/^\d+$/.test(token)) {
-                    if (!combinedNumbers.includes(token)) matchesAll = false;
-                } else {
-                    if (!combinedText.includes(token)) matchesAll = false;
-                }
-            });
-            matched = matchesAll;
-        }
-
-        if (matched) {
+        let textContent = row.innerText.toLowerCase().replace(/\s+/g, '');
+        if (inputVal === '' || textContent.includes(inputVal)) {
             row.style.display = '';
             if (row.getAttribute('data-type') === 'full') fCount++; else uCount++;
         } else {
@@ -1145,8 +290,6 @@ document.getElementById('liveSearchInput').addEventListener('input', function() 
     document.getElementById('sumUsedCountTab').innerText = uCount;
 });
 </script>
-
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
