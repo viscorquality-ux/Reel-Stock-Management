@@ -2,61 +2,145 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Issued Stock</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Viscor & Packwell Stock System</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <style>
+        body { background-color: #f8f9fa; }
+        .nav-link.active { font-weight: bold; }
+        
+        /* Print Layout Rules */
+        @media print {
+            .navbar, .alert, .btn-close, .no-print { display: none !important; }
+            body { background-color: white !important; color: black !important; padding-top: 0 !important; }
+            .card { border: none !important; box-shadow: none !important; }
+            .container { max-width: 100% !important; margin: 0 !important; padding: 0 !important; }
+            .table { width: 100% !important; border-collapse: collapse !important; }
+            .table th, .table td { border: 1px solid #ddd !important; }
+            .tab-pane { display: block !important; opacity: 1 !important; visibility: visible !important; margin-bottom: 2rem; }
+            .nav-tabs { display: none !important; }
+        }
+    </style>
 </head>
-<body class="bg-light">
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="#">Viscor & Packwell</a>
-        <div class="collapse navbar-collapse">
-            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                <li class="nav-item"><a class="nav-link" href="{{ url_for('dashboard') }}">Dashboard</a></li>
-                <li class="nav-item"><a class="nav-link" href="{{ url_for('active_stock') }}">Active Stock</a></li>
-                {% if session.get('role') not in ['super1', 'super2'] %}
-                <li class="nav-item"><a class="nav-link" href="{{ url_for('add_stock') }}">Add Stock</a></li>
-                {% endif %}
-                <li class="nav-item"><a class="nav-link" href="{{ url_for('viscor_issue') }}">Pending Verification</a></li>
-                <li class="nav-item"><a class="nav-link active" href="{{ url_for('issued_stock') }}">Issued Stock</a></li>
-                <li class="nav-item"><a class="nav-link" href="{{ url_for('damage_sell_stock') }}">Damage/Sell Stock</a></li>
-                <li class="nav-item"><a class="nav-link" href="{{ url_for('finished_usage_stock') }}">Finished/Usage Stock</a></li>
-            </ul>
-            <span class="navbar-text me-3">Logged in as: <strong>{{ session.get('username') }}</strong></span>
-            <a class="btn btn-outline-light btn-sm" href="{{ url_for('logout') }}">Logout</a>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
+        <div class="container-fluid">
+            <a class="navbar-brand fw-bold" href="/"><i class="bi bi-box-seam"></i> Stock Management</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    
+                    <li class="nav-item"><a class="nav-link" href="/dashboard">Dashboard</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/add_stock">Add Stock</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/active_stock">Active Stock</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/viscor_issue">Verify / Returns</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/issued_stock">Issued Stock</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/finished_usage_stock">Finished / Usage</a></li>
+                    <li class="nav-item"><a class="nav-link text-warning" href="/damage_sell_stock">Damage / Sell Stock</a></li>
+                    
+                </ul>
+                
+                <ul class="navbar-nav">
+                    <li class="nav-item"><a class="nav-link text-danger fw-bold" href="/logout"><i class="bi bi-power"></i> Logout (admin)</a></li>
+                </ul>
+                
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-3">
+        
+          
+        
+    </div>
+
+    
+<div class="container mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4 no-print">
+        <h2 class="text-secondary fw-bold mb-0"><i class="bi bi-send-check"></i> Issued Stock Records</h2>
+        <button class="btn btn-secondary fw-bold shadow-sm" onclick="window.print()"><i class="bi bi-printer"></i> Print Report</button>
+    </div>
+
+    <!-- Live Search -->
+    <div class="mb-4 no-print">
+        <input type="text" id="liveSearchInput" class="form-control form-control-lg shadow-sm border-2 border-primary" placeholder="Search by continuous typing: SizeGSMName (e.g. 100140Kraft) or Reel Number...">
+    </div>
+
+    <div class="card shadow border-0 border-top border-dark border-4">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover align-middle mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Reel No</th><th>Material</th><th>Paper Type</th><th>Size</th><th>GSM</th><th>Weight</th><th>Documents</th><th class="text-center no-print">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    
+                    <tr class="reel-row">
+                        <td class="fw-bold r-no text-dark">2345/9</td>
+                        <td class="r-mat">TSLNY</td>
+                        <td class="r-pname">Liner(T)</td>
+                        <td class="r-size" data-val="105.0">105.0 cm</td>
+                        <td class="r-gsm" data-val="125">125</td>
+                        <td class="fw-bold text-success">600.0 kg</td>
+                        <td>
+                            <strong>GP:</strong> 120000<br>
+                            <strong>SR:</strong> 100000
+                        </td>
+                        <td class="text-center no-print">
+                            <form action="/finish_reel/10" method="POST">
+                                <button type="submit" class="btn btn-sm btn-success fw-bold"><i class="bi bi-check2-all"></i> Mark Finished</button>
+                            </form>
+                        </td>
+                    </tr>
+                    
+                    
+                </tbody>
+            </table>
         </div>
     </div>
-</nav>
-
-<div class="container">
-    <h2 class="mb-4">Issued Stock</h2>
-    <table class="table table-striped table-bordered bg-white shadow-sm">
-        <thead class="table-dark">
-            <tr>
-                <th>Reel Number</th>
-                <th>Weight (kg)</th>
-                <th>SR Number</th>
-                <th>Gate Pass</th>
-                {% if session.get('role') not in ['super1', 'super2'] %}<th>Actions</th>{% endif %}
-            </tr>
-        </thead>
-        <tbody>
-            {% for stock in stocks %}
-            <tr>
-                <td>{{ stock.reel_number }}</td>
-                <td>{{ stock.weight_kg }}</td>
-                <td>{{ stock.sr_number or 'N/A' }}</td>
-                <td>{{ stock.gate_pass_number or 'N/A' }}</td>
-                {% if session.get('role') not in ['super1', 'super2'] %}
-                <td>
-                    <form action="{{ url_for('finish_reel', id=stock.id) }}" method="POST" class="d-inline">
-                        <button type="submit" class="btn btn-sm btn-success">Mark Finished</button>
-                    </form>
-                </td>
-                {% endif %}
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
 </div>
+
+<script>
+document.getElementById('liveSearchInput').addEventListener('input', function() {
+    let inputVal = this.value.toLowerCase().replace(/\s+/g, '');
+    let rows = document.querySelectorAll('.reel-row');
+    let tokens = inputVal.match(/\d+|[a-z]+/ig) || [];
+
+    rows.forEach(row => {
+        let matched = false;
+        let rNo = row.querySelector('.r-no').textContent.toLowerCase().replace(/\s+/g, '');
+        let rMat = row.querySelector('.r-mat').textContent.toLowerCase().replace(/[^a-z0-9]/g, '');
+        let rPname = row.querySelector('.r-pname').textContent.toLowerCase().replace(/[^a-z0-9]/g, '');
+        let size = parseFloat(row.querySelector('.r-size').getAttribute('data-val')).toString().replace('.', '');
+        let gsm = row.querySelector('.r-gsm').getAttribute('data-val');
+        let combinedNumbers = size + gsm;
+        let combinedText = rMat + rPname;
+
+        if (inputVal === '') matched = true;
+        else if (rNo.includes(inputVal)) matched = true;
+        else if (tokens.length > 0) {
+            let matchesAll = true;
+            tokens.forEach(token => {
+                if (/^\d+$/.test(token)) {
+                    if (!combinedNumbers.includes(token)) matchesAll = false;
+                } else {
+                    if (!combinedText.includes(token)) matchesAll = false;
+                }
+            });
+            matched = matchesAll;
+        }
+
+        row.style.display = matched ? '' : 'none';
+    });
+});
+</script>
+
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
