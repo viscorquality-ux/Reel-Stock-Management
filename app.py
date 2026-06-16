@@ -170,7 +170,7 @@ def issued_stock():
 
 @app.route('/finish_reel/<int:id>', methods=['POST'])
 def finish_reel(id):
-@@ -327,9 +350,24 @@
+
 
 @app.route('/damage_sell_stock')
 def damage_sell_stock():
@@ -198,7 +198,7 @@ def damage_sell_stock():
     return render_template('damage_sell_stock.html', damaged_reels=damaged_reels, sold_reels=sold_reels, cond_logs=cond_logs)
 
 @app.route('/mark_damage_sell/<int:id>', methods=['POST'])
-@@ -358,12 +396,20 @@
+
 
 @app.route('/finished_usage_stock')
 def finished_usage_stock():
