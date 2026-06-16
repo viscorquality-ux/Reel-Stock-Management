@@ -77,19 +77,31 @@ def home():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        username = request.form.get('username', '').strip()
-        password = request.form.get('password', '').strip()
-        if username in AUTHORIZED_USERS and AUTHORIZED_USERS[username] == password:
-            session['role'] = SmartRole(username)
+        username = request.form.get('username').strip()
+        password = request.form.get('password').strip()
+        
+        # User accounts සහ Passwords (මෙය ඔබගේ Database එකක් නම් ඒ හරහා check කරන්න)
+        users = {
+            'admin': 'admin@0123',
+            'dataop1': 'viscor@2468',
+            'dataop2': 'packwell@8642', # Packwell සඳහා අලුත් user
+            'super1': 'viscor@1357',
+            'super2': 'packwell@7531'
+        }
+        
+        if username in users and users[username] == password:
+            # නිවැරදිව Session එකට අදාළ User ව ඇතුලත් කිරීම
             session['username'] = username
-            flash(f"Logged in successfully as {username}", "success")
+            flash(f'Successfully logged in as {username}!', 'success')
             return redirect(url_for('dashboard'))
-        flash("Invalid Username or Password!", "danger")
+        else:
+            flash('Invalid Username or Password!', 'danger')
+            
     return render_template('login.html')
 
+# --- 2. LOGOUT ROUTE එක (නැතිනම් එකතු කරගන්න) ---
 @app.route('/logout')
 def logout():
-    session.pop('role', None)
     session.pop('username', None)
     return redirect(url_for('login'))
 
