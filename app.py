@@ -153,7 +153,6 @@ def viscor_issue():
     return render_template('viscor_issue.html', reels=viscor_reels, packwell_reels=packwell_reels, user_role=user_role)
 
 @app.route('/accept_viscor/<int:id>', methods=['POST'])
-@@ -313,7 +328,15 @@
 
 @app.route('/issued_stock')
 def issued_stock():
