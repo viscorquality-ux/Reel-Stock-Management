@@ -223,7 +223,7 @@ def finished_usage_stock():
             s_date = datetime.strptime(start_date, '%Y-%m-%d')
 @@ -384,7 +430,6 @@
                            start_date=start_date or '',
-                           end_date=end_date or ''))
+                           end_date=end_date or '')
 
 # -- Finished SR Update Route අලුතින් එක් කළ කොටස --
 @app.route('/update_finished_sr/<int:id>', methods=['POST'])
