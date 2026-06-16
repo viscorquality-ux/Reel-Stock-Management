@@ -2,15 +2,15 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Damage & Sold Logs</title>
-    <link class="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <title>Damage / Sell Stock</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
 </head>
-<body>
+<body class="bg-light">
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
     <div class="container-fluid">
-        <a class="navbar-brand" href="#">Inventory System</a>
+        <a class="navbar-brand" href="#">Viscor & Packwell</a>
         <div class="collapse navbar-collapse">
-            <ul class="navbar-nav me-auto">
+            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                 <li class="nav-item"><a class="nav-link" href="{{ url_for('dashboard') }}">Dashboard</a></li>
                 <li class="nav-item"><a class="nav-link" href="{{ url_for('active_stock') }}">Active Stock</a></li>
                 {% if session.get('role') not in ['super1', 'super2'] %}
@@ -19,34 +19,54 @@
                 <li class="nav-item"><a class="nav-link" href="{{ url_for('viscor_issue') }}">Pending Verification</a></li>
                 <li class="nav-item"><a class="nav-link" href="{{ url_for('issued_stock') }}">Issued Stock</a></li>
                 <li class="nav-item"><a class="nav-link active" href="{{ url_for('damage_sell_stock') }}">Damage/Sell Stock</a></li>
-                <li class="nav-item"><a class="nav-link" href="{{ url_for('finished_usage_stock') }}">Finished & Usage</a></li>
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('finished_usage_stock') }}">Finished/Usage Stock</a></li>
             </ul>
-            <span class="navbar-text me-3 text-white">Role: {{ session.get('username') }}</span>
-            <a href="{{ url_for('logout') }}" class="btn btn-danger btn-sm">Logout</a>
+            <span class="navbar-text me-3">Logged in as: <strong>{{ session.get('username') }}</strong></span>
+            <a class="btn btn-outline-light btn-sm" href="{{ url_for('logout') }}">Logout</a>
         </div>
     </div>
 </nav>
 
 <div class="container">
-    <h3 class="mb-4">Damaged and Sold Stocks</h3>
+    <h2 class="mb-4">Damaged and Sold Reels Records</h2>
     
-    <h4>Damaged Stock List</h4>
-    <table class="table table-bordered table-danger mb-5">
-        <thead>
-            <tr><th>Reel Number</th><th>Weight (kg)</th><th>Location</th></tr>
+    <h4>Damaged Reels</h4>
+    <table class="table table-bordered bg-white shadow-sm mb-4">
+        <thead class="table-danger">
+            <tr>
+                <th>Reel No</th>
+                <th>Weight</th>
+                <th>Location</th>
+            </tr>
         </thead>
         <tbody>
-            {% for r in damaged_reels %}<tr><td>{{ r.reel_number }}</td><td>{{ r.weight_kg }}</td><td>{{ r.store_location }}</td></tr>{% endfor %}
+            {% for reel in damaged_reels %}
+            <tr>
+                <td>{{ reel.reel_number }}</td>
+                <td>{{ reel.weight_kg }}</td>
+                <td>{{ reel.store_location }}</td>
+            </tr>
+            {% endfor %}
         </tbody>
     </table>
 
-    <h4>Sold Stock List</h4>
-    <table class="table table-bordered table-secondary">
-        <thead>
-            <tr><th>Reel Number</th><th>Weight (kg)</th><th>Location</th></tr>
+    <h4>Sold Reels</h4>
+    <table class="table table-bordered bg-white shadow-sm">
+        <thead class="table-success">
+            <tr>
+                <th>Reel No</th>
+                <th>Weight</th>
+                <th>Location</th>
+            </tr>
         </thead>
         <tbody>
-            {% for r in sold_reels %}<tr><td>{{ r.reel_number }}</td><td>{{ r.weight_kg }}</td><td>{{ r.store_location }}</td></tr>{% endfor %}
+            {% for reel in sold_reels %}
+            <tr>
+                <td>{{ reel.reel_number }}</td>
+                <td>{{ reel.weight_kg }}</td>
+                <td>{{ reel.store_location }}</td>
+            </tr>
+            {% endfor %}
         </tbody>
     </table>
 </div>
