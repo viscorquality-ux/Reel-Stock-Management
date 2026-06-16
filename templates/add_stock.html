@@ -1,103 +1,78 @@
-{% extends 'base.html' %}
-{% block content %}
-<div class="container mt-4">
-    <div class="card shadow border-0 mx-auto" style="max-width: 500px;">
-        <div class="card-header bg-dark text-white fw-bold py-3 text-center">
-            <h5 class="mb-0"><i class="bi bi-plus-circle"></i> Add New Stock Entry</h5>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Add Stock</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="#">Inventory System</a>
+        <div class="collapse navbar-collapse">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('dashboard') }}">Dashboard</a></li>
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('active_stock') }}">Active Stock</a></li>
+                {% if session.get('role') not in ['super1', 'super2'] %}
+                <li class="nav-item"><a class="nav-link active" href="{{ url_for('add_stock') }}">Add Stock</a></li>
+                {% endif %}
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('viscor_issue') }}">Pending Verification</a></li>
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('issued_stock') }}">Issued Stock</a></li>
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('damage_sell_stock') }}">Damage/Sell Stock</a></li>
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('finished_usage_stock') }}">Finished & Usage</a></li>
+            </ul>
+            <span class="navbar-text me-3 text-white">Role: {{ session.get('username') }}</span>
+            <a href="{{ url_for('logout') }}" class="btn btn-danger btn-sm">Logout</a>
         </div>
-        <div class="card-body p-4">
-            <input type="hidden" id="currentUserRole" value="{{ user_role }}">
+    </div>
+</nav>
 
-            <form action="{{ url_for('add_stock') }}" method="POST" id="rawMaterialForm">
-                <div class="mb-3">
-                    <label for="reel_number" class="form-label fw-bold text-dark mb-1">Reel Number</label>
-                    <input type="text" class="form-control border-2" id="reel_number" name="reel_number" placeholder="e.g., REEL-9901" required>
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white"><h4>Initialize New Reel Stock</h4></div>
+                <div class="card-body">
+                    {% if user_role in ['super1', 'super2'] %}
+                        <div class="alert alert-danger text-center">
+                            <h5>Access Denied!</h5>
+                            <p>Supervisors are not permitted to add stock items.</p>
+                        </div>
+                    {% else %}
+                        <form action="{{ url_for('add_stock') }}" method="POST">
+                            <div class="mb-3">
+                                <label class="form-label">Reel Number</label>
+                                <input type="text" name="reel_number" class="form-control" required>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Size (cm)</label>
+                                    <input type="number" step="0.01" name="size_cm" class="form-control" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Weight (kg)</label>
+                                    <input type="number" step="0.01" name="weight_kg" class="form-control" required>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Paper Name</label>
+                                <input type="text" name="paper_name" class="form-control" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Store Location</label>
+                                <select name="store_location" class="form-select">
+                                    {% for loc in locations %}
+                                    <option value="{{ loc }}">{{ loc }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">Save Reel</button>
+                        </form>
+                    {% endif %}
                 </div>
-
-                <div class="mb-3 p-2 bg-light rounded border text-center">
-                    <div class="form-check form-check-inline me-3">
-                        <input class="form-check-input" type="radio" name="status" id="status_full" value="Full Reel" checked>
-                        <label class="form-check-label fw-bold text-success" for="status_full">Full Reel</label>
-                    </div>
-                    <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="radio" name="status" id="status_used" value="Used Reel">
-                        <label class="form-check-label fw-bold text-warning" for="status_used">Used Reel</label>
-                    </div>
-                </div>
-
-                <div class="mb-3">
-                    <label for="paper_name" class="form-label fw-bold mb-1">Material Name</label>
-                    <input type="text" class="form-control" id="paper_name" name="paper_name" placeholder="e.g., Box Board" required>
-                </div>
-
-                <div class="mb-3">
-                    <label for="reel_type" class="form-label fw-bold mb-1">Paper Name</label>
-                    <select class="form-select" id="reel_type" name="reel_type" required>
-                        <option value="" selected disabled>Select Paper Name...</option>
-                        <option value="Liner(T)">Liner(T)</option>
-                        <option value="Medium (C)">Medium (C)</option>
-                        <option value="Kraft(K)">Kraft(K)</option>
-                        <option value="White(WT)">White(WT)</option>
-                        <option value="White Kraft(WK)">White Kraft(WK)</option>
-                    </select>
-                </div>
-
-                <div class="row g-2 mb-3">
-                    <div class="col-6">
-                        <label for="size_cm" class="form-label fw-bold mb-1">Size (cm)</label>
-                        <input type="number" step="0.1" class="form-control" id="size_cm" name="size_cm" placeholder="100" required>
-                    </div>
-                    <div class="col-6">
-                        <label for="gsm" class="form-label fw-bold mb-1">GSM</label>
-                        <input type="number" class="form-control" id="gsm" name="gsm" placeholder="140" required>
-                    </div>
-                </div>
-
-                <div class="mb-3">
-                    <label for="weight_kg" class="form-label fw-bold mb-1">Weight (kg)</label>
-                    <input type="number" step="0.01" class="form-control" id="weight_kg" name="weight_kg" placeholder="e.g., 450.50" required>
-                </div>
-
-                <div class="mb-4">
-                    <label for="store_location" class="form-label fw-bold mb-1">Warehouse Location</label>
-                    <select class="form-select" id="store_location" name="store_location" required>
-                        <option value="" selected disabled>Select Warehouse...</option>
-                        <option value="Viscor Lanka" {% if user_role == 'dataop2' %} disabled class="text-muted bg-light" {% endif %}>Viscor Lanka {% if user_role == 'dataop2' %} (Blocked) {% endif %}</option>
-                        <option value="Packwell W 1" {% if user_role == 'dataop1' %} disabled class="text-muted bg-light" {% endif %}>Packwell W 1 {% if user_role == 'dataop1' %} (Blocked) {% endif %}</option>
-                        <option value="Packwell W 2" {% if user_role == 'dataop1' %} disabled class="text-muted bg-light" {% endif %}>Packwell W 2 {% if user_role == 'dataop1' %} (Blocked) {% endif %}</option>
-                        <option value="Packwell W 3" {% if user_role == 'dataop1' %} disabled class="text-muted bg-light" {% endif %}>Packwell W 3 {% if user_role == 'dataop1' %} (Blocked) {% endif %}</option>
-                        <option value="Packwell W 4" {% if user_role == 'dataop1' %} disabled class="text-muted bg-light" {% endif %}>Packwell W 4 {% if user_role == 'dataop1' %} (Blocked) {% endif %}</option>
-                        <option value="Packwell W 5" {% if user_role == 'dataop1' %} disabled class="text-muted bg-light" {% endif %}>Packwell W 5 {% if user_role == 'dataop1' %} (Blocked) {% endif %}</option>
-                        <option value="Packwell W 6" {% if user_role == 'dataop1' %} disabled class="text-muted bg-light" {% endif %}>Packwell W 6 {% if user_role == 'dataop1' %} (Blocked) {% endif %}</option>
-                        <option value="Packwell W 7" {% if user_role == 'dataop1' %} disabled class="text-muted bg-light" {% endif %}>Packwell W 7 {% if user_role == 'dataop1' %} (Blocked) {% endif %}</option>
-                    </select>
-                    <div id="locationWarning" class="form-text text-danger fw-bold mt-1" style="display: none;"></div>
-                </div>
-
-                <div class="d-grid">
-                    <button type="submit" class="btn btn-dark fw-bold py-2"><i class="bi bi-plus-circle"></i> Save Stock Entry</button>
-                </div>
-            </form>
+            </div>
         </div>
     </div>
 </div>
-<script>
-document.getElementById('store_location').addEventListener('change', function() {
-    let userRole = document.getElementById('currentUserRole').value.toLowerCase().trim();
-    let warningDiv = document.getElementById('locationWarning');
-    let val = this.value;
-
-    if (userRole === 'dataop1' && val.startsWith('Packwell')) {
-        warningDiv.innerText = "❌ Not authorized for Packwell Warehouses";
-        warningDiv.style.display = 'block';
-        this.value = ""; 
-    } else if (userRole === 'dataop2' && val === 'Viscor Lanka') {
-        warningDiv.innerText = "❌ Not authorized for Viscor Lanka";
-        warningDiv.style.display = 'block';
-        this.value = ""; 
-    } else {
-        warningDiv.style.display = 'none';
-    }
-});
-</script>
-{% endblock %}
+</body>
+</html>
