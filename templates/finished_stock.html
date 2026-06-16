@@ -1,5 +1,17 @@
 {% extends 'base.html' %}
 {% block content %}
+
+<!-- Print Layout: Hide inactive tabs during printing -->
+<style>
+    @media print {
+        .tab-pane:not(.active) {
+            display: none !important;
+            opacity: 0 !important;
+            visibility: hidden !important;
+        }
+    }
+</style>
+
 <div class="container mt-4 mb-5">
     <div class="d-flex justify-content-between align-items-center mb-4 no-print">
         <h2 class="text-secondary fw-bold mb-0"><i class="bi bi-check-circle-fill"></i> Finished & Usage Logs</h2>
@@ -24,7 +36,7 @@
         </form>
     </div>
 
-    <!-- Tab Navigation (Only visible on screen) -->
+    <!-- Tab Navigation -->
     <ul class="nav nav-tabs mb-3 no-print" id="finishedTabs" role="tablist">
         <li class="nav-item">
             <button class="nav-link active fw-bold text-success" data-bs-toggle="tab" data-bs-target="#finishedReels"><i class="bi bi-check2-all"></i> Fully Finished Reels</button>
@@ -34,10 +46,10 @@
         </li>
     </ul>
 
-    <!-- Tab Content (Always visible on print) -->
+    <!-- Tab Content -->
     <div class="tab-content">
         <!-- Tab 1: Finished Reels -->
-        <div class="tab-pane fade show active d-print-block" id="finishedReels">
+        <div class="tab-pane fade show active" id="finishedReels">
             <div class="card shadow border-0 border-top border-success border-4 mb-4">
                 <div class="card-header bg-white d-flex justify-content-between align-items-center">
                     <h5 class="mb-0 fw-bold">Fully Finished Reels</h5>
@@ -71,7 +83,7 @@
         </div>
 
         <!-- Tab 2: Logs -->
-        <div class="tab-pane fade show active d-print-block" id="usageLogs">
+        <div class="tab-pane fade" id="usageLogs">
             <div class="card shadow border-0 border-top border-primary border-4">
                 <div class="card-header bg-white d-flex justify-content-between align-items-center">
                     <h5 class="mb-0 fw-bold">Usage & Return Logs</h5>
