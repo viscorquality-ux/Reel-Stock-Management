@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session
-from flask_sqlalchemy import SQLAlchemy
+from flask_sqlalchemy import SQLAlchemy, text
 from datetime import datetime, timedelta
 import pytz
 
@@ -69,7 +69,16 @@ def handle_session_and_security():
     allowed_routes = ['login', 'login_submit', 'static']
     if request.endpoint not in allowed_routes and 'role' not in session:
         return redirect(url_for('login'))
-
+@app.route('/fix_db')
+def fix_db():
+    try:
+        with db.engine.connect() as conn:
+            # Database එකට location column එක අලුතින් එකතු කිරීමේ SQL විධානය
+            conn.execute(text("ALTER TABLE reel ADD COLUMN location VARCHAR(100) DEFAULT 'Viscor Lanka';"))
+            conn.commit()
+        return "Database එක සාර්ථකව Update විය! දැන් Dashboard එකට යන්න පුළුවන්."
+    except Exception as e:
+        return f"දෝෂයක්: {e}"
 @app.route('/')
 def home():
     return redirect(url_for('dashboard')) if 'role' in session else redirect(url_for('login'))
