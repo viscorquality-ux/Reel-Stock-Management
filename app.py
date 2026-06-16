@@ -31,7 +31,7 @@ class Reel(db.Model):
     gate_pass_number = db.Column(db.String(50), nullable=True)
     sr_number = db.Column(db.String(50), nullable=True) 
     routing_type = db.Column(db.String(50), nullable=True)
-    store_location = db.Column(db.String(100), default='Viscor Lanka')
+    location = db.Column(db.String(100), default='Viscor Lanka')
     gsm = db.Column(db.Integer, default=0)
     reel_type = db.Column(db.String(100), default='Liner(T)') 
     supplier = db.Column(db.String(100), default='N/A', nullable=True)
