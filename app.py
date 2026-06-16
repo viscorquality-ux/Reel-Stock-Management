@@ -189,6 +189,16 @@ def add_stock():
             if Reel.query.filter_by(reel_number=reel_number).first():
                 flash(f"Error: Reel Number '{reel_number}' already exists!", "danger")
                 return redirect(url_for('add_stock'))
+            
+            store_location = request.form.get('store_location', 'Viscor Lanka')
+            
+            # Backend Validation for Location Security
+            if user_role == 'dataop1' and store_location != 'Viscor Lanka':
+                flash("Error: dataop1 is only allowed to add stock to Viscor Lanka!", "danger")
+                return redirect(url_for('add_stock'))
+            elif user_role == 'dataop2' and not store_location.startswith('Packwell'):
+                flash("Error: dataop2 is only allowed to add stock to Packwell Warehouses!", "danger")
+                return redirect(url_for('add_stock'))
                 
             new_reel = Reel(
                 reel_number=reel_number,
@@ -196,7 +206,7 @@ def add_stock():
                 weight_kg=request.form.get('weight_kg', 0.0, type=float),
                 paper_name=request.form.get('paper_name', ''),
                 status=request.form.get('status', 'Full Reel'), 
-                location=request.form.get('store_location', 'Viscor Lanka'),
+                location=store_location,
                 gsm=request.form.get('gsm', 0, type=int),
                 reel_type=request.form.get('reel_type', 'Liner(T)'),
                 supplier='N/A'
@@ -276,8 +286,10 @@ def viscor_issue():
 
 @app.route('/accept_viscor/<int:id>', methods=['POST'])
 def accept_viscor(id):
-    if session.get('role') in ['super1', 'super2']:
-        flash('Action Not Allowed.', 'danger')
+    user_role = session.get('role')
+    # Block dataop2 from accepting Viscor Verifications
+    if user_role in ['super1', 'super2', 'dataop2']:
+        flash('Action Not Allowed. dataop2 is not authorized to verify Viscor stock.', 'danger')
         return redirect(url_for('viscor_issue'))
 
     reel = Reel.query.get_or_404(id)
@@ -286,6 +298,26 @@ def accept_viscor(id):
     db.session.add(ReelHistory(reel_id=reel.id, usage_details="Verified & Accepted by Viscor Lanka", action_type='ACCEPTED'))
     db.session.commit()
     flash(f'Reel {reel.reel_number} has been Verified & Accepted to Active Stock.', 'success')
+    return redirect(url_for('viscor_issue'))
+
+# Optional/Additional Route for Packwell Return Acceptance to handle dataop1 blocking
+@app.route('/accept_packwell/<int:id>', methods=['POST'])
+def accept_packwell(id):
+    user_role = session.get('role')
+    # Block dataop1 from accepting Packwell Returns
+    if user_role in ['super1', 'super2', 'dataop1']:
+        flash('Action Not Allowed. dataop1 is not authorized to accept Packwell returns.', 'danger')
+        return redirect(url_for('viscor_issue'))
+
+    reel = Reel.query.get_or_404(id)
+    if 'Full' in reel.status:
+        reel.status = 'Full Reel'
+    else:
+        reel.status = 'Used Reel'
+        
+    db.session.add(ReelHistory(reel_id=reel.id, usage_details="Returned & Accepted by Packwell Warehouse", action_type='ACCEPTED_PACKWELL'))
+    db.session.commit()
+    flash(f'Reel {reel.reel_number} has been accepted back to Packwell Stock.', 'success')
     return redirect(url_for('viscor_issue'))
 
 @app.route('/issued_stock')
