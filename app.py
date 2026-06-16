@@ -21,16 +21,6 @@ class SmartRole(str):
         return self.lower().replace(" ", "") == other.lower().replace(" ", "")
     def __ne__(self, other): return not self.__eq__(other)
 
-# AUTHORIZED USERS DICTIONARY
-AUTHORIZED_USERS = {
-    "admin": "admin@0123", 
-    "dataop1": "viscor@2468", 
-    "dataop2": "packwell@8642",
-    "super1": "viscor@1357", 
-    "super2": "packwell@7531",
-    "programmer": "prog@7890"  # Naya user account add kiya gaya hai
-}
-
 # MODELS
 class Reel(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -58,19 +48,39 @@ class ReelHistory(db.Model):
     action_type = db.Column(db.String(50), default='LOG') 
     timestamp = db.Column(db.DateTime, default=lambda: datetime.now(colombo_tz))
 
-# NAYA MODEL: SR REQUEST TRACKING KE LIYE
+# ALUTH MODEL: SR REQUEST TRACKING
 class SRRequest(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     reel_size = db.Column(db.Float, nullable=False)
     po_number = db.Column(db.String(100), nullable=False)
     qty = db.Column(db.Integer, nullable=False)
     gsm = db.Column(db.Integer, nullable=False)
-    board_size = db.Column(db.String(50), nullable=False) # Store format: "Width * Length"
+    board_size = db.Column(db.String(50), nullable=False) 
     material_name = db.Column(db.String(100), nullable=False)
-    layer_type = db.Column(db.String(30), nullable=False) # Top, Bottom, Corru
+    layer_type = db.Column(db.String(30), nullable=False) 
     calculated_weight = db.Column(db.Float, nullable=False)
-    status = db.Column(db.String(50), default='Pending Approval') # Pending Approval, Approved, Processed
+    status = db.Column(db.String(50), default='Pending Approval')
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(colombo_tz))
+
+# Unified Users Dictionary (Aluth Programmer user ekath ekka)
+AUTHORIZED_USERS = {
+    "admin": "admin@0123", 
+    "dataop1": "viscor@2468", 
+    "dataop2": "packwell@8642",
+    "super1": "viscor@1357", 
+    "super2": "packwell@7531",
+    "programmer": "prog@7890" 
+}
+
+@app.context_processor
+def inject_global_facilities():
+    return {
+        'locations': [
+            'Viscor Lanka', 'Packwell W 1', 'Packwell W 2', 'Packwell W 3', 
+            'Packwell W 4', 'Packwell W 5', 'Packwell W 6', 'Packwell W 7'
+        ],
+        'f_supplier': request.args.get('supplier', '')
+    }
 
 @app.before_request
 def handle_session_and_security():
@@ -80,22 +90,36 @@ def handle_session_and_security():
     if request.endpoint not in allowed_routes and 'role' not in session:
         return redirect(url_for('login'))
 
+@app.route('/fix_db')
+def fix_db():
+    try:
+        db.create_all() # Aluth tables create kranna
+        with db.engine.connect() as conn:
+            # Old manual fix
+            conn.execute(text("ALTER TABLE reel ADD COLUMN location VARCHAR(100) DEFAULT 'Viscor Lanka';"))
+            conn.commit()
+        return "Database Update Successful!"
+    except Exception as e:
+        return f"Error / Already Updated: {e}"
+
 @app.route('/')
-def index():
-    return redirect(url_for('dashboard'))
+def home():
+    return redirect(url_for('dashboard')) if 'role' in session else redirect(url_for('login'))
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        username = request.form.get('username', '').strip()
-        password = request.form.get('password', '').strip()
+        username = request.form.get('username').strip()
+        password = request.form.get('password').strip()
+        
         if username in AUTHORIZED_USERS and AUTHORIZED_USERS[username] == password:
             session['username'] = username
             session['role'] = username
-            flash(f"Welcome back, {username}!", "success")
+            flash(f'Successfully logged in as {username}!', 'success')
             return redirect(url_for('dashboard'))
         else:
-            flash("Invalid Username or Password!", "danger")
+            flash('Invalid Username or Password!', 'danger')
+            
     return render_template('login.html')
 
 @app.route('/logout')
@@ -104,95 +128,395 @@ def logout():
     session.pop('username', None)
     return redirect(url_for('login'))
 
-@app.route('/dashboard')
+@app.route('/dashboard') 
 def dashboard():
-    full_reels = Reel.query.filter_by(status='Full Reel').count()
-    used_reels = Reel.query.filter_by(status='Used Reel').count()
-    finished = Reel.query.filter_by(status='Finished').count()
-    damage_sell_count = Reel.query.filter(Reel.status.in_(['Damaged', 'Sold'])).count()
-    return render_template('dashboard.html', full=full_reels, used=used_reels, finished=finished, damage_sell_count=damage_sell_count)
+    current_user = session.get('role')
+    active_query = Reel.query.filter(Reel.status.in_(['Full Reel', 'Used Reel']))
+    
+    if current_user == 'dataop1':
+        active_query = active_query.filter_by(location='Viscor Lanka')
+        pending_viscor = Reel.query.filter_by(status='Pending Viscor').count()
+        issued = Reel.query.filter_by(status='Issued', location='Viscor Lanka').count()
+        finished = Reel.query.filter_by(status='Finished', location='Viscor Lanka').count()
+        damage_sell_count = Reel.query.filter(Reel.status.in_(['Damaged', 'Sold']), Reel.location == 'Viscor Lanka').count()
+    elif current_user == 'dataop2':
+        active_query = active_query.filter(Reel.location.like('Packwell W%'))
+        pending_viscor = Reel.query.filter(Reel.status.in_(['Pending Packwell Full', 'Pending Packwell Used'])).count()
+        issued = Reel.query.filter_by(status='Issued').filter(Reel.location.like('Packwell W%')).count()
+        finished = Reel.query.filter_by(status='Finished').filter(Reel.location.like('Packwell W%')).count()
+        damage_sell_count = Reel.query.filter(Reel.status.in_(['Damaged', 'Sold'])).filter(Reel.location.like('Packwell W%')).count()
+    else:
+        pending_viscor = Reel.query.filter(Reel.status.in_(['Pending Viscor', 'Pending Packwell Full', 'Pending Packwell Used'])).count()
+        issued = Reel.query.filter_by(status='Issued').count()
+        finished = Reel.query.filter_by(status='Finished').count()
+        damage_sell_count = Reel.query.filter(Reel.status.in_(['Damaged', 'Sold'])).count()
 
-@app.route('/add_stock', methods=['GET', 'POST'])
-def add_stock():
-    user_role = session.get('role', '')
-    if user_role in ['super1', 'super2', 'programmer']:
-        flash("Unauthorized Action. This account has read-only access here.", "danger")
-        return redirect(url_for('dashboard'))
-        
-    if request.method == 'POST':
-        try:
-            r_num = request.form.get('reel_number').strip()
-            if Reel.query.filter_by(reel_number=r_num).first():
-                flash("Reel Number already exists!", "danger")
-                return redirect(url_for('add_stock'))
-            
-            new_reel = Reel(
-                reel_number=r_num,
-                size_cm=float(request.form.get('size_cm')),
-                weight_kg=float(request.form.get('weight_kg')),
-                paper_name=request.form.get('paper_name'),
-                location=request.form.get('store_location'),
-                gsm=int(request.form.get('gsm')),
-                reel_type=request.form.get('reel_type'),
-                supplier=request.form.get('supplier', 'N/A')
-            )
-            db.session.add(new_reel)
-            db.session.commit()
-            db.session.add(ReelHistory(reel_id=new_reel.id, usage_details="Initial Entry Added to System", action_type='ADD'))
-            db.session.commit()
-            flash("Stock Entry Saved Successfully!", "success")
-        except Exception as e:
-            db.session.rollback()
-            flash(f"Error adding stock: {str(e)}", "danger")
-    return render_template('add_stock.html')
+    active_reels = active_query.all()
+    active_count = len(active_reels)
+    active_weight = sum((r.weight_kg or 0.0) for r in active_reels)
+    
+    is_read_only = True if current_user in ['super1', 'super2', 'programmer'] else False
+    
+    return render_template('dashboard.html', 
+                           active_count=active_count, 
+                           active_weight=active_weight,
+                           pending_viscor_count=pending_viscor, 
+                           issued=issued, 
+                           finished=finished, 
+                           damage_sell_count=damage_sell_count,
+                           is_read_only=is_read_only, 
+                           current_user=current_user)
 
 @app.route('/active_stock')
 def active_stock():
-    user_role = session.get('role', '')
-    full_reels = Reel.query.filter_by(status='Full Reel').all()
-    used_reels = Reel.query.filter_by(status='Used Reel').all()
-    return render_template('active_stock.html', full_reels=full_reels, used_reels=used_reels, user_role=user_role)
+    user_role = session.get('role')
+    full_query = Reel.query.filter_by(status='Full Reel')
+    used_query = Reel.query.filter_by(status='Used Reel')
+    
+    if user_role == 'dataop1':
+        full_query = full_query.filter(Reel.location == 'Viscor Lanka')
+        used_query = used_query.filter(Reel.location == 'Viscor Lanka')
+    elif user_role == 'dataop2':
+        full_query = full_query.filter(Reel.location.like('Packwell W%'))
+        used_query = used_query.filter(Reel.location.like('Packwell W%'))
+        
+    full_reels = full_query.all()
+    used_reels = used_query.all()
+
+    return render_template('active_stock.html', 
+                           full_reels=full_reels, 
+                           used_reels=used_reels,
+                           total_full_count=len(full_reels),
+                           total_used_count=len(used_reels),
+                           user_role=user_role)
+
+@app.route('/add_stock', methods=['GET', 'POST'])
+def add_stock():
+    user_role = session.get('role')
+    if user_role in ['super1', 'super2', 'programmer']:
+        flash("Unauthorized Action. Super users have read-only access.", "danger")
+        return redirect(url_for('dashboard'))
+
+    if request.method == 'POST':
+        try:
+            reel_number = request.form.get('reel_number', '').strip()
+            if Reel.query.filter_by(reel_number=reel_number).first():
+                flash(f"Error: Reel Number '{reel_number}' already exists!", "danger")
+                return redirect(url_for('add_stock'))
+                
+            new_reel = Reel(
+                reel_number=reel_number,
+                size_cm=request.form.get('size_cm', 0.0, type=float),
+                weight_kg=request.form.get('weight_kg', 0.0, type=float),
+                paper_name=request.form.get('paper_name', ''),
+                status=request.form.get('status', 'Full Reel'), 
+                location=request.form.get('store_location', 'Viscor Lanka'),
+                gsm=request.form.get('gsm', 0, type=int),
+                reel_type=request.form.get('reel_type', 'Liner(T)'),
+                supplier='N/A'
+            )
+            db.session.add(new_reel)
+            db.session.commit()
+            
+            db.session.add(ReelHistory(reel_id=new_reel.id, usage_details=f"Stock initialized in {new_reel.status}", action_type='INITIAL'))
+            db.session.commit()
+            flash(f"Reel {reel_number} saved successfully!", "success")
+            return redirect(url_for('active_stock'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f"System Error: {str(e)}", "danger")
+
+    return render_template('add_stock.html', user_role=user_role)
+
+@app.route('/edit_active_reel/<int:id>', methods=['POST'])
+def edit_active_reel(id):
+    if session.get('role') in ['super1', 'super2', 'programmer']:
+        flash("Action Not Allowed.", "danger")
+        return redirect(url_for('active_stock'))
+        
+    reel = Reel.query.get_or_404(id)
+    reel.reel_number = request.form.get('reel_number', reel.reel_number)
+    reel.paper_name = request.form.get('paper_name', reel.paper_name)
+    reel.reel_type = request.form.get('reel_type', reel.reel_type)
+    reel.size_cm = request.form.get('size_cm', reel.size_cm, type=float)
+    reel.gsm = request.form.get('gsm', reel.gsm, type=int)
+    reel.weight_kg = request.form.get('weight_kg', reel.weight_kg, type=float)
+    
+    db.session.add(ReelHistory(reel_id=reel.id, usage_details="Reel details manually edited", action_type='EDIT'))
+    db.session.commit()
+    flash(f"Reel {reel.reel_number} updated successfully.", "success")
+    return redirect(url_for('active_stock'))
 
 @app.route('/issue_reel/<int:id>', methods=['POST'])
 def issue_reel(id):
-    user_role = session.get('role', '')
-    if user_role in ['super1', 'super2', 'programmer']:
-        flash("Unauthorized Action. This account has read-only access.", "danger")
+    if session.get('role') in ['super1', 'super2', 'programmer']:
+        flash("Action Not Allowed.", "danger")
         return redirect(url_for('active_stock'))
-        
+
     reel = Reel.query.get_or_404(id)
     doc_type = request.form.get('doc_type')
     doc_number = request.form.get('doc_number')
-    
-    reel.status = 'Issued'
-    if doc_type == 'SR':
+    dispatch_dest = request.form.get('dispatch_destination')
+
+    if doc_type == 'SR': 
         reel.sr_number = doc_number
-    else:
+    else: 
         reel.gate_pass_number = doc_number
-        
-    db.session.add(ReelHistory(reel_id=reel.id, usage_details=f"Issued via {doc_type}: {doc_number}", action_type='ISSUE'))
-    db.session.commit()
-    flash(f"Reel {reel.reel_number} successfully dispatched!", "success")
-    return redirect(url_for('active_stock'))
 
-@app.route('/change_status/<int:id>', methods=['POST'])
-def change_status(id):
-    user_role = session.get('role', '')
-    if user_role in ['super1', 'super2', 'programmer']:
-        flash("Unauthorized Action.", "danger")
-        return redirect(url_for('active_stock'))
+    if dispatch_dest == 'send_viscor':
+        reel.status = 'Pending Viscor'
+        db.session.add(ReelHistory(reel_id=reel.id, usage_details=f"Sent to Viscor Lanka via {doc_type}: {doc_number}", action_type='TRANSIT'))
+        flash(f'Reel {reel.reel_number} sent to Viscor Lanka. Pending verification by Dataop1.', 'info')
         
+    elif dispatch_dest == 'return_packwell':
+        if 'Used' in reel.status:
+            reel.status = 'Pending Packwell Used'
+        else:
+            reel.status = 'Pending Packwell Full'
+        db.session.add(ReelHistory(reel_id=reel.id, usage_details=f"Returned to Packwell via {doc_type}: {doc_number}", action_type='TRANSIT'))
+        flash(f'Reel {reel.reel_number} returned to Packwell. Pending acceptance by Dataop2.', 'info')
+        
+    else:
+        reel.status = 'Issued'
+        db.session.add(ReelHistory(reel_id=reel.id, usage_details=f"Issued to Floor via {doc_type}: {doc_number}", action_type='ISSUE'))
+        flash(f'Reel {reel.reel_number} dispatched to the floor successfully.', 'success')
+        
+    db.session.commit()
+    return redirect(request.referrer or url_for('active_stock'))
+
+@app.route('/partial_return/<int:id>', methods=['POST'])
+def partial_return(id):
+    if session.get('role') in ['super1', 'super2', 'programmer']:
+        flash("Action Not Allowed.", "danger")
+        return redirect(url_for('issued_stock'))
+
     reel = Reel.query.get_or_404(id)
-    status_type = request.form.get('status_type')
-    notes = request.form.get('notes')
+    new_weight = request.form.get('new_weight', type=float)
     
-    reel.status = status_type
-    db.session.add(ReelHistory(reel_id=reel.id, usage_details=f"Status changed to {status_type}. Notes: {notes}", action_type='STATUS'))
+    if new_weight is None or new_weight <= 0:
+        flash("Invalid weight entered.", "danger")
+        return redirect(url_for('issued_stock'))
+        
+    old_weight = reel.weight_kg or 0.0
+    used_amount = old_weight - new_weight
+    
+    reel.weight_kg = new_weight
+    reel.status = 'Used Reel' 
+    
+    db.session.add(ReelHistory(
+        reel_id=reel.id, 
+        usage_details=f"Partial Return from floor. New Weight: {new_weight} kg", 
+        weight_used=max(0.0, used_amount), 
+        action_type='PARTIAL RETURN'
+    ))
     db.session.commit()
-    flash(f"Reel {reel.reel_number} moved to {status_type} registry.", "warning")
+    flash(f'Reel {reel.reel_number} partially returned. Moved back to Active Stock as Used Reel.', 'success')
+    return redirect(url_for('issued_stock'))
+
+@app.route('/viscor_issue')
+def viscor_issue():
+    user_role = session.get('role')
+    if user_role == 'dataop1':
+        viscor_reels = Reel.query.filter_by(status='Pending Viscor').all()
+        packwell_reels = []
+    elif user_role == 'dataop2':
+        viscor_reels = []
+        packwell_reels = Reel.query.filter(Reel.status.in_(['Pending Packwell Full', 'Pending Packwell Used'])).all()
+    else:
+        viscor_reels = Reel.query.filter_by(status='Pending Viscor').all()
+        packwell_reels = Reel.query.filter(Reel.status.in_(['Pending Packwell Full', 'Pending Packwell Used'])).all()
+        
+    return render_template('viscor_issue.html', reels=viscor_reels, packwell_reels=packwell_reels, user_role=user_role)
+
+@app.route('/accept_viscor/<int:id>', methods=['POST'])
+def accept_viscor(id):
+    user_role = session.get('role')
+    if user_role in ['super1', 'super2', 'dataop2', 'programmer']:
+        flash('Action Not Allowed.', 'danger')
+        return redirect(url_for('viscor_issue'))
+
+    reel = Reel.query.get_or_404(id)
+    has_been_used = ReelHistory.query.filter(ReelHistory.reel_id == reel.id, ReelHistory.action_type == 'PARTIAL RETURN').first()
+    if has_been_used:
+        reel.status = 'Used Reel'
+    else:
+        reel.status = 'Full Reel'
+        
+    reel.location = 'Viscor Lanka'
+    db.session.add(ReelHistory(reel_id=reel.id, usage_details="Verified & Accepted by Viscor Lanka", action_type='ACCEPTED'))
+    db.session.commit()
+    flash(f'Reel {reel.reel_number} has been Verified & Accepted to Active Stock.', 'success')
+    return redirect(url_for('viscor_issue'))
+
+@app.route('/accept_packwell/<int:id>', methods=['POST'])
+def accept_packwell(id):
+    user_role = session.get('role')
+    if user_role in ['super1', 'super2', 'dataop1', 'programmer']:
+        flash('Action Not Allowed.', 'danger')
+        return redirect(url_for('viscor_issue'))
+
+    reel = Reel.query.get_or_404(id)
+    new_location = request.form.get('accept_location', 'Packwell W 1') 
+    
+    if 'Used' in reel.status:
+        reel.status = 'Used Reel'
+    else:
+        reel.status = 'Full Reel'
+        
+    reel.location = new_location
+    db.session.add(ReelHistory(reel_id=reel.id, usage_details=f"Returned & Accepted by {new_location}", action_type='ACCEPTED_PACKWELL'))
+    db.session.commit()
+    flash(f'Reel {reel.reel_number} has been accepted back to {new_location} Stock.', 'success')
+    return redirect(url_for('viscor_issue'))
+
+@app.route('/issued_stock')
+def issued_stock():
+    user_role = session.get('role')
+    query = Reel.query.filter_by(status='Issued')
+    
+    if user_role == 'dataop1':
+        query = query.filter(Reel.location == 'Viscor Lanka')
+    elif user_role == 'dataop2':
+        query = query.filter(Reel.location.like('Packwell W%'))
+        
+    return render_template('issued_stock.html', stocks=query.all())
+
+@app.route('/finish_reel/<int:id>', methods=['POST'])
+def finish_reel(id):
+    if session.get('role') in ['super1', 'super2', 'programmer']:
+        flash("Action Not Allowed.", "danger")
+        return redirect(url_for('issued_stock'))
+
+    reel = Reel.query.get_or_404(id)
+    used_weight = reel.weight_kg or 0.0
+    reel.status = 'Finished'
+    db.session.add(ReelHistory(reel_id=reel.id, usage_details="Marked 100% finished", weight_used=used_weight, action_type='FINISHED'))
+    db.session.commit()
+    flash('Reel marked as completely finished.', 'success')
+    return redirect(url_for('issued_stock'))
+
+@app.route('/damage_sell_stock')
+def damage_sell_stock():
+    user_role = session.get('role')
+    damaged_query = Reel.query.filter_by(status='Damaged')
+    sold_query = Reel.query.filter_by(status='Sold')
+    cond_query = ReelHistory.query.filter_by(action_type='COND_ISSUE')
+
+    if user_role == 'dataop1':
+        damaged_query = damaged_query.filter(Reel.location == 'Viscor Lanka')
+        sold_query = sold_query.filter(Reel.location == 'Viscor Lanka')
+        cond_query = cond_query.join(Reel).filter(Reel.location == 'Viscor Lanka')
+    elif user_role == 'dataop2':
+        damaged_query = damaged_query.filter(Reel.location.like('Packwell W%'))
+        sold_query = sold_query.filter(Reel.location.like('Packwell W%'))
+        cond_query = cond_query.join(Reel).filter(Reel.location.like('Packwell W%'))
+
+    damaged_reels = damaged_query.all()
+    sold_reels = sold_query.all()
+    cond_logs = cond_query.order_by(ReelHistory.timestamp.desc()).all()
+    
+    return render_template('damage_sell_stock.html', damaged_reels=damaged_reels, sold_reels=sold_reels, cond_logs=cond_logs)
+
+@app.route('/mark_damage_sell/<int:id>', methods=['POST'])
+def mark_damage_sell(id):
+    if session.get('role') in ['super1', 'super2', 'programmer']:
+        flash('Action Not Allowed.', 'danger')
+        return redirect(url_for('active_stock'))
+
+    reel = Reel.query.get_or_404(id)
+    status_type = request.form.get('status_type', 'Damaged')
+    notes = request.form.get('notes', 'N/A')
+    reel.status = status_type
+    db.session.add(ReelHistory(reel_id=reel.id, usage_details=f"Status: {status_type}. Notes: {notes}", action_type=status_type.upper()))
+    db.session.commit()
+    flash(f"Reel successfully marked as {status_type}.", "warning")
     return redirect(url_for('active_stock'))
 
-# NAYE ROUTES: SR REQUEST SYSTEM OPERATIONS
+@app.route('/issue_damaged_reel/<int:id>', methods=['POST'])
+def issue_damaged_reel(id):
+    if session.get('role') in ['super1', 'super2', 'programmer']:
+        flash('Action Not Allowed.', 'danger')
+        return redirect(url_for('damage_sell_stock'))
+
+    reel = Reel.query.get_or_404(id)
+    doc_type = request.form.get('doc_type')
+    doc_number = request.form.get('doc_number')
+    approval_remark = request.form.get('approval_remark')
+
+    reel.status = 'Issued'
+    if doc_type == 'SR': reel.sr_number = doc_number
+    else: reel.gate_pass_number = doc_number
+    
+    db.session.add(ReelHistory(
+        reel_id=reel.id, 
+        usage_details=f"Conditionally Issued via {doc_type}: {doc_number}. Remarks: {approval_remark}", 
+        action_type='COND_ISSUE'
+    ))
+    db.session.commit()
+    flash(f'Damaged Reel {reel.reel_number} conditionally approved and logged.', 'success')
+    return redirect(url_for('issued_stock'))
+
+@app.route('/finished_usage_stock')
+def finished_usage_stock():
+    user_role = session.get('role')
+    start_date = request.args.get('start_date', '').strip()
+    end_date = request.args.get('end_date', '').strip()
+
+    finished_data = []
+    logs_data = []
+
+    try:
+        finished_query = Reel.query.filter_by(status='Finished')
+        logs_query = ReelHistory.query.join(Reel).filter(ReelHistory.action_type.in_(['PARTIAL RETURN', 'FINISHED']))
+
+        if user_role == 'dataop1':
+            finished_query = finished_query.filter(Reel.location == 'Viscor Lanka')
+            logs_query = logs_query.filter(Reel.location == 'Viscor Lanka')
+        elif user_role == 'dataop2':
+            finished_query = finished_query.filter(Reel.location.like('Packwell W%'))
+            logs_query = logs_query.filter(Reel.location.like('Packwell W%'))
+
+        if start_date and end_date:
+            try:
+                s_date = datetime.strptime(start_date, '%Y-%m-%d')
+                e_date = datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1)
+                
+                finished_query = finished_query.filter(Reel.updated_at >= s_date, Reel.updated_at < e_date)
+                logs_query = logs_query.filter(ReelHistory.timestamp >= s_date, ReelHistory.timestamp < e_date)
+            except ValueError:
+                pass
+
+        finished_data = finished_query.all()
+        logs_data = logs_query.all()
+
+    except Exception as e:
+        db.session.rollback() 
+        flash("දත්ත පද්ධතියෙන් දත්ත ලබාගැනීමේදී දෝෂයක් සිදුවිය.", "danger")
+
+    return render_template('finished_usage_stock.html',
+                           finished_reels=finished_data,
+                           usage_logs=logs_data,
+                           total_finished_weight=sum((r.weight_kg or 0.0) for r in finished_data),
+                           total_used_weight_log=sum((log.weight_used or 0.0) for log in logs_data),
+                           start_date=start_date,
+                           end_date=end_date)
+
+@app.route('/update_finished_sr/<int:id>', methods=['POST'])
+def update_finished_sr(id):
+    if session.get('role') not in ['admin', 'dataop1', 'dataop2']:
+        flash("Unauthorized Access", "danger")
+        return redirect(url_for('finished_usage_stock'))
+    
+    reel = Reel.query.get_or_404(id)
+    new_sr = request.form.get('sr_number', '').strip()
+    reel.sr_number = new_sr
+    
+    db.session.add(ReelHistory(reel_id=reel.id, usage_details=f"Finished SR Number updated manually to {new_sr}", action_type='SR_UPDATE'))
+    db.session.commit()
+    flash(f"SR Number for Finished Reel {reel.reel_number} updated successfully.", "success")
+    return redirect(url_for('finished_usage_stock'))
+
+# ======= SR REQUEST SYSTEM ROUTES =======
 @app.route('/sr_request', methods=['GET', 'POST'])
 def sr_request():
     user_role = session.get('role', '')
@@ -214,7 +538,6 @@ def sr_request():
             
             board_size = f"{board_width} * {board_length}"
             
-            # Formuala Calculation: (board size(cm) * GSM/1000 * (Top/Bottom=1 or Corru=1.5)) / 2 * Qty
             w = float(board_width) if board_width else 0.0
             l = float(board_length) if board_length else 0.0
             multiplier = 1.5 if layer_type == 'Corru' else 1.0
@@ -270,10 +593,5 @@ def proceed_sr(id):
         flash(f"✅ SR Request for PO {sr.po_number} has been Proceeded!", "success")
     return redirect(url_for('sr_request'))
 
-@app.route('/fix_db')
-def fix_db():
-    db.create_all()
-    return "Database synced successfully with SRRequest table!"
-
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(debug=True)
