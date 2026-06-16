@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <title>Add Stock</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
 </head>
-<body>
+<body class="bg-light">
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
     <div class="container-fluid">
-        <a class="navbar-brand" href="#">Inventory System</a>
+        <a class="navbar-brand" href="#">Viscor & Packwell</a>
         <div class="collapse navbar-collapse">
-            <ul class="navbar-nav me-auto">
+            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                 <li class="nav-item"><a class="nav-link" href="{{ url_for('dashboard') }}">Dashboard</a></li>
                 <li class="nav-item"><a class="nav-link" href="{{ url_for('active_stock') }}">Active Stock</a></li>
                 {% if session.get('role') not in ['super1', 'super2'] %}
@@ -19,60 +19,40 @@
                 <li class="nav-item"><a class="nav-link" href="{{ url_for('viscor_issue') }}">Pending Verification</a></li>
                 <li class="nav-item"><a class="nav-link" href="{{ url_for('issued_stock') }}">Issued Stock</a></li>
                 <li class="nav-item"><a class="nav-link" href="{{ url_for('damage_sell_stock') }}">Damage/Sell Stock</a></li>
-                <li class="nav-item"><a class="nav-link" href="{{ url_for('finished_usage_stock') }}">Finished & Usage</a></li>
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('finished_usage_stock') }}">Finished/Usage Stock</a></li>
             </ul>
-            <span class="navbar-text me-3 text-white">Role: {{ session.get('username') }}</span>
-            <a href="{{ url_for('logout') }}" class="btn btn-danger btn-sm">Logout</a>
+            <span class="navbar-text me-3">Logged in as: <strong>{{ session.get('username') }}</strong></span>
+            <a class="btn btn-outline-light btn-sm" href="{{ url_for('logout') }}">Logout</a>
         </div>
     </div>
 </nav>
 
-<div class="container">
-    <div class="row justify-content-center">
-        <div class="col-md-6">
-            <div class="card shadow">
-                <div class="card-header bg-primary text-white"><h4>Initialize New Reel Stock</h4></div>
-                <div class="card-body">
-                    {% if user_role in ['super1', 'super2'] %}
-                        <div class="alert alert-danger text-center">
-                            <h5>Access Denied!</h5>
-                            <p>Supervisors are not permitted to add stock items.</p>
-                        </div>
-                    {% else %}
-                        <form action="{{ url_for('add_stock') }}" method="POST">
-                            <div class="mb-3">
-                                <label class="form-label">Reel Number</label>
-                                <input type="text" name="reel_number" class="form-control" required>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label">Size (cm)</label>
-                                    <input type="number" step="0.01" name="size_cm" class="form-control" required>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label">Weight (kg)</label>
-                                    <input type="number" step="0.01" name="weight_kg" class="form-control" required>
-                                </div>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Paper Name</label>
-                                <input type="text" name="paper_name" class="form-control" required>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Store Location</label>
-                                <select name="store_location" class="form-select">
-                                    {% for loc in locations %}
-                                    <option value="{{ loc }}">{{ loc }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <button type="submit" class="btn btn-primary w-100">Save Reel</button>
-                        </form>
-                    {% endif %}
-                </div>
+<div class="container" style="max-width: 600px;">
+    <h2 class="mb-4">Add New Reel Stock</h2>
+    
+    {% if user_role in ['super1', 'super2'] %}
+    <div class="alert alert-danger">Access Denied: Super users cannot perform this action.</div>
+    {% else %}
+    <div class="card p-4 shadow-sm bg-white">
+        <form method="POST" action="{{ url_for('add_stock') }}">
+            <div class="mb-3"><label class="form-label">Reel Number</label><input type="text" name="reel_number" class="form-control" required></div>
+            <div class="mb-3"><label class="form-label">Size (cm)</label><input type="number" step="any" name="size_cm" class="form-control" required></div>
+            <div class="mb-3"><label class="form-label">Weight (kg)</label><input type="number" step="any" name="weight_kg" class="form-control" required></div>
+            <div class="mb-3"><label class="form-label">Paper Name</label><input type="text" name="paper_name" class="form-control" required></div>
+            <div class="mb-3"><label class="form-label">GSM</label><input type="number" name="gsm" class="form-control" required></div>
+            <div class="mb-3"><label class="form-label">Reel Type</label><input type="text" name="reel_type" class="form-control" value="Liner(T)"></div>
+            <div class="mb-3">
+                <label class="form-label">Store Location</label>
+                <select name="store_location" class="form-control">
+                    {% for loc in locations %}
+                    <option value="{{ loc }}">{{ loc }}</option>
+                    {% endfor %}
+                </select>
             </div>
-        </div>
+            <button type="submit" class="btn btn-success w-100">Save Reel</button>
+        </form>
     </div>
+    {% endif %}
 </div>
 </body>
 </html>
