@@ -13,7 +13,6 @@
     </style>
 </head>
 <body>
-    <!-- Navigation Bar -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
         <div class="container-fluid">
             <a class="navbar-brand fw-bold" href="/"><i class="bi bi-box-seam"></i> Stock Management</a>
@@ -34,7 +33,6 @@
         </div>
     </nav>
 
-    <!-- Flash Messages Notification -->
     <div class="container mt-3">
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
@@ -54,7 +52,6 @@
             <div class="badge bg-dark p-2 fs-6">Role Scope: <span class="text-warning">{{ user_role }}</span></div>
         </div>
 
-        <!-- Live Search Bar -->
         <div class="card shadow-sm border-0 mb-4">
             <div class="card-body bg-white py-3 rounded">
                 <div class="input-group">
@@ -64,7 +61,6 @@
             </div>
         </div>
 
-        <!-- TAB NAVIGATION -->
         <ul class="nav nav-tabs mb-3 fw-bold" id="activeStockTabs" role="tablist">
             <li class="nav-item" role="presentation">
                 <button class="nav-link active text-success" id="full-tab" data-bs-toggle="tab" data-bs-target="#full-pane" type="button" role="tab">
@@ -80,9 +76,7 @@
 
         <div class="tab-content" id="activeStockTabsContent">
             
-            <!-- 1. FULL REELS PANE -->
             <div class="tab-pane fade show active" id="full-pane" role="tabpanel">
-                <!-- Dynamic Dynamic Counter Bar for Full Reels -->
                 <div class="alert alert-dark d-flex justify-content-around py-2 fw-bold shadow-sm summary-badge border-0 bg-opacity-10 text-dark">
                     <div>Total Visible Reels: <span id="fullReelCount" class="text-primary fs-5">0</span></div>
                     <div>Total Net Weight: <span id="fullReelWeight" class="text-success fs-5">0.00</span> kg</div>
@@ -107,7 +101,6 @@
                                 <tbody>
                                     {% if full_reels %}
                                         {% for reel in full_reels %}
-                                        <!-- data-weight ණය මඟින් JS වෙත බර ලබාදේ -->
                                         <tr class="full-reel-row" data-weight="{{ reel.weight_kg }}">
                                             <td class="fw-bold text-success">{{ reel.reel_number }}</td>
                                             <td>{{ reel.paper_name }}</td>
@@ -118,7 +111,6 @@
                                             <td><i class="bi bi-geo-alt-fill text-danger"></i> {{ reel.location }}</td>
                                             <td>
                                                 <div class="d-flex justify-content-center gap-1">
-                                                    <!-- Action Buttons Form Entry -->
                                                     <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#issueModal{{ reel.id }}" {% if user_role in ['super1', 'super2'] %}disabled{% endif %}>
                                                         <i class="bi bi-box-arrow-up-right"></i> Issue
                                                     </button>
@@ -131,7 +123,7 @@
                                         {% endfor %}
                                     {% else %}
                                         <tr class="no-data-row">
-                                            <td colspan="8" class="text-muted py-4">No Active Full Reels available in this scope.</td>
+                                            <td colspan="8" class="text-muted py-4">No Active Full Reels available.</td>
                                         </tr>
                                     {% endif %}
                                 </tbody>
@@ -141,9 +133,7 @@
                 </div>
             </div>
 
-            <!-- 2. USED REELS PANE -->
             <div class="tab-pane fade" id="used-pane" role="tabpanel">
-                <!-- Dynamic Dynamic Counter Bar for Used Reels -->
                 <div class="alert alert-dark d-flex justify-content-around py-2 fw-bold shadow-sm summary-badge border-0 bg-opacity-10 text-dark">
                     <div>Total Visible Reels: <span id="usedReelCount" class="text-primary fs-5">0</span></div>
                     <div>Total Net Weight: <span id="usedReelWeight" class="text-warning fs-5">0.00</span> kg</div>
@@ -190,7 +180,7 @@
                                         {% endfor %}
                                     {% else %}
                                         <tr class="no-data-row">
-                                            <td colspan="8" class="text-muted py-4">No Active Used Reels available in this scope.</td>
+                                            <td colspan="8" class="text-muted py-4">No Active Used Reels available.</td>
                                         </tr>
                                     {% endif %}
                                 </tbody>
@@ -215,6 +205,26 @@
                 </div>
                 <div class="modal-body">
                     <p class="text-muted mb-3">Reel Weight: <strong>{{ reel.weight_kg }} kg</strong> | Current Location: <strong>{{ reel.location }}</strong></p>
+                    
+                    <!-- NEW DYNAMIC DISPATCH DESTINATION DROPDOWN -->
+                    <div class="mb-3 p-3 bg-light rounded border border-primary">
+                        <label class="form-label fw-bold text-primary mb-2"><i class="bi bi-geo-alt"></i> Dispatch Destination</label>
+                        <select class="form-select border-primary" name="dispatch_destination" required>
+                            {% if user_role == 'dataop1' %}
+                                <option value="viscor_floor" selected>Direct Issue to Viscor Floor</option>
+                                <option value="return_packwell">Return to Packwell Warehouse (Pending Accept)</option>
+                            {% elif user_role == 'dataop2' %}
+                                <option value="packwell_floor" selected>Direct Issue to Packwell Floor</option>
+                                <option value="send_viscor">Send to Viscor Lanka (Pending Verification)</option>
+                            {% else %}
+                                <option value="viscor_floor">Viscor Floor (Direct Issue)</option>
+                                <option value="packwell_floor">Packwell Floor (Direct Issue)</option>
+                                <option value="return_packwell">Return to Packwell Warehouse</option>
+                                <option value="send_viscor">Send to Viscor Lanka</option>
+                            {% endif %}
+                        </select>
+                    </div>
+
                     <div class="mb-3">
                         <label class="form-label fw-bold">Document Type</label>
                         <select class="form-select" name="doc_type" required>
@@ -226,19 +236,10 @@
                         <label class="form-label fw-bold">Document Number</label>
                         <input type="text" class="form-control" name="doc_number" placeholder="e.g., GP-2024-990" required>
                     </div>
-                    <div class="mb-3 p-2 bg-light rounded border">
-                        <label class="form-label fw-bold text-primary mb-1">Inter-Warehouse Transfer?</label>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="send_to_viscor" value="yes" id="sendViscorCheck{{ reel.id }}">
-                            <label class="form-check-label text-dark" for="sendViscorCheck{{ reel.id }}">
-                                Send this reel to <strong>Viscor Lanka</strong> (Requires Verification)
-                            </label>
-                        </div>
-                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary fw-bold">Confirm Dispatch</button>
+                    <button type="submit" class="btn btn-primary fw-bold">Confirm Action</button>
                 </div>
             </form>
         </div>
@@ -277,28 +278,20 @@
     <!-- DYNAMIC LIVE SEARCH & DYNAMIC WEIGHT CALCULATION JAVASCRIPT -->
     <script>
     function calculateDynamicTotals() {
-        // 1. Full Reels සාරාංශය ගණනය කිරීම
-        let fullCount = 0;
-        let fullWeight = 0.0;
+        let fullCount = 0; let fullWeight = 0.0;
         let fullRows = document.querySelectorAll('.full-reel-row');
-        
         fullRows.forEach(row => {
             if (row.style.display !== 'none') {
                 fullCount++;
-                // HTML row එකේ ඇති data-weight අගය Float අගයක් බවට හරවා එකතු කිරීම
                 let weight = parseFloat(row.getAttribute('data-weight')) || 0.0;
                 fullWeight += weight;
             }
         });
-        
         document.getElementById('fullReelCount').innerText = fullCount;
         document.getElementById('fullReelWeight').innerText = fullWeight.toFixed(2);
 
-        // 2. Used Reels සාරාංශය ගණනය කිරීම
-        let usedCount = 0;
-        let usedWeight = 0.0;
+        let usedCount = 0; let usedWeight = 0.0;
         let usedRows = document.querySelectorAll('.used-reel-row');
-        
         usedRows.forEach(row => {
             if (row.style.display !== 'none') {
                 usedCount++;
@@ -306,32 +299,24 @@
                 usedWeight += weight;
             }
         });
-        
         document.getElementById('usedReelCount').innerText = usedCount;
         document.getElementById('usedReelWeight').innerText = usedWeight.toFixed(2);
     }
 
-    // සෙවුම් යන්ත්‍රයේ (Search Input) ක්‍රියාකාරීත්වය
     document.getElementById('liveSearchInput').addEventListener('input', function() {
         let inputVal = this.value.toLowerCase().replace(/\s+/g, '');
         let allRows = document.querySelectorAll('.full-reel-row, .used-reel-row');
-        
         allRows.forEach(row => {
             let textContent = row.innerText.toLowerCase().replace(/\s+/g, '');
-            // අකුරක් පාසා පේළි සැඟවීම හෝ පෙන්වීම සිදු කරයි
             row.style.display = (inputVal === '' || textContent.includes(inputVal)) ? '' : 'none';
         });
-        
-        // පේළි පෙරීමෙන් පසු නැවතත් මුළු බර සහ ගණන ක්ෂණිකව යාවත්කාලීන කරයි
         calculateDynamicTotals();
     });
 
-    // පිටුව මුලින්ම Load වන විට ස්වයංක්‍රීයව අගයන් ගණනය කර පෙන්වීම
     document.addEventListener("DOMContentLoaded", function() {
         calculateDynamicTotals();
     });
     </script>
-    
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
