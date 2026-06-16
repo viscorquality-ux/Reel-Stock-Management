@@ -1,85 +1,78 @@
-{% extends 'base.html' %}
-{% block content %}
-<div class="container mt-4 mb-5">
-    <div class="d-flex justify-content-between align-items-center mb-4 no-print">
-        <h2 class="text-secondary fw-bold mb-0"><i class="bi bi-send-check"></i> Issued Stock Records</h2>
-        <button class="btn btn-secondary fw-bold shadow-sm" onclick="window.print()"><i class="bi bi-printer"></i> Print Report</button>
-    </div>
-
-    <!-- Live Search -->
-    <div class="mb-4 no-print">
-        <input type="text" id="liveSearchInput" class="form-control form-control-lg shadow-sm border-2 border-primary" placeholder="Search by continuous typing: SizeGSMName (e.g. 100140Kraft) or Reel Number...">
-    </div>
-
-    <div class="card shadow border-0 border-top border-dark border-4">
-        <div class="table-responsive">
-            <table class="table table-striped table-hover align-middle mb-0">
-                <thead class="table-dark">
-                    <tr>
-                        <th>Reel No</th><th>Material</th><th>Paper Type</th><th>Size</th><th>GSM</th><th>Weight</th><th>Documents</th><th class="text-center no-print">Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for stock in stocks %}
-                    <tr class="reel-row">
-                        <td class="fw-bold r-no text-dark">{{ stock.reel_number }}</td>
-                        <td class="r-mat">{{ stock.paper_name }}</td>
-                        <td class="r-pname">{{ stock.reel_type }}</td>
-                        <td class="r-size" data-val="{{ stock.size_cm }}">{{ stock.size_cm }} cm</td>
-                        <td class="r-gsm" data-val="{{ stock.gsm }}">{{ stock.gsm }}</td>
-                        <td class="fw-bold text-success">{{ stock.weight_kg }} kg</td>
-                        <td>
-                            {% if stock.gate_pass_number %}<strong>GP:</strong> {{ stock.gate_pass_number }}<br>{% endif %}
-                            {% if stock.sr_number %}<strong>SR:</strong> {{ stock.sr_number }}{% endif %}
-                        </td>
-                        <td class="text-center no-print">
-                            <form action="{{ url_for('finish_reel', id=stock.id) }}" method="POST">
-                                <button type="submit" class="btn btn-sm btn-success fw-bold"><i class="bi bi-check2-all"></i> Mark Finished</button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                    {% if not stocks %}
-                    <tr><td colspan="8" class="text-center text-muted p-4">No issued stock records found.</td></tr>
-                    {% endif %}
-                </tbody>
-            </table>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Issued Stock</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="#">Inventory System</a>
+        <div class="collapse navbar-collapse">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('dashboard') }}">Dashboard</a></li>
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('active_stock') }}">Active Stock</a></li>
+                {% if session.get('role') not in ['super1', 'super2'] %}
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('add_stock') }}">Add Stock</a></li>
+                {% endif %}
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('viscor_issue') }}">Pending Verification</a></li>
+                <li class="nav-item"><a class="nav-link active" href="{{ url_for('issued_stock') }}">Issued Stock</a></li>
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('damage_sell_stock') }}">Damage/Sell Stock</a></li>
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('finished_usage_stock') }}">Finished & Usage</a></li>
+            </ul>
+            <span class="navbar-text me-3 text-white">Role: {{ session.get('username') }}</span>
+            <a href="{{ url_for('logout') }}" class="btn btn-danger btn-sm">Logout</a>
         </div>
     </div>
+</nav>
+
+<div class="container">
+    <h3 class="mb-4">Issued / Floor Dispatched Stock</h3>
+
+    <div class="card p-3 mb-4 bg-light">
+        <h5>Register Production Balance Return</h5>
+        {% if session.get('role') not in ['super1', 'super2'] %}
+        <form action="{{ url_for('process_return') }}" method="POST" class="row g-2">
+            <div class="col-md-4"><input type="text" name="reel_no" class="form-control" placeholder="Reel Number" required></div>
+            <div class="col-md-4"><input type="number" step="0.01" name="returned_weight" class="form-control" placeholder="Returned Weight (KG)" required></div>
+            <div class="col-md-4"><button type="submit" class="btn btn-warning w-100">Log Balance Return</button></div>
+        </form>
+        {% else %}
+        <p class="text-danger mb-0">Supervisors are not permitted to register balance returns.</p>
+        {% endif %}
+    </div>
+
+    <table class="table table-bordered table-striped">
+        <thead class="table-dark">
+            <tr>
+                <th>Reel Number</th>
+                <th>Weight (kg)</th>
+                <th>GP Number</th>
+                <th>SR Number</th>
+                <th>Original Dispatch Location</th>
+                {% if session.get('role') not in ['super1', 'super2'] %}<th>Actions</th>{% endif %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in stocks %}
+            <tr>
+                <td>{{ s.reel_number }}</td>
+                <td>{{ s.weight_kg }}</td>
+                <td>{{ s.gate_pass_number or 'N/A' }}</td>
+                <td>{{ s.sr_number or 'N/A' }}</td>
+                <td>{{ s.store_location }}</td>
+                {% if session.get('role') not in ['super1', 'super2'] %}
+                <td>
+                    <form action="{{ url_for('finish_reel', id=s.id) }}" method="POST" class="d-inline">
+                        <button type="submit" class="btn btn-sm btn-dark">Mark 100% Finished</button>
+                    </form>
+                </td>
+                {% endif %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 </div>
-
-<script>
-document.getElementById('liveSearchInput').addEventListener('input', function() {
-    let inputVal = this.value.toLowerCase().replace(/\s+/g, '');
-    let rows = document.querySelectorAll('.reel-row');
-    let tokens = inputVal.match(/\d+|[a-z]+/ig) || [];
-
-    rows.forEach(row => {
-        let matched = false;
-        let rNo = row.querySelector('.r-no').textContent.toLowerCase().replace(/\s+/g, '');
-        let rMat = row.querySelector('.r-mat').textContent.toLowerCase().replace(/[^a-z0-9]/g, '');
-        let rPname = row.querySelector('.r-pname').textContent.toLowerCase().replace(/[^a-z0-9]/g, '');
-        let size = parseFloat(row.querySelector('.r-size').getAttribute('data-val')).toString().replace('.', '');
-        let gsm = row.querySelector('.r-gsm').getAttribute('data-val');
-        let combinedNumbers = size + gsm;
-        let combinedText = rMat + rPname;
-
-        if (inputVal === '') matched = true;
-        else if (rNo.includes(inputVal)) matched = true;
-        else if (tokens.length > 0) {
-            let matchesAll = true;
-            tokens.forEach(token => {
-                if (/^\d+$/.test(token)) {
-                    if (!combinedNumbers.includes(token)) matchesAll = false;
-                } else {
-                    if (!combinedText.includes(token)) matchesAll = false;
-                }
-            });
-            matched = matchesAll;
-        }
-
-        row.style.display = matched ? '' : 'none';
-    });
-});
-</script>
-{% endblock %}
+</body>
+</html>
