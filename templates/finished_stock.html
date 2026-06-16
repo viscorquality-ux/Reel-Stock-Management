@@ -59,7 +59,10 @@
                     <table class="table table-striped table-hover align-middle mb-0">
                         <thead class="table-dark">
                             <tr>
-                                <th>Reel No</th><th>Material</th><th>Paper Type</th><th>Size</th><th>GSM</th><th>Finished Date</th>
+                                <th>Reel No</th><th>Material</th><th>Paper Type</th><th>Size</th><th>GSM</th><th>SR Num</th><th>Finished Date</th>
+                                {% if session.get('role') == 'dataop1' %}
+                                <th class="no-print text-center">Action</th>
+                                {% endif %}
                             </tr>
                         </thead>
                         <tbody>
@@ -70,11 +73,19 @@
                                 <td>{{ reel.reel_type }}</td>
                                 <td>{{ reel.size_cm }} cm</td>
                                 <td>{{ reel.gsm }}</td>
+                                <td class="fw-bold text-primary">{{ reel.sr_number or 'N/A' }}</td>
                                 <td>{{ reel.updated_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                {% if session.get('role') == 'dataop1' %}
+                                <td class="text-center no-print">
+                                    <button class="btn btn-sm btn-outline-primary fw-bold" data-bs-toggle="modal" data-bs-target="#editSrModal{{ reel.id }}">
+                                        <i class="bi bi-pencil-square"></i> Add / Edit SR
+                                    </button>
+                                </td>
+                                {% endif %}
                             </tr>
                             {% endfor %}
                             {% if not finished_reels %}
-                            <tr><td colspan="6" class="text-center text-muted p-4">No finished reels found in this period.</td></tr>
+                            <tr><td colspan="{% if session.get('role') == 'dataop1' %}8{% else %}7{% endif %}" class="text-center text-muted p-4">No finished reels found in this period.</td></tr>
                             {% endif %}
                         </tbody>
                     </table>
@@ -116,4 +127,33 @@
         </div>
     </div>
 </div>
+
+<!-- SR Edit Modal (Only for DataOp1) -->
+{% if session.get('role') == 'dataop1' %}
+{% for reel in finished_reels %}
+<div class="modal fade no-print" id="editSrModal{{ reel.id }}" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title fw-bold"><i class="bi bi-pencil-square"></i> Add / Edit SR Number</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <form action="{{ url_for('update_finished_sr', id=reel.id) }}" method="POST">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">SR Number for Reel: {{ reel.reel_number }}</label>
+                        <input type="text" name="sr_number" class="form-control" value="{{ reel.sr_number or '' }}" placeholder="Enter Manual SR Number..." required>
+                    </div>
+                    <div class="d-flex gap-2 justify-content-end mt-4">
+                        <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-primary fw-bold">Save SR Number</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endif %}
+
 {% endblock %}
