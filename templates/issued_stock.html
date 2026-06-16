@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <title>Issued Stock</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
 </head>
-<body>
+<body class="bg-light">
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
     <div class="container-fluid">
-        <a class="navbar-brand" href="#">Inventory System</a>
+        <a class="navbar-brand" href="#">Viscor & Packwell</a>
         <div class="collapse navbar-collapse">
-            <ul class="navbar-nav me-auto">
+            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                 <li class="nav-item"><a class="nav-link" href="{{ url_for('dashboard') }}">Dashboard</a></li>
                 <li class="nav-item"><a class="nav-link" href="{{ url_for('active_stock') }}">Active Stock</a></li>
                 {% if session.get('role') not in ['super1', 'super2'] %}
@@ -19,53 +19,37 @@
                 <li class="nav-item"><a class="nav-link" href="{{ url_for('viscor_issue') }}">Pending Verification</a></li>
                 <li class="nav-item"><a class="nav-link active" href="{{ url_for('issued_stock') }}">Issued Stock</a></li>
                 <li class="nav-item"><a class="nav-link" href="{{ url_for('damage_sell_stock') }}">Damage/Sell Stock</a></li>
-                <li class="nav-item"><a class="nav-link" href="{{ url_for('finished_usage_stock') }}">Finished & Usage</a></li>
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('finished_usage_stock') }}">Finished/Usage Stock</a></li>
             </ul>
-            <span class="navbar-text me-3 text-white">Role: {{ session.get('username') }}</span>
-            <a href="{{ url_for('logout') }}" class="btn btn-danger btn-sm">Logout</a>
+            <span class="navbar-text me-3">Logged in as: <strong>{{ session.get('username') }}</strong></span>
+            <a class="btn btn-outline-light btn-sm" href="{{ url_for('logout') }}">Logout</a>
         </div>
     </div>
 </nav>
 
 <div class="container">
-    <h3 class="mb-4">Issued / Floor Dispatched Stock</h3>
-
-    <div class="card p-3 mb-4 bg-light">
-        <h5>Register Production Balance Return</h5>
-        {% if session.get('role') not in ['super1', 'super2'] %}
-        <form action="{{ url_for('process_return') }}" method="POST" class="row g-2">
-            <div class="col-md-4"><input type="text" name="reel_no" class="form-control" placeholder="Reel Number" required></div>
-            <div class="col-md-4"><input type="number" step="0.01" name="returned_weight" class="form-control" placeholder="Returned Weight (KG)" required></div>
-            <div class="col-md-4"><button type="submit" class="btn btn-warning w-100">Log Balance Return</button></div>
-        </form>
-        {% else %}
-        <p class="text-danger mb-0">Supervisors are not permitted to register balance returns.</p>
-        {% endif %}
-    </div>
-
-    <table class="table table-bordered table-striped">
+    <h2 class="mb-4">Issued Stock</h2>
+    <table class="table table-striped table-bordered bg-white shadow-sm">
         <thead class="table-dark">
             <tr>
                 <th>Reel Number</th>
                 <th>Weight (kg)</th>
-                <th>GP Number</th>
                 <th>SR Number</th>
-                <th>Original Dispatch Location</th>
+                <th>Gate Pass</th>
                 {% if session.get('role') not in ['super1', 'super2'] %}<th>Actions</th>{% endif %}
             </tr>
         </thead>
         <tbody>
-            {% for s in stocks %}
+            {% for stock in stocks %}
             <tr>
-                <td>{{ s.reel_number }}</td>
-                <td>{{ s.weight_kg }}</td>
-                <td>{{ s.gate_pass_number or 'N/A' }}</td>
-                <td>{{ s.sr_number or 'N/A' }}</td>
-                <td>{{ s.store_location }}</td>
+                <td>{{ stock.reel_number }}</td>
+                <td>{{ stock.weight_kg }}</td>
+                <td>{{ stock.sr_number or 'N/A' }}</td>
+                <td>{{ stock.gate_pass_number or 'N/A' }}</td>
                 {% if session.get('role') not in ['super1', 'super2'] %}
                 <td>
-                    <form action="{{ url_for('finish_reel', id=s.id) }}" method="POST" class="d-inline">
-                        <button type="submit" class="btn btn-sm btn-dark">Mark 100% Finished</button>
+                    <form action="{{ url_for('finish_reel', id=stock.id) }}" method="POST" class="d-inline">
+                        <button type="submit" class="btn btn-sm btn-success">Mark Finished</button>
                     </form>
                 </td>
                 {% endif %}
