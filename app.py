@@ -221,7 +221,14 @@ def finished_usage_stock():
     if start_date and end_date:
         try:
             s_date = datetime.strptime(start_date, '%Y-%m-%d')
-@@ -384,7 +430,6 @@
+            # මෙතනට දිනයන් අනුව filter වන කේතයක් අවශ්‍ය නම් එක් කර ගන්න
+        except Exception as e:
+            pass
+
+    # වරහන් සියල්ල අවසානයේ පමණක් ක්‍රමවත්ව වැසී ඇති බව තහවුරු කරගන්න
+    return render_template('finished_usage_stock.html',
+                           finished_query=finished_query.all(),
+                           logs_query=logs_query.all(),
                            start_date=start_date or '',
                            end_date=end_date or '')
 
