@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <title>Dashboard</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
 </head>
-<body>
+<body class="bg-light">
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
     <div class="container-fluid">
-        <a class="navbar-brand" href="#">Inventory System</a>
+        <a class="navbar-brand" href="#">Viscor & Packwell</a>
         <div class="collapse navbar-collapse">
-            <ul class="navbar-nav me-auto">
+            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                 <li class="nav-item"><a class="nav-link active" href="{{ url_for('dashboard') }}">Dashboard</a></li>
                 <li class="nav-item"><a class="nav-link" href="{{ url_for('active_stock') }}">Active Stock</a></li>
                 {% if session.get('role') not in ['super1', 'super2'] %}
@@ -19,58 +19,53 @@
                 <li class="nav-item"><a class="nav-link" href="{{ url_for('viscor_issue') }}">Pending Verification</a></li>
                 <li class="nav-item"><a class="nav-link" href="{{ url_for('issued_stock') }}">Issued Stock</a></li>
                 <li class="nav-item"><a class="nav-link" href="{{ url_for('damage_sell_stock') }}">Damage/Sell Stock</a></li>
-                <li class="nav-item"><a class="nav-link" href="{{ url_for('finished_usage_stock') }}">Finished & Usage</a></li>
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('finished_usage_stock') }}">Finished/Usage Stock</a></li>
             </ul>
-            <span class="navbar-text me-3 text-white">Role: {{ session.get('username') }}</span>
-            <a href="{{ url_for('logout') }}" class="btn btn-danger btn-sm">Logout</a>
+            <span class="navbar-text me-3">Logged in as: <strong>{{ session.get('username') }}</strong></span>
+            <a class="btn btn-outline-light btn-sm" href="{{ url_for('logout') }}">Logout</a>
         </div>
     </div>
 </nav>
 
 <div class="container">
+    <h2 class="mb-4">Inventory Dashboard</h2>
     {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-                <div class="alert alert-{{ category }}">{{ message }}</div>
-            {% endfor %}
-        {% endif %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
     {% endwith %}
 
-    <h2 class="mb-4">System Overview</h2>
-    <div class="row g-3">
+    <div class="row g-4">
         <div class="col-md-3">
-            <div class="card bg-primary text-white p-3">
-                <h5>Active Count</h5>
+            <div class="card p-3 bg-primary text-white shadow-sm">
+                <h5>Active Stock Count</h5>
                 <h3>{{ active_count }}</h3>
+                <p class="mb-0">Weight: {{ active_weight|round(2) }} kg</p>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card bg-success text-white p-3">
-                <h5>Active Weight (KG)</h5>
-                <h3>{{ "%.2f"|format(active_weight) }}</h3>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card bg-warning text-dark p-3">
-                <h5>Pending Transfer</h5>
+            <div class="card p-3 bg-warning text-dark shadow-sm">
+                <h5>Pending Acceptance</h5>
                 <h3>{{ pending_viscor_count }}</h3>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card bg-info text-white p-3">
+            <div class="card p-3 bg-success text-white shadow-sm">
                 <h5>Issued Stock</h5>
                 <h3>{{ issued }}</h3>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card bg-secondary text-white p-3">
+            <div class="card p-3 bg-info text-dark shadow-sm">
                 <h5>Finished Stock</h5>
                 <h3>{{ finished }}</h3>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card bg-danger text-white p-3">
-                <h5>Damage / Sold</h5>
+            <div class="card p-3 bg-danger text-white shadow-sm">
+                <h5>Damaged / Sold</h5>
                 <h3>{{ damage_sell_count }}</h3>
             </div>
         </div>
