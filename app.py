@@ -111,7 +111,6 @@ def dashboard():
         finished = Reel.query.filter_by(status='Finished').filter(Reel.store_location.like('Packwell W%')).count()
         damage_sell_count = Reel.query.filter(Reel.status.in_(['Damaged', 'Sold'])).filter(Reel.store_location.like('Packwell W%')).count()
     else:
-        # For super1, super2, admin based on store logic restriction for dataop2 style or broad view
         if user_role in ['super1', 'super2']:
             active_query = active_query.filter(Reel.store_location.like('Packwell W%'))
             pending_viscor = Reel.query.filter(Reel.status.in_(['Pending Packwell Full', 'Pending Packwell Used']), Reel.store_location.like('Packwell W%')).count()
@@ -165,8 +164,9 @@ def active_stock():
 @app.route('/add_stock', methods=['GET', 'POST'])
 def add_stock():
     user_role = session.get('role')
+    # super 1 and 2 restriction
     if user_role in ['super1', 'super2']:
-        flash("Unauthorized Action: Super users cannot add stock.", "danger")
+        flash("Action Not Allowed.", "danger")
         return redirect(url_for('dashboard'))
 
     if request.method == 'POST':
@@ -204,8 +204,9 @@ def add_stock():
 @app.route('/edit_active_reel/<int:id>', methods=['POST'])
 def edit_active_reel(id):
     if session.get('role') in ['super1', 'super2']:
-        flash("Unauthorized Action.", "danger")
+        flash("Action Not Allowed.", "danger")
         return redirect(url_for('active_stock'))
+        
     reel = Reel.query.get_or_404(id)
     reel.reel_number = request.form.get('reel_number', reel.reel_number)
     reel.paper_name = request.form.get('paper_name', reel.paper_name)
@@ -222,8 +223,9 @@ def edit_active_reel(id):
 @app.route('/issue_reel/<int:id>', methods=['POST'])
 def issue_reel(id):
     if session.get('role') in ['super1', 'super2']:
-        flash("Unauthorized Action.", "danger")
+        flash("Action Not Allowed.", "danger")
         return redirect(url_for('active_stock'))
+
     reel = Reel.query.get_or_404(id)
     doc_type = request.form.get('doc_type')
     doc_number = request.form.get('doc_number')
@@ -267,8 +269,9 @@ def viscor_issue():
 @app.route('/accept_viscor/<int:id>', methods=['POST'])
 def accept_viscor(id):
     if session.get('role') in ['super1', 'super2']:
-        flash('Unauthorized Action.', 'danger')
+        flash('Action Not Allowed.', 'danger')
         return redirect(url_for('viscor_issue'))
+
     reel = Reel.query.get_or_404(id)
     reel.status = 'Full Reel' 
     reel.store_location = 'Viscor Lanka'
@@ -280,8 +283,9 @@ def accept_viscor(id):
 @app.route('/reject_viscor/<int:id>', methods=['POST'])
 def reject_viscor(id):
     if session.get('role') in ['super1', 'super2']:
-        flash('Unauthorized Action.', 'danger')
+        flash('Action Not Allowed.', 'danger')
         return redirect(url_for('viscor_issue'))
+
     reel = Reel.query.get_or_404(id)
     reel.status = 'Full Reel' 
     reel.store_location = 'Packwell W 1' 
@@ -293,8 +297,9 @@ def reject_viscor(id):
 @app.route('/accept_packwell/<int:id>', methods=['POST'])
 def accept_packwell(id):
     if session.get('role') in ['super1', 'super2']:
-        flash('Unauthorized Action.', 'danger')
+        flash('Action Not Allowed.', 'danger')
         return redirect(url_for('viscor_issue'))
+
     reel = Reel.query.get_or_404(id)
     selected_location = request.form.get('store_location')
     stock_type = request.form.get('stock_type', 'Full Reel')
@@ -310,8 +315,9 @@ def accept_packwell(id):
 @app.route('/reject_packwell/<int:id>', methods=['POST'])
 def reject_packwell(id):
     if session.get('role') in ['super1', 'super2']:
-        flash('Unauthorized Action.', 'danger')
+        flash('Action Not Allowed.', 'danger')
         return redirect(url_for('viscor_issue'))
+
     reel = Reel.query.get_or_404(id)
     reel.status = 'Full Reel' if 'Full' in reel.status else 'Used Reel'
     reel.store_location = 'Viscor Lanka'
@@ -323,8 +329,9 @@ def reject_packwell(id):
 @app.route('/issue_damaged_reel/<int:id>', methods=['POST'])
 def issue_damaged_reel(id):
     if session.get('role') in ['super1', 'super2']:
-        flash('Unauthorized Action.', 'danger')
+        flash('Action Not Allowed.', 'danger')
         return redirect(url_for('issued_stock'))
+
     reel = Reel.query.get_or_404(id)
     doc_type = request.form.get('doc_type')
     doc_number = request.form.get('doc_number')
@@ -358,8 +365,9 @@ def issued_stock():
 @app.route('/finish_reel/<int:id>', methods=['POST'])
 def finish_reel(id):
     if session.get('role') in ['super1', 'super2']:
-        flash('Unauthorized Action.', 'danger')
+        flash('Action Not Allowed.', 'danger')
         return redirect(url_for('issued_stock'))
+
     reel = Reel.query.get_or_404(id)
     used_weight = reel.weight_kg or 0.0
     reel.status = 'Finished'
@@ -393,8 +401,9 @@ def damage_sell_stock():
 @app.route('/mark_damage_sell/<int:id>', methods=['POST'])
 def mark_damage_sell(id):
     if session.get('role') in ['super1', 'super2']:
-        flash('Unauthorized Action.', 'danger')
+        flash('Action Not Allowed.', 'danger')
         return redirect(url_for('active_stock'))
+
     reel = Reel.query.get_or_404(id)
     status_type = request.form.get('status_type', 'Damaged')
     notes = request.form.get('notes', 'N/A')
@@ -407,8 +416,9 @@ def mark_damage_sell(id):
 @app.route('/process_return', methods=['POST'])
 def process_return():
     if session.get('role') in ['super1', 'super2']:
-        flash('Unauthorized Action.', 'danger')
+        flash('Action Not Allowed.', 'danger')
         return redirect(url_for('active_stock'))
+
     reel_no = request.form.get('reel_no')
     returned_weight = request.form.get('returned_weight', 0.0, type=float)
     reel = Reel.query.filter_by(reel_number=reel_no).first_or_404()
@@ -459,7 +469,7 @@ def finished_usage_stock():
 @app.route('/update_finished_sr/<int:id>', methods=['POST'])
 def update_finished_sr(id):
     if session.get('role') in ['super1', 'super2']:
-        flash("Unauthorized action.", "danger")
+        flash("Action Not Allowed.", "danger")
         return redirect(url_for('finished_usage_stock'))
         
     reel = Reel.query.get_or_404(id)
