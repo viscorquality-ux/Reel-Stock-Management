@@ -3,12 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Verify / Returns - Viscor & Packwell Stock System</title>
+    <title>Viscor & Packwell Stock System</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <style>
         body { background-color: #f8f9fa; }
         .nav-link.active { font-weight: bold; }
+        @media print {
+            .navbar, .alert, .btn-close, .no-print { display: none !important; }
+            body { background-color: white !important; color: black !important; padding-top: 0 !important; }
+            .card { border: none !important; box-shadow: none !important; }
+        }
     </style>
 </head>
 <body>
@@ -18,10 +23,12 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item"><a class="nav-link" href="/dashboard">Dashboard</a></li>
+                    {% if session.get('role') not in ['super1', 'super2'] %}
                     <li class="nav-item"><a class="nav-link" href="/add_stock">Add Stock</a></li>
+                    {% endif %}
                     <li class="nav-item"><a class="nav-link" href="/active_stock">Active Stock</a></li>
-                    <li class="nav-item"><a class="nav-link active" href="/viscor_issue">Verify / Returns</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/issued_stock">Issued Stock</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/viscor_issue">Verify / Returns</a></li>
+                    <li class="nav-item"><a class="nav-link active" href="/issued_stock">Issued Stock</a></li>
                     <li class="nav-item"><a class="nav-link" href="/finished_usage_stock">Finished / Usage</a></li>
                     <li class="nav-item"><a class="nav-link text-warning" href="/damage_sell_stock">Damage / Sell Stock</a></li>
                 </ul>
@@ -36,178 +43,69 @@
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
             {% for category, message in messages %}
-              <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm" role="alert">
-                {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-              </div>
+              <div class="alert alert-{{ category }}">{{ message }}</div>
             {% endfor %}
           {% endif %}
         {% endwith %}
     </div>
 
-    <div class="container mt-4">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2><i class="bi bi-shield-check text-primary"></i> Stock Verification & Returns Portal</h2>
-            <div class="badge bg-dark p-2 fs-6">Logged in as: <span class="text-warning">{{ session.get('username') }}</span> ({{ user_role }})</div>
-        </div>
-
-        <div class="card shadow-sm border-0 mb-4">
-            <div class="card-body bg-white py-3 rounded">
-                <div class="input-group">
-                    <span class="input-group-text bg-light border-2 border-end-0"><i class="bi bi-search text-secondary"></i></span>
-                    <input type="text" id="liveSearchInput" class="form-control border-2 border-start-0 ps-1" placeholder="Search by Reel Number, Material, Paper Type, Location...">
-                </div>
-            </div>
-        </div>
-
-        <ul class="nav nav-tabs mb-4 fw-bold" id="verifyTabs" role="tablist">
-            <li class="nav-item" role="presentation">
-                <button class="nav-link active text-primary" id="viscor-tab" data-bs-toggle="tab" data-bs-target="#viscor-pane" type="button" role="tab">
-                    <i class="bi bi-building-check"></i> Viscor Verification ({% if reels %}{{ reels|length }}{% else %}0{% endif %})
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link text-warning" id="packwell-tab" data-bs-toggle="tab" data-bs-target="#packwell-pane" type="button" role="tab">
-                    <i class="bi bi-arrow-counterclockwise"></i> Packwell Returns ({% if packwell_reels %}{{ packwell_reels|length }}{% else %}0{% endif %})
-                </button>
-            </li>
-        </ul>
-
-        <div class="tab-content" id="verifyTabsContent">
-            
-            <div class="tab-pane fade show active" id="viscor-pane" role="tabpanel">
-                <div class="card shadow border-0">
-                    <div class="card-header bg-primary text-white fw-bold py-3">
-                        <h5 class="mb-0"><i class="bi bi-building"></i> Viscor Lanka - Pending Verifications</h5>
-                    </div>
-                    <div class="card-body p-0">
-                        <div class="table-responsive">
-                            <table class="table table-striped table-hover align-middle mb-0 text-center">
-                                <thead class="table-dark">
-                                    <tr>
-                                        <th>Reel Number</th>
-                                        <th>Material Name</th>
-                                        <th>Paper Name</th>
-                                        <th>Size (cm)</th>
-                                        <th>GSM</th>
-                                        <th>Weight (kg)</th>
-                                        <th>Current Status</th>
-                                        <th>Current Location</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% if reels %}
-                                        {% for reel in reels %}
-                                        <tr class="reel-row">
-                                            <td class="fw-bold text-primary">{{ reel.reel_number }}</td>
-                                            <td>{{ reel.paper_name }}</td>
-                                            <td><span class="badge bg-secondary">{{ reel.reel_type }}</span></td>
-                                            <td>{{ reel.size_cm }} cm</td>
-                                            <td>{{ reel.gsm }}</td>
-                                            <td class="fw-bold">{{ reel.weight_kg }} kg</td>
-                                            <td><span class="badge bg-info text-dark">{{ reel.status }}</span></td>
-                                            <td><i class="bi bi-geo-alt-fill text-danger"></i> {{ reel.location }}</td>
-                                            <td>
-                                                {% if user_role == 'dataop1' or user_role == 'admin' %}
-                                                <form action="{{ url_for('accept_viscor', id=reel.id) }}" method="POST" style="display:inline;">
-                                                    <button type="submit" class="btn btn-sm btn-success fw-bold">
-                                                        <i class="bi bi-check-circle-fill"></i> Verify & Accept
-                                                    </button>
-                                                </form>
-                                                {% else %}
-                                                <button class="btn btn-sm btn-secondary fw-bold" disabled title="Only dataop1 or admin can verify Viscor stock">
-                                                    <i class="bi bi-slash-circle"></i> Verification Disabled
-                                                </button>
-                                                {% endif %}
-                                            </td>
-                                        </tr>
-                                        {% endfor %}
-                                    {% else %}
-                                        <tr>
-                                            <td colspan="9" class="text-muted py-4">No pending stock verifications found for Viscor Lanka.</td>
-                                        </tr>
-                                    {% endif %}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="tab-pane fade" id="packwell-pane" role="tabpanel">
-                <div class="card shadow border-0">
-                    <div class="card-header bg-warning text-dark fw-bold py-3">
-                        <h5 class="mb-0"><i class="bi bi-arrow-left-right"></i> Packwell Warehouses - Pending Returns</h5>
-                    </div>
-                    <div class="card-body p-0">
-                        <div class="table-responsive">
-                            <table class="table table-striped table-hover align-middle mb-0 text-center">
-                                <thead class="table-dark">
-                                    <tr>
-                                        <th>Reel Number</th>
-                                        <th>Material Name</th>
-                                        <th>Paper Name</th>
-                                        <th>Size (cm)</th>
-                                        <th>GSM</th>
-                                        <th>Weight (kg)</th>
-                                        <th>Current Status</th>
-                                        <th>Current Location</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% if packwell_reels %}
-                                        {% for reel in packwell_reels %}
-                                        <tr class="reel-row">
-                                            <td class="fw-bold text-warning">{{ reel.reel_number }}</td>
-                                            <td>{{ reel.paper_name }}</td>
-                                            <td><span class="badge bg-secondary">{{ reel.reel_type }}</span></td>
-                                            <td>{{ reel.size_cm }} cm</td>
-                                            <td>{{ reel.gsm }}</td>
-                                            <td class="fw-bold">{{ reel.weight_kg }} kg</td>
-                                            <td><span class="badge bg-warning text-dark">{{ reel.status }}</span></td>
-                                            <td><i class="bi bi-geo-alt-fill text-danger"></i> {{ reel.location }}</td>
-                                            <td>
-                                                {% if user_role == 'dataop2' or user_role == 'admin' %}
-                                                <form action="{{ url_for('accept_packwell', id=reel.id) }}" method="POST" style="display:inline;">
-                                                    <button type="submit" class="btn btn-sm btn-warning fw-bold text-dark">
-                                                        <i class="bi bi-arrow-counterclockwise"></i> Accept Return
-                                                    </button>
-                                                </form>
-                                                {% else %}
-                                                <button class="btn btn-sm btn-secondary fw-bold" disabled title="Only dataop2 or admin can accept Packwell returns">
-                                                    <i class="bi bi-slash-circle"></i> Return Accept Disabled
-                                                </button>
-                                                {% endif %}
-                                            </td>
-                                        </tr>
-                                        {% endfor %}
-                                    {% else %}
-                                        <tr>
-                                            <td colspan="9" class="text-muted py-4">No pending returns found for Packwell Warehouses.</td>
-                                        </tr>
-                                    {% endif %}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-        </div>
+<div class="container mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4 no-print">
+        <h2 class="text-secondary fw-bold mb-0"><i class="bi bi-send-check"></i> Issued Stock Records</h2>
+        <button class="btn btn-secondary fw-bold shadow-sm" onclick="window.print()"><i class="bi bi-printer"></i> Print Report</button>
     </div>
 
-    <script>
-    document.getElementById('liveSearchInput').addEventListener('input', function() {
-        let inputVal = this.value.toLowerCase().replace(/\s+/g, '');
-        let rows = document.querySelectorAll('.reel-row');
-        rows.forEach(row => {
-            let textContent = row.innerText.toLowerCase().replace(/\s+/g, '');
-            row.style.display = (inputVal === '' || textContent.includes(inputVal)) ? '' : 'none';
-        });
+    <div class="mb-4 no-print">
+        <input type="text" id="liveSearchInput" class="form-control form-control-lg shadow-sm border-2 border-primary" placeholder="Search by continuous typing...">
+    </div>
+
+    <div class="card shadow border-0 border-top border-dark border-4">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover align-middle mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Reel No</th><th>Material</th><th>Paper Type</th><th>Size</th><th>GSM</th><th>Weight</th><th>Documents</th>
+                        {% if session.get('role') not in ['super1', 'super2'] %}<th class="text-center no-print">Action</th>{% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for stock in stocks %}
+                    <tr class="reel-row">
+                        <td class="fw-bold r-no text-dark">{{ stock.reel_number }}</td>
+                        <td class="r-mat">{{ stock.paper_name }}</td>
+                        <td class="r-pname">{{ stock.reel_type }}</td>
+                        <td class="r-size" data-val="{{ stock.size_cm }}">{{ stock.size_cm }} cm</td>
+                        <td class="r-gsm" data-val="{{ stock.gsm }}">{{ stock.gsm }}</td>
+                        <td class="fw-bold text-success">{{ stock.weight_kg }} kg</td>
+                        <td>
+                            <strong>GP:</strong> {{ stock.gate_pass_number or 'N/A' }}<br>
+                            <strong>SR:</strong> {{ stock.sr_number or 'N/A' }}
+                        </td>
+                        {% if session.get('role') not in ['super1', 'super2'] %}
+                        <td class="text-center no-print">
+                            <form action="/finish_reel/{{ stock.id }}" method="POST">
+                                <button type="submit" class="btn btn-sm btn-success fw-bold"><i class="bi bi-check2-all"></i> Mark Finished</button>
+                            </form>
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('liveSearchInput').addEventListener('input', function() {
+    let inputVal = this.value.toLowerCase().replace(/\s+/g, '');
+    let rows = document.querySelectorAll('.reel-row');
+    rows.forEach(row => {
+        let textContent = row.innerText.toLowerCase().replace(/\s+/g, '');
+        row.style.display = (inputVal === '' || textContent.includes(inputVal)) ? '' : 'none';
     });
-    </script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
