@@ -66,7 +66,7 @@ def inject_global_facilities():
 def handle_session_and_security():
     if 'role' in session and session['role']:
         session['role'] = SmartRole(session['role'])
-    allowed_routes = ['login', 'login_submit', 'static']
+    allowed_routes = ['login', 'static']
     if request.endpoint not in allowed_routes and 'role' not in session:
         return redirect(url_for('login'))
 
@@ -156,7 +156,11 @@ def active_stock():
 
 @app.route('/add_stock', methods=['GET', 'POST'])
 def add_stock():
-    user_role = session.get('role', 'dataop1')
+    user_role = session.get('role')
+    if user_role in ['super1', 'super2']:
+        flash("Unauthorized Access! Supervisors cannot add stock.", "danger")
+        return redirect(url_for('dashboard'))
+
     if request.method == 'POST':
         try:
             reel_number = request.form.get('reel_number', '').strip()
@@ -191,6 +195,9 @@ def add_stock():
 
 @app.route('/edit_active_reel/<int:id>', methods=['POST'])
 def edit_active_reel(id):
+    if session.get('role') in ['super1', 'super2']:
+        flash("Unauthorized action.", "danger")
+        return redirect(url_for('active_stock'))
     reel = Reel.query.get_or_404(id)
     reel.reel_number = request.form.get('reel_number', reel.reel_number)
     reel.paper_name = request.form.get('paper_name', reel.paper_name)
@@ -206,6 +213,9 @@ def edit_active_reel(id):
 
 @app.route('/issue_reel/<int:id>', methods=['POST'])
 def issue_reel(id):
+    if session.get('role') in ['super1', 'super2']:
+        flash("Unauthorized action.", "danger")
+        return redirect(url_for('active_stock'))
     reel = Reel.query.get_or_404(id)
     doc_type = request.form.get('doc_type')
     doc_number = request.form.get('doc_number')
@@ -218,7 +228,7 @@ def issue_reel(id):
     if return_to_packwell == 'yes':
         reel.status = 'Pending Packwell Full' if reel.status == 'Full Reel' else 'Pending Packwell Used'
         db.session.add(ReelHistory(reel_id=reel.id, usage_details=f"Returned back to Packwell via {doc_type}: {doc_number}", action_type='RETURN_TRANSIT'))
-        flash(f'Reel {reel.reel_number} returned to Packwell. Pending dataop2 acceptance.', 'warning')
+        flash(f'Reel {reel.reel_number} returned to Packwell. Pending acceptance.', 'warning')
     elif send_to_viscor == 'yes':
         reel.status = 'Pending Viscor'
         db.session.add(ReelHistory(reel_id=reel.id, usage_details=f"Sent to Viscor Lanka via {doc_type}: {doc_number}", action_type='TRANSIT'))
@@ -248,7 +258,7 @@ def viscor_issue():
 
 @app.route('/accept_viscor/<int:id>', methods=['POST'])
 def accept_viscor(id):
-    if session.get('role') != 'dataop1' and session.get('role') != 'admin':
+    if session.get('role') in ['super1', 'super2']:
         flash('Unauthorized Action.', 'danger')
         return redirect(url_for('viscor_issue'))
         
@@ -257,12 +267,12 @@ def accept_viscor(id):
     reel.store_location = 'Viscor Lanka'
     db.session.add(ReelHistory(reel_id=reel.id, usage_details="Verified & Accepted by Viscor Lanka", action_type='ACCEPTED'))
     db.session.commit()
-    flash(f'Reel {reel.reel_number} has been Verified & Accepted to Active Stock.', 'success')
+    flash(f'Reel {reel.reel_number} has been Verified & Accepted.', 'success')
     return redirect(url_for('viscor_issue'))
 
 @app.route('/reject_viscor/<int:id>', methods=['POST'])
 def reject_viscor(id):
-    if session.get('role') != 'dataop1' and session.get('role') != 'admin':
+    if session.get('role') in ['super1', 'super2']:
         flash('Unauthorized Action.', 'danger')
         return redirect(url_for('viscor_issue'))
         
@@ -276,7 +286,7 @@ def reject_viscor(id):
 
 @app.route('/accept_packwell/<int:id>', methods=['POST'])
 def accept_packwell(id):
-    if session.get('role') != 'dataop2' and session.get('role') != 'admin':
+    if session.get('role') in ['super1', 'super2']:
         flash('Unauthorized Action.', 'danger')
         return redirect(url_for('viscor_issue'))
         
@@ -289,25 +299,28 @@ def accept_packwell(id):
     
     db.session.add(ReelHistory(reel_id=reel.id, usage_details=f"Accepted back to Packwell at {selected_location} as {stock_type}", action_type='RETURN_ACCEPTED'))
     db.session.commit()
-    flash(f'Reel {reel.reel_number} successfully accepted into {selected_location} active stock.', 'success')
+    flash(f'Reel {reel.reel_number} successfully accepted into {selected_location}.', 'success')
     return redirect(url_for('viscor_issue'))
 
 @app.route('/reject_packwell/<int:id>', methods=['POST'])
 def reject_packwell(id):
-    if session.get('role') != 'dataop2' and session.get('role') != 'admin':
+    if session.get('role') in ['super1', 'super2']:
         flash('Unauthorized Action.', 'danger')
         return redirect(url_for('viscor_issue'))
         
     reel = Reel.query.get_or_404(id)
     reel.status = 'Full Reel' if 'Full' in reel.status else 'Used Reel'
     reel.store_location = 'Viscor Lanka'
-    db.session.add(ReelHistory(reel_id=reel.id, usage_details="Return rejected by Packwell, sent back to Viscor Lanka", action_type='RETURN_REJECTED'))
+    db.session.add(ReelHistory(reel_id=reel.id, usage_details="Return rejected by Packwell, sent to Viscor Lanka", action_type='RETURN_REJECTED'))
     db.session.commit()
-    flash(f'Returned Reel {reel.reel_number} was rejected and sent back to Viscor Lanka.', 'warning')
+    flash(f'Returned Reel {reel.reel_number} was rejected.', 'warning')
     return redirect(url_for('viscor_issue'))
 
 @app.route('/issue_damaged_reel/<int:id>', methods=['POST'])
 def issue_damaged_reel(id):
+    if session.get('role') in ['super1', 'super2']:
+        flash('Unauthorized Action.', 'danger')
+        return redirect(url_for('issued_stock'))
     reel = Reel.query.get_or_404(id)
     doc_type = request.form.get('doc_type')
     doc_number = request.form.get('doc_number')
@@ -317,13 +330,9 @@ def issue_damaged_reel(id):
     if doc_type == 'SR': reel.sr_number = doc_number
     else: reel.gate_pass_number = doc_number
     
-    db.session.add(ReelHistory(
-        reel_id=reel.id, 
-        usage_details=f"Conditionally Issued via {doc_type}: {doc_number}. Remarks: {approval_remark}", 
-        action_type='COND_ISSUE'
-    ))
+    db.session.add(ReelHistory(reel_id=reel.id, usage_details=f"Conditionally Issued via {doc_type}. Remarks: {approval_remark}", action_type='COND_ISSUE'))
     db.session.commit()
-    flash(f'Damaged Reel {reel.reel_number} conditionally approved and logged.', 'success')
+    flash(f'Damaged Reel {reel.reel_number} conditionally approved.', 'success')
     return redirect(url_for('issued_stock'))
 
 @app.route('/issued_stock')
@@ -340,6 +349,9 @@ def issued_stock():
 
 @app.route('/finish_reel/<int:id>', methods=['POST'])
 def finish_reel(id):
+    if session.get('role') in ['super1', 'super2']:
+        flash('Unauthorized Action.', 'danger')
+        return redirect(url_for('issued_stock'))
     reel = Reel.query.get_or_404(id)
     used_weight = reel.weight_kg or 0.0
     reel.status = 'Finished'
@@ -372,6 +384,9 @@ def damage_sell_stock():
 
 @app.route('/mark_damage_sell/<int:id>', methods=['POST'])
 def mark_damage_sell(id):
+    if session.get('role') in ['super1', 'super2']:
+        flash('Unauthorized Action.', 'danger')
+        return redirect(url_for('active_stock'))
     reel = Reel.query.get_or_404(id)
     status_type = request.form.get('status_type', 'Damaged')
     notes = request.form.get('notes', 'N/A')
@@ -383,6 +398,9 @@ def mark_damage_sell(id):
 
 @app.route('/process_return', methods=['POST'])
 def process_return():
+    if session.get('role') in ['super1', 'super2']:
+        flash('Unauthorized Action.', 'danger')
+        return redirect(url_for('active_stock'))
     reel_no = request.form.get('reel_no')
     returned_weight = request.form.get('returned_weight', 0.0, type=float)
     reel = Reel.query.filter_by(reel_number=reel_no).first_or_404()
@@ -433,7 +451,7 @@ def finished_usage_stock():
 @app.route('/update_finished_sr/<int:id>', methods=['POST'])
 def update_finished_sr(id):
     if session.get('role') != 'dataop1':
-        flash("Unauthorized action. Only DataOp1 can update Finished SR Numbers.", "danger")
+        flash("Unauthorized action.", "danger")
         return redirect(url_for('finished_usage_stock'))
         
     reel = Reel.query.get_or_404(id)
@@ -442,7 +460,7 @@ def update_finished_sr(id):
     
     db.session.add(ReelHistory(reel_id=reel.id, usage_details=f"Finished SR Number updated to {new_sr}", action_type='SR_UPDATE'))
     db.session.commit()
-    flash(f"SR Number for Finished Reel {reel.reel_number} updated successfully.", "success")
+    flash("SR Number updated successfully.", "success")
     return redirect(url_for('finished_usage_stock'))
 
 if __name__ == '__main__':
