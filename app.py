@@ -105,35 +105,39 @@ def logout():
     session.pop('username', None)
     return redirect(url_for('login'))
 
-@app.route('/dashboard')
+# --- 3. DASHBOARD / ACTIVE STOCK ROUTE එක වෙනස් කිරීම ---
+@app.route('/dashboard') # මෙය ඔබගේ අදාළ route එක ලෙස වෙනස් කරගන්න (උදා: /active_stock)
 def dashboard():
-    user_role = session.get('role')
-    active_query = Reel.query.filter(Reel.status.in_(['Full Reel', 'Used Reel']))
-
-    if user_role == 'dataop1':
-        active_query = active_query.filter(Reel.store_location == 'Viscor Lanka')
-        pending_viscor = Reel.query.filter_by(status='Pending Viscor').count()
-        issued = Reel.query.filter_by(status='Issued', store_location='Viscor Lanka').count()
-        finished = Reel.query.filter_by(status='Finished', store_location='Viscor Lanka').count()
-        damage_sell_count = Reel.query.filter(Reel.status.in_(['Damaged', 'Sold']), Reel.store_location == 'Viscor Lanka').count()
-    elif user_role == 'dataop2':
-        active_query = active_query.filter(Reel.store_location.like('Packwell W%'))
-        pending_viscor = Reel.query.filter(Reel.status.in_(['Pending Packwell Full', 'Pending Packwell Used']), Reel.store_location.like('Packwell W%')).count()
-        issued = Reel.query.filter_by(status='Issued').filter(Reel.store_location.like('Packwell W%')).count()
-        finished = Reel.query.filter_by(status='Finished').filter(Reel.store_location.like('Packwell W%')).count()
-        damage_sell_count = Reel.query.filter(Reel.status.in_(['Damaged', 'Sold'])).filter(Reel.store_location.like('Packwell W%')).count()
-    else:
-        pending_viscor = Reel.query.filter(Reel.status.in_(['Pending Viscor', 'Pending Packwell Full', 'Pending Packwell Used'])).count()
-        issued = Reel.query.filter_by(status='Issued').count()
-        finished = Reel.query.filter_by(status='Finished').count()
-        damage_sell_count = Reel.query.filter(Reel.status.in_(['Damaged', 'Sold'])).count()
-
-    active_reels = active_query.all()
-    active_count = len(active_reels)
-    active_weight = sum((r.weight_kg or 0.0) for r in active_reels)
-
-    return render_template('dashboard.html', active_count=active_count, active_weight=active_weight,
-                           pending_viscor_count=pending_viscor, issued=issued, finished=finished, damage_sell_count=damage_sell_count)
+    # ලොග් වී නැත්නම් login පිටුවට යැවීම
+    if 'username' not in session:
+        return redirect(url_for('login'))
+        
+    current_user = session['username']
+    query = Reel.query # ඔබගේ Database Model එක (Reel)
+    
+    # --- Location Filtering Logic ---
+    if current_user == 'dataop1':
+        # dataop1 ට Viscor Lanka පමණක් පෙන්වීම
+        query = query.filter_by(location='Viscor Lanka')
+        
+    elif current_user == 'dataop2':
+        # dataop2 ට Packwell 1 සිට 7 දක්වා පමණක් පෙන්වීම
+        packwell_locations = [f'Packwell {i}' for i in range(1, 8)]
+        query = query.filter(Reel.location.in_(packwell_locations))
+        
+    # admin, super1, super2 හට කිසිදු filter එකක් නැත, සියල්ල පෙනේ.
+    
+    # අවසාන දත්ත ලබාගැනීම
+    reels_data = query.all()
+    
+    # --- Action Buttons Disable කිරීමේ Logic ---
+    # super1 හෝ super2 නම් is_read_only = True වේ.
+    is_read_only = True if current_user in ['super1', 'super2'] else False
+    
+    return render_template('dashboard.html', 
+                           reels=reels_data, 
+                           is_read_only=is_read_only, 
+                           current_user=current_user)
 
 @app.route('/active_stock')
 def active_stock():
