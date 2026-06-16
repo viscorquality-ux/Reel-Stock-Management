@@ -102,6 +102,7 @@ def login():
         
         if username in users and users[username] == password:
             # මෙහිදී 'username' වෙනුවට 'role' ලෙස session එක සෑදීම නිවැරදි කර ඇත
+            session['username'] = username
             session['role'] = username
             flash(f'Successfully logged in as {username}!', 'success')
             return redirect(url_for('dashboard'))
