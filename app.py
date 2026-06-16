@@ -593,5 +593,26 @@ def proceed_sr(id):
         flash(f"✅ SR Request for PO {sr.po_number} has been Proceeded!", "success")
     return redirect(url_for('sr_request'))
 
+@app.route('/update_location/<int:id>', methods=['POST'])
+def update_location(id):
+    if session.get('role') in ['super1', 'super2', 'programmer']:
+        flash("Action Not Allowed.", "danger")
+        return redirect(url_for('active_stock'))
+        
+    reel = Reel.query.get_or_404(id)
+    new_location = request.form.get('location')
+    
+    if new_location:
+        old_location = reel.location
+        reel.location = new_location
+        db.session.add(ReelHistory(
+            reel_id=reel.id, 
+            usage_details=f"Location changed from {old_location} to {new_location}", 
+            action_type='UPDATE_LOC'
+        ))
+        db.session.commit()
+        flash(f"Reel {reel.reel_number} location updated to {new_location}.", "success")
+    
+    return redirect(url_for('active_stock'))
 if __name__ == '__main__':
     app.run(debug=True)
