@@ -2,91 +2,175 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Pending Verification</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Viscor & Packwell Stock System</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <style>
+        body { background-color: #f8f9fa; }
+        .nav-link.active { font-weight: bold; }
+        
+        /* Print Layout Rules */
+        @media print {
+            .navbar, .alert, .btn-close, .no-print { display: none !important; }
+            body { background-color: white !important; color: black !important; padding-top: 0 !important; }
+            .card { border: none !important; box-shadow: none !important; }
+            .container { max-width: 100% !important; margin: 0 !important; padding: 0 !important; }
+            .table { width: 100% !important; border-collapse: collapse !important; }
+            .table th, .table td { border: 1px solid #ddd !important; }
+            .tab-pane { display: block !important; opacity: 1 !important; visibility: visible !important; margin-bottom: 2rem; }
+            .nav-tabs { display: none !important; }
+        }
+    </style>
 </head>
-<body class="bg-light">
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="#">Viscor & Packwell</a>
-        <div class="collapse navbar-collapse">
-            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                <li class="nav-item"><a class="nav-link" href="{{ url_for('dashboard') }}">Dashboard</a></li>
-                <li class="nav-item"><a class="nav-link" href="{{ url_for('active_stock') }}">Active Stock</a></li>
-                {% if session.get('role') not in ['super1', 'super2'] %}
-                <li class="nav-item"><a class="nav-link" href="{{ url_for('add_stock') }}">Add Stock</a></li>
-                {% endif %}
-                <li class="nav-item"><a class="nav-link active" href="{{ url_for('viscor_issue') }}">Pending Verification</a></li>
-                <li class="nav-item"><a class="nav-link" href="{{ url_for('issued_stock') }}">Issued Stock</a></li>
-                <li class="nav-item"><a class="nav-link" href="{{ url_for('damage_sell_stock') }}">Damage/Sell Stock</a></li>
-                <li class="nav-item"><a class="nav-link" href="{{ url_for('finished_usage_stock') }}">Finished/Usage Stock</a></li>
-            </ul>
-            <span class="navbar-text me-3">Logged in as: <strong>{{ session.get('username') }}</strong></span>
-            <a class="btn btn-outline-light btn-sm" href="{{ url_for('logout') }}">Logout</a>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
+        <div class="container-fluid">
+            <a class="navbar-brand fw-bold" href="/"><i class="bi bi-box-seam"></i> Stock Management</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    
+                    <li class="nav-item"><a class="nav-link" href="/dashboard">Dashboard</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/add_stock">Add Stock</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/active_stock">Active Stock</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/viscor_issue">Verify / Returns</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/issued_stock">Issued Stock</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/finished_usage_stock">Finished / Usage</a></li>
+                    <li class="nav-item"><a class="nav-link text-warning" href="/damage_sell_stock">Damage / Sell Stock</a></li>
+                    
+                </ul>
+                
+                <ul class="navbar-nav">
+                    <li class="nav-item"><a class="nav-link text-danger fw-bold" href="/logout"><i class="bi bi-power"></i> Logout (admin)</a></li>
+                </ul>
+                
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-3">
+        
+          
+        
+    </div>
+
+    
+<div class="container mt-4 mb-5">
+    <h2 class="text-secondary fw-bold mb-4"><i class="bi bi-clipboard-check"></i> Stock Verification & Returns</h2>
+
+    
+    <div class="card shadow border-0 border-top border-dark border-4 mb-5">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <h4 class="mb-0 text-dark fw-bold"><i class="bi bi-building"></i> Pending Viscor Verification</h4>
+            <span class="badge bg-dark fs-6">0 Reels</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-striped table-hover align-middle mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Reel No</th><th>Material</th><th>Size</th><th>GSM</th><th>Weight</th><th>Doc Info</th><th class="text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    
+                    
+                    <tr><td colspan="7" class="text-center text-muted p-4">No transfers pending Viscor verification.</td></tr>
+                    
+                </tbody>
+            </table>
         </div>
     </div>
-</nav>
+    
 
-<div class="container">
-    <h2 class="mb-4">Pending Verification Stocks</h2>
-
-    <h4>Pending at Viscor</h4>
-    <table class="table table-bordered bg-white shadow-sm mb-5">
-        <thead class="table-warning">
-            <tr>
-                <th>Reel No</th>
-                <th>Weight</th>
-                <th>Location</th>
-                {% if session.get('role') not in ['super1', 'super2'] %}<th>Actions</th>{% endif %}
-            </tr>
-        </thead>
-        <tbody>
-            {% for reel in reels %}
-            <tr>
-                <td>{{ reel.reel_number }}</td>
-                <td>{{ reel.weight_kg }}</td>
-                <td>{{ reel.store_location }}</td>
-                {% if session.get('role') not in ['super1', 'super2'] %}
-                <td>
-                    <form action="{{ url_for('accept_viscor', id=reel.id) }}" method="POST" class="d-inline">
-                        <button type="submit" class="btn btn-sm btn-success">Accept</button>
-                    </form>
-                    <form action="{{ url_for('reject_viscor', id=reel.id) }}" method="POST" class="d-inline">
-                        <button type="submit" class="btn btn-sm btn-danger">Reject</button>
-                    </form>
-                </td>
-                {% endif %}
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-
-    <h4>Pending at Packwell Back-Transit</h4>
-    <table class="table table-bordered bg-white shadow-sm">
-        <thead class="table-info">
-            <tr>
-                <th>Reel No</th>
-                <th>Weight</th>
-                <th>Status</th>
-                {% if session.get('role') not in ['super1', 'super2'] %}<th>Actions</th>{% endif %}
-            </tr>
-        </thead>
-        <tbody>
-            {% for reel in packwell_reels %}
-            <tr>
-                <td>{{ reel.reel_number }}</td>
-                <td>{{ reel.weight_kg }}</td>
-                <td>{{ reel.status }}</td>
-                {% if session.get('role') not in ['super1', 'super2'] %}
-                <td>
-                    <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#packAcceptModal{{ reel.id }}">Accept Return</button>
-                </td>
-                {% endif %}
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    
+    <div class="card shadow border-0 border-top border-warning border-4">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <h4 class="mb-0 text-dark fw-bold"><i class="bi bi-arrow-left-right"></i> Pending Packwell Return Acceptance</h4>
+            <span class="badge bg-warning text-dark fs-6">1 Reels</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-striped table-hover align-middle mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Reel No</th><th>Material</th><th>Size</th><th>GSM</th><th>Weight</th><th>Original State</th><th class="text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    
+                    <tr>
+                        <td class="fw-bold text-warning">2568/7</td>
+                        <td>TIDG (Liner(T))</td>
+                        <td>125.0 cm</td>
+                        <td>125</td>
+                        <td>1200.0 kg</td>
+                        <td>
+                            <span class="badge bg-success">Full Reel</span>
+                        </td>
+                        <td class="text-center">
+                            <div class="d-flex justify-content-center gap-2">
+                                <button class="btn btn-sm btn-primary fw-bold" data-bs-toggle="modal" data-bs-target="#acceptPackwellModal18"><i class="bi bi-check-lg"></i> Accept Return</button>
+                                <form action="/reject_packwell/18" method="POST">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger fw-bold"><i class="bi bi-trash"></i> Reject</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    
+                    
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
 </div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+
+
+    
+    <div class="modal fade" id="acceptPackwellModal18" tabindex="-1" data-bs-backdrop="static">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-house-add"></i> Accept Return Reel: 2568/7</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form action="/accept_packwell/18" method="POST">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Select Packwell Warehouse Location</label>
+                            <select name="store_location" class="form-select" required>
+                                <option value="Packwell W 1">Packwell W 1</option>
+                                <option value="Packwell W 2">Packwell W 2</option>
+                                <option value="Packwell W 3">Packwell W 3</option>
+                                <option value="Packwell W 4">Packwell W 4</option>
+                                <option value="Packwell W 5">Packwell W 5</option>
+                                <option value="Packwell W 6">Packwell W 6</option>
+                                <option value="Packwell W 7">Packwell W 7</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Stock Classification</label>
+                            <select name="stock_type" class="form-select" required>
+                                <option value="Full Reel" selected>Full Reel</option>
+                                <option value="Used Reel" >Used Reel</option>
+                            </select>
+                        </div>
+                        <div class="d-flex gap-2 justify-content-end mt-4">
+                            <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-primary fw-bold">Accept to Active Stock</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+
+
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
