@@ -100,17 +100,25 @@ def dashboard():
     
     if user_role == 'dataop1':
         active_query = active_query.filter(Reel.store_location == 'Viscor Lanka')
+        pending_viscor = Reel.query.filter_by(status='Pending Viscor').count()
+        issued = Reel.query.filter_by(status='Issued', store_location='Viscor Lanka').count()
+        finished = Reel.query.filter_by(status='Finished', store_location='Viscor Lanka').count()
+        damage_sell_count = Reel.query.filter(Reel.status.in_(['Damaged', 'Sold']), Reel.store_location == 'Viscor Lanka').count()
     elif user_role == 'dataop2':
         active_query = active_query.filter(Reel.store_location.like('Packwell W%'))
+        pending_viscor = Reel.query.filter(Reel.status.in_(['Pending Packwell Full', 'Pending Packwell Used']), Reel.store_location.like('Packwell W%')).count()
+        issued = Reel.query.filter_by(status='Issued').filter(Reel.store_location.like('Packwell W%')).count()
+        finished = Reel.query.filter_by(status='Finished').filter(Reel.store_location.like('Packwell W%')).count()
+        damage_sell_count = Reel.query.filter(Reel.status.in_(['Damaged', 'Sold'])).filter(Reel.store_location.like('Packwell W%')).count()
+    else:
+        pending_viscor = Reel.query.filter(Reel.status.in_(['Pending Viscor', 'Pending Packwell Full', 'Pending Packwell Used'])).count()
+        issued = Reel.query.filter_by(status='Issued').count()
+        finished = Reel.query.filter_by(status='Finished').count()
+        damage_sell_count = Reel.query.filter(Reel.status.in_(['Damaged', 'Sold'])).count()
 
     active_reels = active_query.all()
     active_count = len(active_reels)
     active_weight = sum((r.weight_kg or 0.0) for r in active_reels)
-    
-    pending_viscor = Reel.query.filter_by(status='Pending Viscor').count()
-    issued = Reel.query.filter_by(status='Issued').count()
-    finished = Reel.query.filter_by(status='Finished').count()
-    damage_sell_count = Reel.query.filter(Reel.status.in_(['Damaged', 'Sold'])).count()
     
     return render_template('dashboard.html', active_count=active_count, active_weight=active_weight,
                            pending_viscor_count=pending_viscor, issued=issued, finished=finished, damage_sell_count=damage_sell_count)
@@ -181,7 +189,6 @@ def add_stock():
             
     return render_template('add_stock.html', user_role=user_role)
 
-# -- Active Reel Edit Route අලුතින් එක් කළ කොටස --
 @app.route('/edit_active_reel/<int:id>', methods=['POST'])
 def edit_active_reel(id):
     reel = Reel.query.get_or_404(id)
@@ -227,8 +234,16 @@ def issue_reel(id):
 @app.route('/viscor_issue')
 def viscor_issue():
     user_role = session.get('role')
-    viscor_reels = Reel.query.filter_by(status='Pending Viscor').all()
-    packwell_reels = Reel.query.filter(Reel.status.in_(['Pending Packwell Full', 'Pending Packwell Used'])).all()
+    if user_role == 'dataop1':
+        viscor_reels = Reel.query.filter_by(status='Pending Viscor').all()
+        packwell_reels = []
+    elif user_role == 'dataop2':
+        viscor_reels = []
+        packwell_reels = Reel.query.filter(Reel.status.in_(['Pending Packwell Full', 'Pending Packwell Used']), Reel.store_location.like('Packwell W%')).all()
+    else:
+        viscor_reels = Reel.query.filter_by(status='Pending Viscor').all()
+        packwell_reels = Reel.query.filter(Reel.status.in_(['Pending Packwell Full', 'Pending Packwell Used'])).all()
+        
     return render_template('viscor_issue.html', reels=viscor_reels, packwell_reels=packwell_reels, user_role=user_role)
 
 @app.route('/accept_viscor/<int:id>', methods=['POST'])
@@ -313,7 +328,15 @@ def issue_damaged_reel(id):
 
 @app.route('/issued_stock')
 def issued_stock():
-    return render_template('issued_stock.html', stocks=Reel.query.filter_by(status='Issued').all())
+    user_role = session.get('role')
+    query = Reel.query.filter_by(status='Issued')
+    
+    if user_role == 'dataop1':
+        query = query.filter(Reel.store_location == 'Viscor Lanka')
+    elif user_role == 'dataop2':
+        query = query.filter(Reel.store_location.like('Packwell W%'))
+        
+    return render_template('issued_stock.html', stocks=query.all())
 
 @app.route('/finish_reel/<int:id>', methods=['POST'])
 def finish_reel(id):
@@ -327,9 +350,24 @@ def finish_reel(id):
 
 @app.route('/damage_sell_stock')
 def damage_sell_stock():
-    damaged_reels = Reel.query.filter_by(status='Damaged').all()
-    sold_reels = Reel.query.filter_by(status='Sold').all()
-    cond_logs = ReelHistory.query.filter_by(action_type='COND_ISSUE').order_by(ReelHistory.timestamp.desc()).all()
+    user_role = session.get('role')
+    damaged_query = Reel.query.filter_by(status='Damaged')
+    sold_query = Reel.query.filter_by(status='Sold')
+    cond_query = ReelHistory.query.filter_by(action_type='COND_ISSUE')
+
+    if user_role == 'dataop1':
+        damaged_query = damaged_query.filter(Reel.store_location == 'Viscor Lanka')
+        sold_query = sold_query.filter(Reel.store_location == 'Viscor Lanka')
+        cond_query = cond_query.join(Reel).filter(Reel.store_location == 'Viscor Lanka')
+    elif user_role == 'dataop2':
+        damaged_query = damaged_query.filter(Reel.store_location.like('Packwell W%'))
+        sold_query = sold_query.filter(Reel.store_location.like('Packwell W%'))
+        cond_query = cond_query.join(Reel).filter(Reel.store_location.like('Packwell W%'))
+
+    damaged_reels = damaged_query.all()
+    sold_reels = sold_query.all()
+    cond_logs = cond_query.order_by(ReelHistory.timestamp.desc()).all()
+    
     return render_template('damage_sell_stock.html', damaged_reels=damaged_reels, sold_reels=sold_reels, cond_logs=cond_logs)
 
 @app.route('/mark_damage_sell/<int:id>', methods=['POST'])
@@ -358,11 +396,19 @@ def process_return():
 
 @app.route('/finished_usage_stock')
 def finished_usage_stock():
+    user_role = session.get('role')
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
 
     finished_query = Reel.query.filter_by(status='Finished')
     logs_query = ReelHistory.query.join(Reel).filter(ReelHistory.action_type.in_(['PARTIAL RETURN', 'FINISHED']))
+
+    if user_role == 'dataop1':
+        finished_query = finished_query.filter(Reel.store_location == 'Viscor Lanka')
+        logs_query = logs_query.filter(Reel.store_location == 'Viscor Lanka')
+    elif user_role == 'dataop2':
+        finished_query = finished_query.filter(Reel.store_location.like('Packwell W%'))
+        logs_query = logs_query.filter(Reel.store_location.like('Packwell W%'))
 
     if start_date and end_date:
         try:
@@ -384,7 +430,6 @@ def finished_usage_stock():
                            start_date=start_date or '',
                            end_date=end_date or '')
 
-# -- Finished SR Update Route අලුතින් එක් කළ කොටස --
 @app.route('/update_finished_sr/<int:id>', methods=['POST'])
 def update_finished_sr(id):
     if session.get('role') != 'dataop1':
