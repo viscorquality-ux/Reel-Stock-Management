@@ -135,7 +135,6 @@ def dashboard():
 @app.route('/edit_active_reel/<int:id>', methods=['POST'])
 def edit_active_reel(id):
     reel = Reel.query.get_or_404(id)
-@@ -227,8 +234,16 @@
 @app.route('/viscor_issue')
 def viscor_issue():
     user_role = session.get('role')
