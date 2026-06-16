@@ -1,59 +1,396 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Finished & Usage Stock</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Viscor & Packwell Stock System</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <style>
+        body { background-color: #f8f9fa; }
+        .nav-link.active { font-weight: bold; }
+        
+        /* Print Layout Rules */
+        @media print {
+            .navbar, .alert, .btn-close, .no-print { display: none !important; }
+            body { background-color: white !important; color: black !important; padding-top: 0 !important; }
+            .card { border: none !important; box-shadow: none !important; }
+            .container { max-width: 100% !important; margin: 0 !important; padding: 0 !important; }
+            .table { width: 100% !important; border-collapse: collapse !important; }
+            .table th, .table td { border: 1px solid #ddd !important; }
+            .tab-pane { display: block !important; opacity: 1 !important; visibility: visible !important; margin-bottom: 2rem; }
+            .nav-tabs { display: none !important; }
+        }
+    </style>
 </head>
-<body class="bg-light">
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="#">Viscor & Packwell</a>
-        <div class="collapse navbar-collapse">
-            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                <li class="nav-item"><a class="nav-link" href="{{ url_for('dashboard') }}">Dashboard</a></li>
-                <li class="nav-item"><a class="nav-link" href="{{ url_for('active_stock') }}">Active Stock</a></li>
-                {% if session.get('role') not in ['super1', 'super2'] %}
-                <li class="nav-item"><a class="nav-link" href="{{ url_for('add_stock') }}">Add Stock</a></li>
-                {% endif %}
-                <li class="nav-item"><a class="nav-link" href="{{ url_for('viscor_issue') }}">Pending Verification</a></li>
-                <li class="nav-item"><a class="nav-link" href="{{ url_for('issued_stock') }}">Issued Stock</a></li>
-                <li class="nav-item"><a class="nav-link" href="{{ url_for('damage_sell_stock') }}">Damage/Sell Stock</a></li>
-                <li class="nav-item"><a class="nav-link active" href="{{ url_for('finished_usage_stock') }}">Finished/Usage Stock</a></li>
-            </ul>
-            <span class="navbar-text me-3">Logged in as: <strong>{{ session.get('username') }}</strong></span>
-            <a class="btn btn-outline-light btn-sm" href="{{ url_for('logout') }}">Logout</a>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
+        <div class="container-fluid">
+            <a class="navbar-brand fw-bold" href="/"><i class="bi bi-box-seam"></i> Stock Management</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    
+                    <li class="nav-item"><a class="nav-link" href="/dashboard">Dashboard</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/add_stock">Add Stock</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/active_stock">Active Stock</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/viscor_issue">Verify / Returns</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/issued_stock">Issued Stock</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/finished_usage_stock">Finished / Usage</a></li>
+                    <li class="nav-item"><a class="nav-link text-warning" href="/damage_sell_stock">Damage / Sell Stock</a></li>
+                    
+                </ul>
+                
+                <ul class="navbar-nav">
+                    <li class="nav-item"><a class="nav-link text-danger fw-bold" href="/logout"><i class="bi bi-power"></i> Logout (admin)</a></li>
+                </ul>
+                
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-3">
+        
+          
+        
+    </div>
+
+    
+
+<!-- Print Layout: Hide inactive tabs during printing -->
+<style>
+    @media print {
+        .tab-pane:not(.active) {
+            display: none !important;
+            opacity: 0 !important;
+            visibility: hidden !important;
+        }
+    }
+</style>
+
+<div class="container mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4 no-print">
+        <h2 class="text-secondary fw-bold mb-0"><i class="bi bi-check-circle-fill"></i> Finished & Usage Logs</h2>
+        <button class="btn btn-secondary fw-bold shadow-sm" onclick="window.print()"><i class="bi bi-printer"></i> Print Report</button>
+    </div>
+
+    <!-- Date Filter Form -->
+    <div class="card shadow-sm mb-4 no-print border-0 bg-light p-3">
+        <form method="GET" action="/finished_usage_stock" class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label fw-bold"><i class="bi bi-calendar"></i> From Date</label>
+                <input type="date" name="start_date" class="form-control" value="">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-bold"><i class="bi bi-calendar-event"></i> To Date</label>
+                <input type="date" name="end_date" class="form-control" value="">
+            </div>
+            <div class="col-md-4">
+                <button type="submit" class="btn btn-primary fw-bold"><i class="bi bi-search"></i> Filter Records</button>
+                <a href="/finished_usage_stock" class="btn btn-outline-secondary fw-bold">Reset</a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Tab Navigation -->
+    <ul class="nav nav-tabs mb-3 no-print" id="finishedTabs" role="tablist">
+        <li class="nav-item">
+            <button class="nav-link active fw-bold text-success" data-bs-toggle="tab" data-bs-target="#finishedReels"><i class="bi bi-check2-all"></i> Fully Finished Reels</button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link fw-bold text-primary" data-bs-toggle="tab" data-bs-target="#usageLogs"><i class="bi bi-journal-text"></i> Usage & Return Logs</button>
+        </li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content">
+        <!-- Tab 1: Finished Reels -->
+        <div class="tab-pane fade show active" id="finishedReels">
+            <div class="card shadow border-0 border-top border-success border-4 mb-4">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 fw-bold">Fully Finished Reels</h5>
+                    <span class="badge bg-success fs-6">Total Weight: 0.0 kg</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover align-middle mb-0">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Reel No</th><th>Material</th><th>Paper Type</th><th>Size</th><th>GSM</th><th>SR Num</th><th>Finished Date</th>
+                                
+                            </tr>
+                        </thead>
+                        <tbody>
+                            
+                            <tr>
+                                <td class="fw-bold text-success">2777/8</td>
+                                <td>Liner</td>
+                                <td>TSLNY</td>
+                                <td>100.0 cm</td>
+                                <td>140</td>
+                                <td class="fw-bold text-primary">714521</td>
+                                <td>2026-06-09 13:58</td>
+                                
+                            </tr>
+                            
+                            <tr>
+                                <td class="fw-bold text-success">2771/7</td>
+                                <td>Liner</td>
+                                <td>TSLNY</td>
+                                <td>100.0 cm</td>
+                                <td>150</td>
+                                <td class="fw-bold text-primary">100000</td>
+                                <td>2026-06-09 17:05</td>
+                                
+                            </tr>
+                            
+                            <tr>
+                                <td class="fw-bold text-success">2477/2</td>
+                                <td>Liner (T)</td>
+                                <td>TSLNY</td>
+                                <td>100.0 cm</td>
+                                <td>140</td>
+                                <td class="fw-bold text-primary">100000</td>
+                                <td>2026-06-09 17:20</td>
+                                
+                            </tr>
+                            
+                            <tr>
+                                <td class="fw-bold text-success">2444/2</td>
+                                <td>Liner (T)</td>
+                                <td>TSLNY</td>
+                                <td>100.0 cm</td>
+                                <td>100</td>
+                                <td class="fw-bold text-primary">100000</td>
+                                <td>2026-06-09 17:35</td>
+                                
+                            </tr>
+                            
+                            <tr>
+                                <td class="fw-bold text-success">2447/5</td>
+                                <td>Liner (T)</td>
+                                <td>TSLNI</td>
+                                <td>100.0 cm</td>
+                                <td>100</td>
+                                <td class="fw-bold text-primary">100000</td>
+                                <td>2026-06-09 18:05</td>
+                                
+                            </tr>
+                            
+                            <tr>
+                                <td class="fw-bold text-success">2465/8</td>
+                                <td>TSLNY</td>
+                                <td>Standard</td>
+                                <td>100.0 cm</td>
+                                <td>140</td>
+                                <td class="fw-bold text-primary">100000</td>
+                                <td>2026-06-15 11:44</td>
+                                
+                            </tr>
+                            
+                            <tr>
+                                <td class="fw-bold text-success">2445/9</td>
+                                <td>TSLNY</td>
+                                <td>Liner(T)</td>
+                                <td>110.0 cm</td>
+                                <td>125</td>
+                                <td class="fw-bold text-primary">120000</td>
+                                <td>2026-06-15 13:15</td>
+                                
+                            </tr>
+                            
+                            
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 2: Logs -->
+        <div class="tab-pane fade" id="usageLogs">
+            <div class="card shadow border-0 border-top border-primary border-4">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 fw-bold">Usage & Return Logs</h5>
+                    <span class="badge bg-primary fs-6">Total Logged Usage: 7971.0 kg</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover align-middle mb-0">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Date & Time</th><th>Reel No</th><th>Action</th><th>Details</th><th>Used Weight</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            
+                            <tr>
+                                <td>2026-06-09 13:55</td>
+                                <td class="fw-bold">2777/8</td>
+                                <td><span class="badge bg-primary">PARTIAL RETURN</span></td>
+                                <td>Returned with balance 500.0kg</td>
+                                <td class="fw-bold text-danger">528.0 kg</td>
+                            </tr>
+                            
+                            <tr>
+                                <td>2026-06-09 13:56</td>
+                                <td class="fw-bold">2777/8</td>
+                                <td><span class="badge bg-primary">PARTIAL RETURN</span></td>
+                                <td>Returned with balance 100.0kg</td>
+                                <td class="fw-bold text-danger">400.0 kg</td>
+                            </tr>
+                            
+                            <tr>
+                                <td>2026-06-09 13:57</td>
+                                <td class="fw-bold">2777/8</td>
+                                <td><span class="badge bg-primary">FINISHED</span></td>
+                                <td>Marked 100% finished by production line</td>
+                                <td class="fw-bold text-danger">100.0 kg</td>
+                            </tr>
+                            
+                            <tr>
+                                <td>2026-06-09 14:11</td>
+                                <td class="fw-bold">2771/7</td>
+                                <td><span class="badge bg-primary">PARTIAL RETURN</span></td>
+                                <td>Returned with balance 650.0kg</td>
+                                <td class="fw-bold text-danger">355.0 kg</td>
+                            </tr>
+                            
+                            <tr>
+                                <td>2026-06-09 14:18</td>
+                                <td class="fw-bold">2771/7</td>
+                                <td><span class="badge bg-primary">PARTIAL RETURN</span></td>
+                                <td>Returned with balance 650.0kg</td>
+                                <td class="fw-bold text-danger">0.0 kg</td>
+                            </tr>
+                            
+                            <tr>
+                                <td>2026-06-09 14:37</td>
+                                <td class="fw-bold">2771/7</td>
+                                <td><span class="badge bg-primary">PARTIAL RETURN</span></td>
+                                <td>Returned with balance 400.0kg</td>
+                                <td class="fw-bold text-danger">250.0 kg</td>
+                            </tr>
+                            
+                            <tr>
+                                <td>2026-06-09 17:04</td>
+                                <td class="fw-bold">2771/7</td>
+                                <td><span class="badge bg-primary">PARTIAL RETURN</span></td>
+                                <td>Returned with balance 100.0kg</td>
+                                <td class="fw-bold text-danger">300.0 kg</td>
+                            </tr>
+                            
+                            <tr>
+                                <td>2026-06-09 17:05</td>
+                                <td class="fw-bold">2771/7</td>
+                                <td><span class="badge bg-primary">FINISHED</span></td>
+                                <td>Marked 100% finished by production line</td>
+                                <td class="fw-bold text-danger">100.0 kg</td>
+                            </tr>
+                            
+                            <tr>
+                                <td>2026-06-09 17:20</td>
+                                <td class="fw-bold">2477/2</td>
+                                <td><span class="badge bg-primary">FINISHED</span></td>
+                                <td>Marked 100% finished by production line</td>
+                                <td class="fw-bold text-danger">1365.0 kg</td>
+                            </tr>
+                            
+                            <tr>
+                                <td>2026-06-09 17:35</td>
+                                <td class="fw-bold">2444/2</td>
+                                <td><span class="badge bg-primary">FINISHED</span></td>
+                                <td>Marked 100% finished. Final consumption: 1452.0kg</td>
+                                <td class="fw-bold text-danger">1452.0 kg</td>
+                            </tr>
+                            
+                            <tr>
+                                <td>2026-06-09 18:05</td>
+                                <td class="fw-bold">2447/5</td>
+                                <td><span class="badge bg-primary">FINISHED</span></td>
+                                <td>Marked 100% finished by production line</td>
+                                <td class="fw-bold text-danger">1036.0 kg</td>
+                            </tr>
+                            
+                            <tr>
+                                <td>2026-06-10 13:18</td>
+                                <td class="fw-bold">2345/9</td>
+                                <td><span class="badge bg-primary">PARTIAL RETURN</span></td>
+                                <td>Returned balance 650.0kg</td>
+                                <td class="fw-bold text-danger">580.0 kg</td>
+                            </tr>
+                            
+                            <tr>
+                                <td>2026-06-10 14:58</td>
+                                <td class="fw-bold">2345/9</td>
+                                <td><span class="badge bg-primary">PARTIAL RETURN</span></td>
+                                <td>Returned balance 650.0kg</td>
+                                <td class="fw-bold text-danger">0.0 kg</td>
+                            </tr>
+                            
+                            <tr>
+                                <td>2026-06-10 14:58</td>
+                                <td class="fw-bold">2345/9</td>
+                                <td><span class="badge bg-primary">PARTIAL RETURN</span></td>
+                                <td>Returned balance 600.0kg</td>
+                                <td class="fw-bold text-danger">50.0 kg</td>
+                            </tr>
+                            
+                            <tr>
+                                <td>2026-06-10 14:59</td>
+                                <td class="fw-bold">2145/7</td>
+                                <td><span class="badge bg-primary">PARTIAL RETURN</span></td>
+                                <td>Returned balance 1000.0kg</td>
+                                <td class="fw-bold text-danger">48.0 kg</td>
+                            </tr>
+                            
+                            <tr>
+                                <td>2026-06-15 11:44</td>
+                                <td class="fw-bold">2465/8</td>
+                                <td><span class="badge bg-primary">FINISHED</span></td>
+                                <td>Marked 100% finished</td>
+                                <td class="fw-bold text-danger">0.0 kg</td>
+                            </tr>
+                            
+                            <tr>
+                                <td>2026-06-15 11:51</td>
+                                <td class="fw-bold">2447/9</td>
+                                <td><span class="badge bg-primary">PARTIAL RETURN</span></td>
+                                <td>Returned balance 654.0kg</td>
+                                <td class="fw-bold text-danger">382.0 kg</td>
+                            </tr>
+                            
+                            <tr>
+                                <td>2026-06-15 12:02</td>
+                                <td class="fw-bold">2445/9</td>
+                                <td><span class="badge bg-primary">PARTIAL RETURN</span></td>
+                                <td>Returned balance 600.0kg</td>
+                                <td class="fw-bold text-danger">425.0 kg</td>
+                            </tr>
+                            
+                            <tr>
+                                <td>2026-06-15 13:15</td>
+                                <td class="fw-bold">2445/9</td>
+                                <td><span class="badge bg-primary">FINISHED</span></td>
+                                <td>Marked 100% finished</td>
+                                <td class="fw-bold text-danger">600.0 kg</td>
+                            </tr>
+                            
+                            
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
-</nav>
-
-<div class="container">
-    <h2 class="mb-4">Finished Stock Logs</h2>
-    <table class="table table-bordered bg-white shadow-sm">
-        <thead class="table-dark">
-            <tr>
-                <th>Reel No</th>
-                <th>Final Weight</th>
-                <th>SR Number</th>
-                {% if session.get('role') not in ['super1', 'super2'] %}<th>Actions</th>{% endif %}
-            </tr>
-        </thead>
-        <tbody>
-            {% for reel in finished_reels %}
-            <tr>
-                <td>{{ reel.reel_number }}</td>
-                <td>{{ reel.weight_kg }}</td>
-                <td>{{ reel.sr_number or 'N/A' }}</td>
-                {% if session.get('role') not in ['super1', 'super2'] %}
-                <td>
-                    <button class="btn btn-sm btn-secondary" data-bs-toggle="modal" data-bs-target="#srModal{{ reel.id }}">Update SR</button>
-                </td>
-                {% endif %}
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
 </div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+
+<!-- SR Edit Modal (Only for DataOp1) -->
+
+
+
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
