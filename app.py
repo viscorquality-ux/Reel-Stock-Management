@@ -120,26 +120,25 @@ def dashboard():
     active_count = len(active_reels)
     active_weight = sum((r.weight_kg or 0.0) for r in active_reels)
 
-    pending_viscor = Reel.query.filter_by(status='Pending Viscor').count()
-    issued = Reel.query.filter_by(status='Issued').count()
-    finished = Reel.query.filter_by(status='Finished').count()
-    damage_sell_count = Reel.query.filter(Reel.status.in_(['Damaged', 'Sold'])).count()
-    
     return render_template('dashboard.html', active_count=active_count, active_weight=active_weight,
                            pending_viscor_count=pending_viscor, issued=issued, finished=finished, damage_sell_count=damage_sell_count)
 
-
+# නිවැරදි කළ Add Stock Route එක
+@app.route('/add_stock', methods=['GET', 'POST'])
+def add_stock():
+    user_role = session.get('role')
     return render_template('add_stock.html', user_role=user_role)
 
 # -- Active Reel Edit Route අලුතින් එක් කළ කොටස --
 @app.route('/edit_active_reel/<int:id>', methods=['POST'])
 def edit_active_reel(id):
     reel = Reel.query.get_or_404(id)
+    # මේ සඳහා අවශ්‍ය කේතය (Logic එක) පසුව එකතු කරන්න
+    return redirect(url_for('dashboard'))
+
 @app.route('/viscor_issue')
 def viscor_issue():
     user_role = session.get('role')
-    viscor_reels = Reel.query.filter_by(status='Pending Viscor').all()
-    packwell_reels = Reel.query.filter(Reel.status.in_(['Pending Packwell Full', 'Pending Packwell Used'])).all()
     if user_role == 'dataop1':
         viscor_reels = Reel.query.filter_by(status='Pending Viscor').all()
         packwell_reels = []
@@ -152,11 +151,14 @@ def viscor_issue():
         
     return render_template('viscor_issue.html', reels=viscor_reels, packwell_reels=packwell_reels, user_role=user_role)
 
+# නිවැරදි කළ Accept Viscor Route එක
 @app.route('/accept_viscor/<int:id>', methods=['POST'])
+def accept_viscor(id):
+    # මේ සඳහා අවශ්‍ය කේතය (Logic එක) පසුව එකතු කරන්න
+    return redirect(url_for('viscor_issue'))
 
 @app.route('/issued_stock')
 def issued_stock():
-    return render_template('issued_stock.html', stocks=Reel.query.filter_by(status='Issued').all())
     user_role = session.get('role')
     query = Reel.query.filter_by(status='Issued')
     
@@ -167,15 +169,14 @@ def issued_stock():
         
     return render_template('issued_stock.html', stocks=query.all())
 
+# නිවැරදි කළ Finish Reel Route එක
 @app.route('/finish_reel/<int:id>', methods=['POST'])
 def finish_reel(id):
-
+    # මේ සඳහා අවශ්‍ය කේතය (Logic එක) පසුව එකතු කරන්න
+    return redirect(url_for('issued_stock'))
 
 @app.route('/damage_sell_stock')
 def damage_sell_stock():
-    damaged_reels = Reel.query.filter_by(status='Damaged').all()
-    sold_reels = Reel.query.filter_by(status='Sold').all()
-    cond_logs = ReelHistory.query.filter_by(action_type='COND_ISSUE').order_by(ReelHistory.timestamp.desc()).all()
     user_role = session.get('role')
     damaged_query = Reel.query.filter_by(status='Damaged')
     sold_query = Reel.query.filter_by(status='Sold')
@@ -196,7 +197,11 @@ def damage_sell_stock():
     
     return render_template('damage_sell_stock.html', damaged_reels=damaged_reels, sold_reels=sold_reels, cond_logs=cond_logs)
 
+# නිවැරදි කළ Mark Damage Sell Route එක
 @app.route('/mark_damage_sell/<int:id>', methods=['POST'])
+def mark_damage_sell(id):
+    # මේ සඳහා අවශ්‍ය කේතය (Logic එක) පසුව එකතු කරන්න
+    return redirect(url_for('damage_sell_stock'))
 
 
 @app.route('/finished_usage_stock')
@@ -222,7 +227,6 @@ def finished_usage_stock():
         except Exception as e:
             pass
 
-    # වරහන් සියල්ල අවසානයේ පමණක් ක්‍රමවත්ව වැසී ඇති බව තහවුරු කරගන්න
     return render_template('finished_usage_stock.html',
                            finished_query=finished_query.all(),
                            logs_query=logs_query.all(),
@@ -233,3 +237,11 @@ def finished_usage_stock():
 @app.route('/update_finished_sr/<int:id>', methods=['POST'])
 def update_finished_sr(id):
     if session.get('role') != 'dataop1':
+        flash("Unauthorized Access", "danger")
+        return redirect(url_for('finished_usage_stock'))
+    
+    # Update කිරීම සඳහා අවශ්‍ය කේතය පසුව එකතු කරන්න
+    return redirect(url_for('finished_usage_stock'))
+
+if __name__ == '__main__':
+    app.run(debug=True)
