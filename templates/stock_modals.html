@@ -128,7 +128,7 @@
 <div class="modal fade" id="updateStatus{{ stock.id }}" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content text-dark">
-      <form action="{{ url_for('update_status', id=stock.id) }}" method="POST">
+      <form action="{{ url_for('update_location', id=stock.id) }}" method="POST">
           <div class="modal-header bg-danger text-white">
               <h5 class="modal-title"><i class="bi bi-exclamation-triangle-fill me-2"></i>Change Stock Status: {{ stock.reel_number }}</h5>
               <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
