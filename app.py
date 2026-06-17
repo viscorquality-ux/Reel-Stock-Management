@@ -288,7 +288,19 @@ def sr_request():
             if size not in grouped_requests:
                 grouped_requests[size] = { 'po_list': set(), 'papers': [] }
             grouped_requests[size]['po_list'].add(r.po_number)
-            grouped_requests[size]['papers'].append(r)
+           group_key = f"{r.material_name}_{r.gsm}"
+            if group_key not in grouped_requests[size]['groups']:
+                grouped_requests[size]['groups'][group_key] = {
+                    'material_name': r.material_name,
+                    'gsm': r.gsm,
+                    'total_weight': 0.0,
+                    'srs': []
+                }
+                
+            grouped_requests[size]['groups'][group_key]['total_weight'] += r.total_weight
+            grouped_requests[size]['groups'][group_key]['srs'].append(r)
+
+    return render_template('sr_request.html', all_requests=all_requests, grouped_requests=grouped_requests, user_role=user_role)
 
     return render_template('sr_request.html', all_requests=all_requests, grouped_requests=grouped_requests, user_role=user_role)
 
