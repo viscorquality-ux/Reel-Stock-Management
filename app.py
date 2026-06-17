@@ -40,7 +40,7 @@ class Reel(db.Model):
 
 class SRRequest(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    sr_number = db.Column(db.String(100), unique=True, nullable=True) # අලුත් Column එක
+    sr_number = db.Column(db.String(100), unique=True, nullable=True)
     po_number = db.Column(db.String(100), nullable=False)
     reel_size = db.Column(db.Float, nullable=False)
     gsm = db.Column(db.Integer, nullable=False)
@@ -153,7 +153,6 @@ def add_stock():
             else:
                 rcv_date = datetime.now(colombo_tz).date()
 
-            # Radio button එකෙන් status එක ලබා ගැනීම (Used Reel තේරුවහොත් Used ලෙසත් නැතහොත් Full ලෙසත්)
             status_input = request.form.get('status')
             reel_status = 'Used' if status_input == 'Used Reel' else 'Full'
 
@@ -165,7 +164,7 @@ def add_stock():
                 reel_type=request.form.get('reel_type'),
                 weight_kg=float(request.form.get('weight_kg')),
                 current_weight=float(request.form.get('weight_kg')),
-                status=reel_status, # අලුත් තත්වය ලබා දීම
+                status=reel_status, 
                 store_location=request.form.get('store_location'),
                 supplier_name=request.form.get('supplier_name'),
                 received_date=rcv_date
@@ -224,7 +223,6 @@ def mark_return(id):
         return redirect(url_for('active_stock'))
         
     reel = Reel.query.get_or_404(id)
-    # අලුත් Return ක්‍රියාවලිය (Packwell Return වෙත යැවීම)
     reel.status = 'Pending_Return'
     db.session.commit()
     flash(f"✅ Reel {reel.reel_number} has been sent to Packwell Returns for verification!", "success")
@@ -248,7 +246,7 @@ def sr_request():
             qty = int(request.form.get('qty', 0))
             comp_type = request.form.get('component_type')
             
-            calc_weight = ((b_width * b_length) * (gsm / 1000.0)) / 2.0 * qty
+            calc_weight = ((b_width * b_length) * (gsm / 1000.0)) / cartoon_amt * qty
             if comp_type == 'Corru':
                 calc_weight = calc_weight * 1.5
 
@@ -282,13 +280,17 @@ def sr_request():
             
     all_requests = SRRequest.query.order_by(SRRequest.created_at.desc()).all()
     grouped_requests = {}
+    
+    # නවතම Grouping ක්‍රියාවලිය
     for r in all_requests:
         if r.status in ['Pending', 'Approved']:
             size = r.reel_size
             if size not in grouped_requests:
-                grouped_requests[size] = { 'po_list': set(), 'papers': [] }
+                grouped_requests[size] = { 'po_list': set(), 'groups': {} }
+                
             grouped_requests[size]['po_list'].add(r.po_number)
-           group_key = f"{r.material_name}_{r.gsm}"
+            
+            group_key = f"{r.material_name}_{r.gsm}"
             if group_key not in grouped_requests[size]['groups']:
                 grouped_requests[size]['groups'][group_key] = {
                     'material_name': r.material_name,
@@ -299,8 +301,6 @@ def sr_request():
                 
             grouped_requests[size]['groups'][group_key]['total_weight'] += r.total_weight
             grouped_requests[size]['groups'][group_key]['srs'].append(r)
-
-    return render_template('sr_request.html', all_requests=all_requests, grouped_requests=grouped_requests, user_role=user_role)
 
     return render_template('sr_request.html', all_requests=all_requests, grouped_requests=grouped_requests, user_role=user_role)
 
@@ -320,7 +320,9 @@ def edit_sr(id):
     comp_type = request.form.get('component_type', sr.component_type)
     excess_w = float(request.form.get('excess_weight', sr.excess_weight))
     
-    calc_weight = ((b_width * b_length) * (gsm / 1000.0)) / 2.0 * qty
+    cartoon_amt = float(request.form.get('cartoon_amount', sr.cartoon_amount))
+    
+    calc_weight = ((b_width * b_length) * (gsm / 1000.0)) / cartoon_amt * qty
     if comp_type == 'Corru':
         calc_weight = calc_weight * 1.5
         
@@ -328,6 +330,7 @@ def edit_sr(id):
     sr.board_length = b_length
     sr.gsm = gsm
     sr.qty = qty
+    sr.cartoon_amount = cartoon_amt
     sr.component_type = comp_type
     sr.excess_weight = excess_w
     sr.calculated_weight = round(calc_weight, 2)
@@ -453,8 +456,6 @@ def viscor_issue():
     user_role = get_user_role()
     viscor_reels = Reel.query.filter_by(status='Pending_Verify', store_location='Viscor Lanka').all()
     packwell_reels = Reel.query.filter(Reel.status == 'Pending_Verify', Reel.store_location.like('Packwell%')).all()
-    
-    # අලුත් Packwell Return Tab එක සඳහා
     packwell_returns = Reel.query.filter_by(status='Pending_Return').all()
     
     return render_template('viscor_issue.html', reels=viscor_reels, packwell_reels=packwell_reels, packwell_returns=packwell_returns, user_role=user_role)
@@ -471,8 +472,6 @@ def accept_return(id):
     
     if new_loc:
         reel.store_location = new_loc
-    
-    # බර අනුව Full ද Used ද යන්න තීරණය කිරීම
     reel.status = 'Used' if reel.current_weight < reel.weight_kg else 'Full'
     
     db.session.commit()
@@ -554,10 +553,7 @@ def finished_usage_stock():
 def damage_sell_stock():
     if 'role' not in session: return redirect(url_for('login'))
     reels = Reel.query.filter(Reel.status.in_(['Damaged', 'Sold', 'Returned'])).all()
-    
-    # අලුත් Conditional Issue History ලබා ගැනීම
     cond_issued_logs = ReelHistory.query.filter_by(usage_type='Conditional Issue (Damaged)').order_by(ReelHistory.timestamp.desc()).all()
-    
     return render_template('damage_sell_stock.html', reels=reels, cond_issued_logs=cond_issued_logs, user_role=get_user_role())
 
 @app.route('/reset_db_now')
