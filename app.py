@@ -28,9 +28,10 @@ class Reel(db.Model):
     size_cm = db.Column(db.Float, nullable=False)
     gsm = db.Column(db.Integer, nullable=False)
     material_name = db.Column(db.String(100), nullable=False)
+    reel_type = db.Column(db.String(100), nullable=True) # Added to map with frontend
     weight_kg = db.Column(db.Float, nullable=False)
     current_weight = db.Column(db.Float, nullable=False)
-    status = db.Column(db.String(50), default='Full')  # Full, Used, SR_Requested, Issued, Damaged, Sold
+    status = db.Column(db.String(50), default='Full')  # Full, Used, SR_Requested, Issued, Damaged, Sold, Pending_Verify
     store_location = db.Column(db.String(100), nullable=False)
     supplier_name = db.Column(db.String(100), nullable=True)
     received_date = db.Column(db.Date, nullable=False)
@@ -44,13 +45,13 @@ class SRRequest(db.Model):
     material_name = db.Column(db.String(100), nullable=False)
     qty = db.Column(db.Integer, nullable=False)
     calculated_weight = db.Column(db.Float, nullable=False)
-    board_width = db.Column(db.Float, nullable=True)   # m වලින්
-    board_length = db.Column(db.Float, nullable=True)  # m වලින්
-    bottom_type = db.Column(db.String(10), nullable=True)   # B හෝ C
-    corru_type = db.Column(db.String(10), nullable=True)    # B හෝ C
+    board_width = db.Column(db.Float, nullable=True)
+    board_length = db.Column(db.Float, nullable=True)
+    component_type = db.Column(db.String(50), nullable=True) # Top, Bottom, Corru
+    flute_type = db.Column(db.String(10), nullable=True)     # B or C
     excess_weight = db.Column(db.Float, default=0.0)
     total_weight = db.Column(db.Float, nullable=False)
-    status = db.Column(db.String(50), default='Pending') # Pending, Approved, Processed
+    status = db.Column(db.String(50), default='Pending')
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(colombo_tz))
     reels = db.relationship('Reel', backref='associated_sr', lazy=True)
 
@@ -65,7 +66,6 @@ class ReelHistory(db.Model):
     timestamp = db.Column(db.DateTime, default=lambda: datetime.now(colombo_tz))
     reel = db.relationship('Reel', backref=db.backref('history', lazy=True))
 
-# CUSTOM FILTERS FOR JINJA
 @app.template_filter('datetimeformat')
 def datetimeformat(value, format='%Y-%m-%d %I:%M %p'):
     if value is None: return ""
@@ -75,11 +75,9 @@ def datetimeformat(value, format='%Y-%m-%d %I:%M %p'):
         value = value.astimezone(colombo_tz)
     return value.strftime(format)
 
-# AUTHENTICATION DECORATOR & UTILS
 def get_user_role():
     return SmartRole(session.get('role', ''))
 
-# ROUTES (Login Fix Included)
 @app.route('/', methods=['GET', 'POST'])
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -87,7 +85,6 @@ def login():
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '').strip()
         
-        # Static Credentials with programmer1 & programmer2 added
         users = {
             "admin": ("admin@0123", "admin"),
             "dataop1": ("viscor@2468", "dataop1"),
@@ -118,7 +115,6 @@ def logout():
 def dashboard():
     if 'role' not in session: return redirect(url_for('login'))
     
-    # Summary Metrics
     total_active = Reel.query.filter(Reel.status.in_(['Full', 'Used', 'SR_Requested'])).count()
     full_count = Reel.query.filter_by(status='Full').count()
     used_count = Reel.query.filter_by(status='Used').count()
@@ -129,14 +125,10 @@ def dashboard():
     active_weight = 0
     
     return render_template('dashboard.html', 
-                           total_active=total_active,
-                           active_weight=active_weight,
-                           full_count=full_count,
-                           used_count=used_count,
-                           sr_req_count=sr_req_count,
-                           finished=finished,
-                           damage_sell_count=damage_sell,
-                           user_role=get_user_role())
+                           total_active=total_active, active_weight=active_weight,
+                           full_count=full_count, used_count=used_count,
+                           sr_req_count=sr_req_count, finished=finished,
+                           damage_sell_count=damage_sell, user_role=get_user_role())
 
 @app.route('/add_stock', methods=['GET', 'POST'])
 def add_stock():
@@ -152,16 +144,24 @@ def add_stock():
                 flash(f"❌ Reel Number '{reel_num}' already exists!", "danger")
                 return redirect(url_for('add_stock'))
 
+            # Fixed: strptime Error by providing a fallback to current date
+            date_str = request.form.get('received_date')
+            if date_str:
+                rcv_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+            else:
+                rcv_date = datetime.now(colombo_tz).date()
+
             new_reel = Reel(
                 reel_number=reel_num,
                 size_cm=float(request.form.get('size_cm')),
                 gsm=int(request.form.get('gsm')),
                 material_name=request.form.get('material_name'),
+                reel_type=request.form.get('reel_type'),
                 weight_kg=float(request.form.get('weight_kg')),
                 current_weight=float(request.form.get('weight_kg')),
                 store_location=request.form.get('store_location'),
                 supplier_name=request.form.get('supplier_name'),
-                received_date=datetime.strptime(request.form.get('received_date'), '%Y-%m-%d').date()
+                received_date=rcv_date
             )
             db.session.add(new_reel)
             db.session.commit()
@@ -181,11 +181,7 @@ def active_stock():
     used_reels = Reel.query.filter_by(status='Used').order_by(Reel.received_date.asc()).all()
     sr_requested_reels = Reel.query.filter_by(status='SR_Requested').order_by(Reel.received_date.asc()).all()
     
-    return render_template('active_stock.html',
-                           full_reels=full_reels,
-                           used_reels=used_reels,
-                           sr_requested_reels=sr_requested_reels,
-                           user_role=user_role)
+    return render_template('active_stock.html', full_reels=full_reels, used_reels=used_reels, sr_requested_reels=sr_requested_reels, user_role=user_role)
 
 @app.route('/sr_request', methods=['GET', 'POST'])
 def sr_request():
@@ -193,8 +189,9 @@ def sr_request():
     if 'role' not in session: return redirect(url_for('login'))
     
     if request.method == 'POST':
-        if user_role in ['super1', 'super2']:
-            flash("❌ Action Not Allowed.", "danger")
+        # Fixed: Prevent dataop1 & dataop2 from creating SR Requests
+        if user_role in ['super1', 'super2', 'dataop1', 'dataop2']:
+            flash("❌ Action Not Allowed for your role.", "danger")
             return redirect(url_for('sr_request'))
             
         try:
@@ -203,11 +200,8 @@ def sr_request():
             gsm = int(request.form.get('gsm', 0))
             qty = int(request.form.get('qty', 0))
             
-            layer_type = request.form.get('layer_type', '2ply')
-            multiplier = 1.0
-            if layer_type == '3ply': multiplier = 1.5
-            
-            calc_weight = ((b_width * b_length) * (gsm / 1000.0) * multiplier) / 2.0 * qty
+            # Fixed: Removed the Layer Multiplier completely from formula
+            calc_weight = ((b_width * b_length) * (gsm / 1000.0)) / 2.0 * qty
             excess_w = float(request.form.get('excess_weight', 0.0))
             tot_weight = calc_weight + excess_w
             
@@ -220,8 +214,8 @@ def sr_request():
                 calculated_weight=round(calc_weight, 2),
                 board_width=b_width,
                 board_length=b_length,
-                bottom_type=request.form.get('bottom_type'),
-                corru_type=request.form.get('corru_type'),
+                component_type=request.form.get('component_type'),
+                flute_type=request.form.get('flute_type'),
                 excess_weight=excess_w,
                 total_weight=round(tot_weight, 2)
             )
@@ -242,10 +236,7 @@ def sr_request():
             grouped_requests[size]['po_list'].add(r.po_number)
             grouped_requests[size]['papers'].append(r)
 
-    return render_template('sr_request.html', 
-                           all_requests=all_requests, 
-                           grouped_requests=grouped_requests, 
-                           user_role=user_role)
+    return render_template('sr_request.html', all_requests=all_requests, grouped_requests=grouped_requests, user_role=user_role)
 
 @app.route('/approve_sr/<int:id>', methods=['POST'])
 def approve_sr(id):
@@ -253,7 +244,6 @@ def approve_sr(id):
     if user_role in ['programmer1', 'programmer2', 'dataop1', 'dataop2']:
         flash("❌ Unauthorized Action.", "danger")
         return redirect(url_for('sr_request'))
-        
     sr = SRRequest.query.get_or_404(id)
     if sr.status == 'Pending':
         sr.status = 'Approved'
@@ -328,7 +318,6 @@ def issue_reel(id):
         db.session.commit()
         flash(f"✅ Reel {reel.reel_number} successfully Issued to Production!", "success")
     
-    # Conditional Issue From Damaged tab
     elif reel.status == 'Damaged':
         old_weight = reel.current_weight
         reel.status = 'Issued'
@@ -346,13 +335,49 @@ def issue_reel(id):
         
     return redirect(url_for('active_stock'))
 
+# Fixed: Added Missing Routes for Viscor/Verify Tab
+@app.route('/viscor_issue')
+def viscor_issue():
+    if 'role' not in session: return redirect(url_for('login'))
+    user_role = get_user_role()
+    # Fetch pending verification reels based on status Pending_Verify
+    viscor_reels = Reel.query.filter_by(status='Pending_Verify', store_location='Viscor Lanka').all()
+    packwell_reels = Reel.query.filter(Reel.status == 'Pending_Verify', Reel.store_location.like('Packwell%')).all()
+    return render_template('viscor_issue.html', reels=viscor_reels, packwell_reels=packwell_reels, user_role=user_role)
+
+@app.route('/accept_viscor/<int:id>', methods=['POST'])
+def accept_viscor(id):
+    user_role = get_user_role()
+    if user_role not in ['dataop1', 'admin']:
+        flash("❌ Unauthorized Action.", "danger")
+        return redirect(url_for('viscor_issue'))
+    reel = Reel.query.get_or_404(id)
+    reel.status = 'Used' if reel.current_weight < reel.weight_kg else 'Full'
+    db.session.commit()
+    flash(f"✅ Reel {reel.reel_number} Verified & Accepted at Viscor!", "success")
+    return redirect(url_for('viscor_issue'))
+
+@app.route('/accept_packwell/<int:id>', methods=['POST'])
+def accept_packwell(id):
+    user_role = get_user_role()
+    if user_role not in ['dataop2', 'admin']:
+        flash("❌ Unauthorized Action.", "danger")
+        return redirect(url_for('viscor_issue'))
+    reel = Reel.query.get_or_404(id)
+    new_loc = request.form.get('accept_location')
+    if new_loc:
+        reel.store_location = new_loc
+    reel.status = 'Used' if reel.current_weight < reel.weight_kg else 'Full'
+    db.session.commit()
+    flash(f"✅ Reel {reel.reel_number} Returned & Accepted at {new_loc}!", "success")
+    return redirect(url_for('viscor_issue'))
+
 @app.route('/partial_return/<int:id>', methods=['POST'])
 def partial_return(id):
     user_role = get_user_role()
     if user_role in ['programmer1', 'programmer2', 'super1', 'super2']:
         flash("❌ Access Denied.", "danger")
         return redirect(url_for('issued_stock'))
-        
     reel = Reel.query.get_or_404(id)
     try:
         new_w = float(request.form.get('new_weight', 0.0))
@@ -377,7 +402,6 @@ def partial_return(id):
     except Exception as e:
         db.session.rollback()
         flash(f"Error handling return: {str(e)}", "danger")
-        
     return redirect(url_for('active_stock'))
 
 @app.route('/issued_stock')
@@ -404,7 +428,6 @@ def update_location(id):
     if user_role in ['programmer1', 'programmer2', 'super1', 'super2']:
         flash("❌ Action Not Allowed.", "danger")
         return redirect(url_for('active_stock'))
-        
     reel = Reel.query.get_or_404(id)
     new_loc = request.form.get('location')
     if new_loc:
@@ -413,23 +436,19 @@ def update_location(id):
         flash("📍 Location Updated.", "success")
     return redirect(url_for('active_stock'))
 
-# --- DATABASE RESET ROUTE (Fix for 500 Error) ---
 @app.route('/reset_db_now')
 def reset_db_now():
     try:
-        # Foreign Key බාධාවන් තාවකාලිකව ඉවත් කිරීම
         db.session.execute(text('SET FOREIGN_KEY_CHECKS = 0;'))
-        db.drop_all()   # පරණ ටේබල් සියල්ල මකා දැමීම
-        
-        # Foreign Key බාධාවන් නැවත සක්‍රීය කිරීම
+        db.drop_all()
         db.session.execute(text('SET FOREIGN_KEY_CHECKS = 1;'))
-        db.create_all() # අලුත් තීරු සහිතව ටේබල් නිර්මාණය කිරීම
-        
+        db.create_all()
         db.session.commit()
         return "✅ Database Updated Successfully (Force Reset Applied)! All new columns are ready. <br><br> <a href='/'>Click Here to go back to Login Page</a>"
     except Exception as e:
         db.session.rollback()
         return f"❌ Error resetting database: {str(e)}"
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
