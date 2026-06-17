@@ -89,13 +89,13 @@ def login():
         
         # Static Credentials with programmer1 & programmer2 added
         users = {
-            "admin": ("admin123", "admin"),
-            "dataop1": ("op1123", "dataop1"),
-            "dataop2": ("op2123", "dataop2"),
-            "super1": ("sup1123", "super1"),
-            "super2": ("sup2123", "super2"),
-            "programmer1": ("prog1123", "programmer1"),
-            "programmer2": ("prog2123", "programmer2")
+            "admin": ("admin@0123", "admin"),
+            "dataop1": ("viscor@2468", "dataop1"),
+            "dataop2": ("packwell@8642", "dataop2"),
+            "super1": ("viscor@1357", "super1"),
+            "super2": ("packwell@7531", "super2"),
+            "programmer1": ("viscor@1235", "programmer1"),
+            "programmer2": ("packwell@3457", "programmer2")
         }
         
         if username in users and users[username][0] == password:
