@@ -101,13 +101,13 @@
                                         {% for reel in reels %}
                                         <tr class="reel-row">
                                             <td class="fw-bold text-primary">{{ reel.reel_number }}</td>
-                                            <td>{{ reel.paper_name }}</td>
+                                            <td>{{ reel.material_name }}</td>
                                             <td><span class="badge bg-secondary">{{ reel.reel_type }}</span></td>
                                             <td>{{ reel.size_cm }} cm</td>
                                             <td>{{ reel.gsm }}</td>
                                             <td class="fw-bold">{{ reel.weight_kg }} kg</td>
                                             <td><span class="badge bg-info text-dark">{{ reel.status }}</span></td>
-                                            <td><i class="bi bi-geo-alt-fill text-danger"></i> {{ reel.location }}</td>
+                                            <td><i class="bi bi-geo-alt-fill text-danger"></i> {{ reel.store_location }}</td>
                                             <td>
                                                 {% if user_role == 'dataop1' or user_role == 'admin' %}
                                                 <form action="{{ url_for('accept_viscor', id=reel.id) }}" method="POST" style="display:inline;">
@@ -161,13 +161,13 @@
                                         {% for reel in packwell_reels %}
                                         <tr class="reel-row">
                                             <td class="fw-bold text-warning">{{ reel.reel_number }}</td>
-                                            <td>{{ reel.paper_name }}</td>
+                                            <td>{{ reel.material_name }}</td>
                                             <td><span class="badge bg-secondary">{{ reel.reel_type }}</span></td>
                                             <td>{{ reel.size_cm }} cm</td>
                                             <td>{{ reel.gsm }}</td>
                                             <td class="fw-bold">{{ reel.weight_kg }} kg</td>
                                             <td><span class="badge bg-warning text-dark">{{ reel.status }}</span></td>
-                                            <td><i class="bi bi-geo-alt-fill text-danger"></i> {{ reel.location }}</td>
+                                            <td><i class="bi bi-geo-alt-fill text-danger"></i> {{ reel.store_location }}</td>
                                             <td>
                                                 {% if user_role == 'dataop2' or user_role == 'admin' %}
                                                 <form action="{{ url_for('accept_packwell', id=reel.id) }}" method="POST" class="d-flex align-items-center gap-1 justify-content-center">
