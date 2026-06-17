@@ -414,10 +414,20 @@ def update_location(id):
 # --- DATABASE RESET ROUTE (Fix for 500 Error) ---
 @app.route('/reset_db_now')
 def reset_db_now():
-    db.drop_all()   # පරණ දත්ත මකා දමයි
-    db.create_all() # අලුත් තීරු සහිතව අලුත් ටේබල් නිර්මාණය කරයි
-    return "✅ Database Updated Successfully! All new columns are ready. <br><br> <a href='/'>Click Here to go back to Login Page</a>"
-
+    try:
+        # Foreign Key බාධාවන් තාවකාලිකව ඉවත් කිරීම
+        db.session.execute(text('SET FOREIGN_KEY_CHECKS = 0;'))
+        db.drop_all()   # පරණ ටේබල් සියල්ල මකා දැමීම
+        
+        # Foreign Key බාධාවන් නැවත සක්‍රීය කිරීම
+        db.session.execute(text('SET FOREIGN_KEY_CHECKS = 1;'))
+        db.create_all() # අලුත් තීරු සහිතව ටේබල් නිර්මාණය කිරීම
+        
+        db.session.commit()
+        return "✅ Database Updated Successfully (Force Reset Applied)! All new columns are ready. <br><br> <a href='/'>Click Here to go back to Login Page</a>"
+    except Exception as e:
+        db.session.rollback()
+        return f"❌ Error resetting database: {str(e)}"
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
