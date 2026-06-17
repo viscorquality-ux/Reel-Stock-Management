@@ -73,12 +73,12 @@
                 </div>
 
                 <div class="mb-3">
-                    <label for="paper_name" class="form-label fw-bold mb-1">Material Name</label>
-                    <input type="text" class="form-control" id="paper_name" name="paper_name" placeholder="e.g., Box Board" required>
+                    <label for="material_name" class="form-label fw-bold mb-1">Material Name</label>
+                    <input type="text" class="form-control" id="material_name" name="material_name" placeholder="e.g., Box Board" required>
                 </div>
 
                 <div class="mb-3">
-                    <label for="reel_type" class="form-label fw-bold mb-1">Paper Name</label>
+                    <label for="reel_type" class="form-label fw-bold mb-1">Paper Name / Type</label>
                     <select class="form-select" id="reel_type" name="reel_type" required>
                         <option value="" selected disabled>Select Paper Name...</option>
                         <option value="Liner(T)">Liner(T)</option>
@@ -103,6 +103,11 @@
                 <div class="mb-3">
                     <label for="weight_kg" class="form-label fw-bold mb-1">Weight (kg)</label>
                     <input type="number" step="0.01" class="form-control" id="weight_kg" name="weight_kg" placeholder="e.g., 450.50" required>
+                </div>
+
+                <div class="mb-3">
+                    <label for="received_date" class="form-label fw-bold mb-1">Received Date</label>
+                    <input type="date" class="form-control" id="received_date" name="received_date" required>
                 </div>
 
                 <div class="mb-4">
@@ -134,7 +139,14 @@
     </div>
     {% endif %}
 </div>
+
 <script>
+document.addEventListener("DOMContentLoaded", function() {
+    // Sets default date to today to prevent strptime Errors
+    let today = new Date().toISOString().split('T')[0];
+    document.getElementById('received_date').value = today;
+});
+
 document.getElementById('store_location').addEventListener('change', function() {
     let userRole = document.getElementById('currentUserRole').value.toLowerCase().trim();
     let warningDiv = document.getElementById('locationWarning');
