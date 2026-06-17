@@ -263,24 +263,28 @@
     }
 
     function calculateSRWeight() {
-        let w = parseFloat(document.getElementById('board_width').value) || 0.0;
-        let l = parseFloat(document.getElementById('board_length').value) || 0.0;
-        let gsm = parseFloat(document.getElementById('gsm').value) || 0.0;
-        let qty = parseInt(document.getElementById('qty').value) || 0;
-        let excess = parseFloat(document.getElementById('excess_weight').value) || 0.0;
+    let w = parseFloat(document.getElementById('board_width').value) || 0.0;
+    let l = parseFloat(document.getElementById('board_length').value) || 0.0;
+    let gsm = parseFloat(document.getElementById('gsm').value) || 0.0;
+    let qty = parseInt(document.getElementById('qty').value) || 0;
+    let cartoon_amt = parseFloat(document.getElementById('cartoon_amount').value) || 1.0; // නව අගය
+    let excess = parseFloat(document.getElementById('excess_weight').value) || 0.0;
 
-        let componentType = document.querySelector('input[name="component_type"]:checked').value;
-        let baseWeight = ((w * l) * (gsm / 1000.0)) / 2.0 * qty;
+    let componentType = document.querySelector('input[name="component_type"]:checked').value;
 
-        if (componentType === 'Corru') {
-            baseWeight = baseWeight * 1.5;
-        }
+    // නව සමීකරණය: (Board width * Board length * (GSM/1000) / Amount of Cartoon) * Qty
+    let baseWeight = ((w * l) * (gsm / 1000.0) / cartoon_amt) * qty;
 
-        let finalTotal = baseWeight + excess;
-
-        document.getElementById('baseWeightLabel').innerText = baseWeight.toFixed(2);
-        document.getElementById('totalWeightDisplay').innerText = finalTotal.toFixed(2) + " kg";
+    // Corru නම් 1.5 න් ගුණ කිරීම, අනෙක්වා (Top/Bottom) සඳහා 1 න් ගුණ කිරීම (එනම් එලෙසම තැබීම)
+    if (componentType === 'Corru') {
+        baseWeight = baseWeight * 1.5;
     }
+
+    let finalTotal = baseWeight + excess;
+
+    document.getElementById('baseWeightLabel').innerText = baseWeight.toFixed(2);
+    document.getElementById('totalWeightDisplay').innerText = finalTotal.toFixed(2) + " kg";
+}
 
     document.addEventListener("DOMContentLoaded", function() {
         toggleFlute();
