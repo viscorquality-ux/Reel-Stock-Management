@@ -369,47 +369,38 @@ def approve_sr(id):
         flash(f"✅ SR Request for PO {sr.po_number} has been Approved!", "success")
     return redirect(url_for('sr_request'))
 
-@app.route('/proceed_sr/<int:id>', methods=['POST'])
-def proceed_sr(id):
-    user_role = get_user_role()
-    if user_role in ['programmer1', 'programmer2', 'super1', 'super2']:
-        flash("❌ Unauthorized Action.", "danger")
-        return redirect(url_for('sr_request'))
-        
-    sr = SRRequest.query.get_or_404(id)
-    if sr.status != 'Approved':
-        flash("❌ SR Request must be Approved first.", "warning")
-        return redirect(url_for('sr_request'))
-        
-    target_weight = sr.total_weight
-    allocated_weight = 0.0
-    matched_reels = []
+@app.route('/proceed_sr_batch/<int:sr_id>', methods=['POST'])
+def proceed_sr_batch(sr_id):
+    sr = SRRequest.query.get_or_404(sr_id)
     
-    available_reels = Reel.query.filter(
+    # එකම ගුණාංග ඇති සියලුම රීල්ස් ලබා ගැනීම (FIFO අනුව)
+    matching_reels = Reel.query.filter(
         Reel.size_cm == sr.reel_size,
-        Reel.gsm == sr.gsm,
         Reel.material_name == sr.material_name,
-        Reel.status.in_(['Full', 'Used'])
-    ).order_by(text("FIELD(status, 'Full', 'Used')"), Reel.received_date.asc()).all()
+        Reel.gsm == sr.gsm,
+        Reel.status == 'Full'
+    ).order_by(Reel.received_date.asc()).all()
     
-    for reel in available_reels:
-        if allocated_weight >= target_weight:
+    total_needed = sr.total_weight
+    current_allocated = 0.0
+    
+    for reel in matching_reels:
+        if current_allocated < total_needed:
+            reel.status = 'SR_Requested'
+            reel.sr_request_id = sr.id
+            current_allocated += reel.current_weight
+        else:
             break
-        matched_reels.append(reel)
-        allocated_weight += reel.current_weight
+            
+    if current_allocated >= total_needed:
+        sr.status = 'Processed'
+        db.session.commit()
+        flash("🚀 Batch Processing Completed Successfully!", "success")
+    else:
+        db.session.rollback()
+        flash("❌ Not enough stock to satisfy this request.", "danger")
         
-    if allocated_weight < target_weight:
-        flash(f"❌ ප්‍රමාණවත් සක්‍රීය තොග නොමැත! අවශ්‍යයි: {target_weight}kg, තිබෙන්නේ: {allocated_weight}kg", "danger")
-        return redirect(url_for('sr_request'))
-        
-    for reel in matched_reels:
-        reel.status = 'SR_Requested'
-        reel.sr_request_id = sr.id
-        
-    sr.status = 'Processed'
-    db.session.commit()
-    flash(f"🚀 FIFO Allocation Completed! Reels moved to Active Stock (SR Requested Mini Tab).", "success")
-    return redirect(url_for('active_stock'))
+    return redirect(url_for('sr_request'))
 
 @app.route('/issue_reel_direct/<int:id>', methods=['POST'])
 def issue_reel_direct(id):
