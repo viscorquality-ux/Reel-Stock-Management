@@ -61,7 +61,7 @@
                         <div>
                             <h5 class="fw-bold text-uppercase opacity-75">Active Stock</h5>
                             <h2 class="fw-black mb-1">{{ active_count }} <span class="fs-5">Items</span></h2>
-                            <h4 class="fw-bold">{{ active_weight|round(2) }} kg</h4>
+                            <h4 class="fw-bold">{{ (active_weight | default(0)) | round(2) }} kg</h4>
                         </div>
                         <i class="bi bi-box-seam fs-1 opacity-25"></i>
                     </div>
