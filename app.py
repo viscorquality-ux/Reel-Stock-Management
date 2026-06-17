@@ -79,8 +79,9 @@ def datetimeformat(value, format='%Y-%m-%d %I:%M %p'):
 def get_user_role():
     return SmartRole(session.get('role', ''))
 
-# ROUTES
+# ROUTES (Login Fix Included)
 @app.route('/', methods=['GET', 'POST'])
+@app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
@@ -88,13 +89,13 @@ def login():
         
         # Static Credentials with programmer1 & programmer2 added
         users = {
-            "admin": ("admin@0123", "admin"),
-            "dataop1": ("viscor@2468", "dataop1"),
-            "dataop2": ("packwell@8642", "dataop2"),
-            "super1": ("viscor@1357", "super1"),
-            "super2": ("packwell@7531", "super2"),
-            "programmer1": ("viscor@1235", "programmer1"),
-            "programmer2": ("packwell@3457", "programmer2")
+            "admin": ("admin123", "admin"),
+            "dataop1": ("op1123", "dataop1"),
+            "dataop2": ("op2123", "dataop2"),
+            "super1": ("sup1123", "super1"),
+            "super2": ("sup2123", "super2"),
+            "programmer1": ("prog1123", "programmer1"),
+            "programmer2": ("prog2123", "programmer2")
         }
         
         if username in users and users[username][0] == password:
@@ -138,7 +139,6 @@ def dashboard():
 @app.route('/add_stock', methods=['GET', 'POST'])
 def add_stock():
     user_role = get_user_role()
-    # Restriction for Programmer1 & 2
     if user_role in ['programmer1', 'programmer2', 'super1', 'super2']:
         flash("❌ Access Denied: Unauthorized tab.", "danger")
         return redirect(url_for('dashboard'))
@@ -173,7 +173,7 @@ def add_stock():
 @app.route('/active_stock')
 def active_stock():
     user_role = get_user_role()
-    # Programmer1 & 2 can view but cannot perform actions
+    if 'role' not in session: return redirect(url_for('login'))
     
     full_reels = Reel.query.filter_by(status='Full').order_by(Reel.received_date.asc()).all()
     used_reels = Reel.query.filter_by(status='Used').order_by(Reel.received_date.asc()).all()
@@ -191,7 +191,6 @@ def sr_request():
     if 'role' not in session: return redirect(url_for('login'))
     
     if request.method == 'POST':
-        # Restriction check
         if user_role in ['super1', 'super2']:
             flash("❌ Action Not Allowed.", "danger")
             return redirect(url_for('sr_request'))
@@ -202,7 +201,6 @@ def sr_request():
             gsm = int(request.form.get('gsm', 0))
             qty = int(request.form.get('qty', 0))
             
-            # Layer settings logic
             layer_type = request.form.get('layer_type', '2ply')
             multiplier = 1.0
             if layer_type == '3ply': multiplier = 1.5
@@ -232,9 +230,7 @@ def sr_request():
             db.session.rollback()
             flash(f"Error logging request: {str(e)}", "danger")
             
-    # Fetch data and group by Size for display requirements
     all_requests = SRRequest.query.order_by(SRRequest.created_at.desc()).all()
-    
     grouped_requests = {}
     for r in all_requests:
         if r.status in ['Pending', 'Approved']:
@@ -275,12 +271,10 @@ def proceed_sr(id):
         flash("❌ SR Request must be Approved first.", "warning")
         return redirect(url_for('sr_request'))
         
-    # --- AUTOMATED FIFO SYSTEM MATCHING LOGIC ---
     target_weight = sr.total_weight
     allocated_weight = 0.0
     matched_reels = []
     
-    # FIFO අනුව ලබාගැනීම: ප්‍රථමයෙන් Full Reels, පසුව Used Reels (දිනය අනුව පැරණිම ඒවා මුලට)
     available_reels = Reel.query.filter(
         Reel.size_cm == sr.reel_size,
         Reel.gsm == sr.gsm,
@@ -298,7 +292,6 @@ def proceed_sr(id):
         flash(f"❌ ප්‍රමාණවත් සක්‍රීය තොග නොමැත! අවශ්‍යයි: {target_weight}kg, තිබෙන්නේ: {allocated_weight}kg", "danger")
         return redirect(url_for('sr_request'))
         
-    # Move selected reels to 'SR_Requested' status
     for reel in matched_reels:
         reel.status = 'SR_Requested'
         reel.sr_request_id = sr.id
@@ -321,7 +314,7 @@ def issue_reel(id):
     
     if reel.status == 'SR_Requested':
         old_weight = reel.current_weight
-        reel.status = 'Issued' # සම්පූර්ණයෙන්ම පද්ධතියෙන් අඩු වේ
+        reel.status = 'Issued'
         db.session.add(ReelHistory(
             reel_id=reel.id,
             usage_type='Issued to Production',
@@ -332,6 +325,23 @@ def issue_reel(id):
         ))
         db.session.commit()
         flash(f"✅ Reel {reel.reel_number} successfully Issued to Production!", "success")
+    
+    # Conditional Issue From Damaged tab
+    elif reel.status == 'Damaged':
+        old_weight = reel.current_weight
+        reel.status = 'Issued'
+        db.session.add(ReelHistory(
+            reel_id=reel.id,
+            usage_type='Conditional Issue (Damaged)',
+            weight_before=old_weight,
+            weight_after=0.0,
+            doc_number=doc_num,
+            remarks=remarks
+        ))
+        db.session.commit()
+        flash(f"✅ Damaged Reel {reel.reel_number} conditionally issued!", "success")
+        return redirect(url_for('damage_sell_stock'))
+        
     return redirect(url_for('active_stock'))
 
 @app.route('/partial_return/<int:id>', methods=['POST'])
@@ -350,7 +360,7 @@ def partial_return(id):
             
         old_w = reel.current_weight
         reel.current_weight = new_w
-        reel.status = 'Used'  # නැවත Active Stock එකේ Used Reels tab එකට පැමිණේ
+        reel.status = 'Used'
         reel.sr_request_id = None
         
         db.session.add(ReelHistory(
@@ -400,6 +410,13 @@ def update_location(id):
         db.session.commit()
         flash("📍 Location Updated.", "success")
     return redirect(url_for('active_stock'))
+
+# --- DATABASE RESET ROUTE (Fix for 500 Error) ---
+@app.route('/reset_db_now')
+def reset_db_now():
+    db.drop_all()   # පරණ දත්ත මකා දමයි
+    db.create_all() # අලුත් තීරු සහිතව අලුත් ටේබල් නිර්මාණය කරයි
+    return "✅ Database Updated Successfully! All new columns are ready. <br><br> <a href='/'>Click Here to go back to Login Page</a>"
 
 if __name__ == '__main__':
     with app.app_context():
