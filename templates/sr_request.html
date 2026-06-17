@@ -45,8 +45,8 @@
                 <div class="card border-0 shadow-sm">
                     <div class="card-header bg-dark text-white fw-bold py-3"><i class="bi bi-file-earmark-plus"></i> Create Stock Release (SR) Request</div>
                     <div class="card-body p-4 bg-white">
-                        {% if user_role in ['super1', 'super2'] %}
-                        <div class="alert alert-danger fw-bold">Supervisors are not authorized to create SRs.</div>
+                        {% if user_role in ['super1', 'super2', 'dataop1', 'dataop2'] %}
+                        <div class="alert alert-danger fw-bold">You are not authorized to create SRs.</div>
                         {% else %}
                         <form action="/sr_request" method="POST">
                             <div class="mb-3">
@@ -63,13 +63,10 @@
                                     <input type="number" id="gsm" name="gsm" class="form-control" required oninput="calculateSRWeight()">
                                 </div>
                             </div>
+                            
                             <div class="mb-3">
                                 <label class="form-label fw-bold">Material Name</label>
-                                <select name="material_name" class="form-select" required>
-                                    <option value="Kraft">Kraft</option>
-                                    <option value="Test Liner">Test Liner</option>
-                                    <option value="Fluting">Fluting</option>
-                                </select>
+                                <input type="text" name="material_name" class="form-control" required placeholder="Enter Material Name...">
                             </div>
 
                             <div class="row border rounded p-2 bg-light mb-3 mx-0">
@@ -81,23 +78,33 @@
                                     <label class="form-label fw-bold small">Board Length (meters)</label>
                                     <input type="number" step="0.001" id="board_length" name="board_length" class="form-control form-control-sm" required oninput="calculateSRWeight()">
                                 </div>
-                                <div class="col-12 mb-2">
-                                    <label class="fw-bold small me-2">Top Layer:</label> <span class="badge bg-success">OK</span>
+                                
+                                <div class="col-12 mt-2 mb-1">
+                                    <label class="fw-bold small d-block mb-1">Component Type:</label>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="radio" name="component_type" id="comp_top" value="Top" required onchange="toggleFlute()" checked>
+                                        <label class="form-check-label fw-bold text-success" for="comp_top">Top</label>
+                                    </div>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="radio" name="component_type" id="comp_bottom" value="Bottom" required onchange="toggleFlute()">
+                                        <label class="form-check-label fw-bold text-primary" for="comp_bottom">Bottom</label>
+                                    </div>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="radio" name="component_type" id="comp_corru" value="Corru" required onchange="toggleFlute()">
+                                        <label class="form-check-label fw-bold text-warning" for="comp_corru">Corru</label>
+                                    </div>
                                 </div>
-                                <div class="col-md-6 mb-1">
-                                    <label class="fw-bold small d-block">Bottom Type:</label>
-                                    <input type="radio" name="bottom_type" value="B" checked> B &nbsp;
-                                    <input type="radio" name="bottom_type" value="C"> C
-                                </div>
-                                <div class="col-md-6 mb-1">
-                                    <label class="fw-bold small d-block">Corru Type:</label>
-                                    <input type="radio" name="corru_type" value="B" checked> B &nbsp;
-                                    <input type="radio" name="corru_type" value="C"> C
-                                </div>
-                                <div class="col-12 mt-2">
-                                    <label class="fw-bold small">Layer Calculation Multiplier</label><br>
-                                    <input type="radio" name="layer_type" value="2ply" id="ply2" checked onchange="calculateSRWeight()"> 2-Ply (1.0) &nbsp;&nbsp;
-                                    <input type="radio" name="layer_type" value="3ply" id="ply3" onchange="calculateSRWeight()"> 3-Ply (1.5)
+
+                                <div class="col-12 mt-1 mb-2" id="fluteTypeDiv" style="display: none;">
+                                    <label class="fw-bold small d-block mb-1">Flute Type (Required for Bottom/Corru):</label>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="radio" name="flute_type" id="flute_b" value="B">
+                                        <label class="form-check-label fw-bold" for="flute_b">B Type</label>
+                                    </div>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="radio" name="flute_type" id="flute_c" value="C">
+                                        <label class="form-check-label fw-bold" for="flute_c">C Type</label>
+                                    </div>
                                 </div>
                             </div>
 
@@ -153,7 +160,11 @@
                                     <tr>
                                         <td class="fw-bold">{{ paper.material_name }}</td>
                                         <td>{{ paper.gsm }}</td>
-                                        <td>{{ paper.board_width }}x{{ paper.board_length }}m<br>(B:{{paper.bottom_type}}/C:{{paper.corru_type}})</td>
+                                        <td>{{ paper.board_width }}x{{ paper.board_length }}m<br>
+                                            <span class="badge bg-secondary">
+                                                {{ paper.component_type }} {% if paper.flute_type %} ({{ paper.flute_type }}){% endif %}
+                                            </span>
+                                        </td>
                                         <td class="fw-bold text-success">{{ paper.total_weight }} kg</td>
                                         <td>
                                             {% if paper.status == 'Pending' %}<span class="badge bg-warning text-dark">Pending</span>
@@ -181,6 +192,20 @@
     </div>
 
     <script>
+    function toggleFlute() {
+        let isTop = document.getElementById('comp_top').checked;
+        let fluteDiv = document.getElementById('fluteTypeDiv');
+        let fluteRadios = document.getElementsByName('flute_type');
+        
+        if(isTop) {
+            fluteDiv.style.display = 'none';
+            fluteRadios.forEach(r => { r.checked = false; r.required = false; });
+        } else {
+            fluteDiv.style.display = 'block';
+            fluteRadios.forEach(r => { r.required = true; });
+        }
+    }
+
     function calculateSRWeight() {
         let w = parseFloat(document.getElementById('board_width').value) || 0.0;
         let l = parseFloat(document.getElementById('board_length').value) || 0.0;
@@ -188,18 +213,17 @@
         let qty = parseInt(document.getElementById('qty').value) || 0;
         let excess = parseFloat(document.getElementById('excess_weight').value) || 0.0;
 
-        let multiplier = 1.0;
-        if (document.getElementById('ply3') && document.getElementById('ply3').checked) {
-            multiplier = 1.5;
-        }
-
-        // Formula Implementation: ((w * l) * (gsm / 1000) * multiplier) / 2 * qty
-        let baseWeight = ((w * l) * (gsm / 1000.0) * multiplier) / 2.0 * qty;
+        // Fixed: Multiplier removed. Direct Formula calculation.
+        let baseWeight = ((w * l) * (gsm / 1000.0)) / 2.0 * qty;
         let finalTotal = baseWeight + excess;
 
         document.getElementById('baseWeightLabel').innerText = baseWeight.toFixed(2);
         document.getElementById('totalWeightDisplay').innerText = finalTotal.toFixed(2) + " kg";
     }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        toggleFlute(); // Run on load to set initial state
+    });
     </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
