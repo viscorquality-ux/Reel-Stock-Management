@@ -28,10 +28,10 @@ class Reel(db.Model):
     size_cm = db.Column(db.Float, nullable=False)
     gsm = db.Column(db.Integer, nullable=False)
     material_name = db.Column(db.String(100), nullable=False)
-    reel_type = db.Column(db.String(100), nullable=True) # Added to map with frontend
+    reel_type = db.Column(db.String(100), nullable=True) 
     weight_kg = db.Column(db.Float, nullable=False)
     current_weight = db.Column(db.Float, nullable=False)
-    status = db.Column(db.String(50), default='Full')  # Full, Used, SR_Requested, Issued, Damaged, Sold, Pending_Verify
+    status = db.Column(db.String(50), default='Full')  
     store_location = db.Column(db.String(100), nullable=False)
     supplier_name = db.Column(db.String(100), nullable=True)
     received_date = db.Column(db.Date, nullable=False)
@@ -47,8 +47,8 @@ class SRRequest(db.Model):
     calculated_weight = db.Column(db.Float, nullable=False)
     board_width = db.Column(db.Float, nullable=True)
     board_length = db.Column(db.Float, nullable=True)
-    component_type = db.Column(db.String(50), nullable=True) # Top, Bottom, Corru
-    flute_type = db.Column(db.String(10), nullable=True)     # B or C
+    component_type = db.Column(db.String(50), nullable=True)
+    flute_type = db.Column(db.String(10), nullable=True)
     excess_weight = db.Column(db.Float, default=0.0)
     total_weight = db.Column(db.Float, nullable=False)
     status = db.Column(db.String(50), default='Pending')
@@ -144,7 +144,6 @@ def add_stock():
                 flash(f"❌ Reel Number '{reel_num}' already exists!", "danger")
                 return redirect(url_for('add_stock'))
 
-            # Fixed: strptime Error by providing a fallback to current date
             date_str = request.form.get('received_date')
             if date_str:
                 rcv_date = datetime.strptime(date_str, '%Y-%m-%d').date()
@@ -189,7 +188,6 @@ def sr_request():
     if 'role' not in session: return redirect(url_for('login'))
     
     if request.method == 'POST':
-        # Fixed: Prevent dataop1 & dataop2 from creating SR Requests
         if user_role in ['super1', 'super2', 'dataop1', 'dataop2']:
             flash("❌ Action Not Allowed for your role.", "danger")
             return redirect(url_for('sr_request'))
@@ -199,9 +197,15 @@ def sr_request():
             b_length = float(request.form.get('board_length', 0.0))
             gsm = int(request.form.get('gsm', 0))
             qty = int(request.form.get('qty', 0))
+            comp_type = request.form.get('component_type')
             
-            # Fixed: Removed the Layer Multiplier completely from formula
+            # පරණ Base Weight ගණනය
             calc_weight = ((b_width * b_length) * (gsm / 1000.0)) / 2.0 * qty
+            
+            # අලුත් කොන්දේසිය: Corru නම් 1.5 න් ගුණ කිරීම
+            if comp_type == 'Corru':
+                calc_weight = calc_weight * 1.5
+
             excess_w = float(request.form.get('excess_weight', 0.0))
             tot_weight = calc_weight + excess_w
             
@@ -214,7 +218,7 @@ def sr_request():
                 calculated_weight=round(calc_weight, 2),
                 board_width=b_width,
                 board_length=b_length,
-                component_type=request.form.get('component_type'),
+                component_type=comp_type,
                 flute_type=request.form.get('flute_type'),
                 excess_weight=excess_w,
                 total_weight=round(tot_weight, 2)
@@ -335,12 +339,10 @@ def issue_reel(id):
         
     return redirect(url_for('active_stock'))
 
-# Fixed: Added Missing Routes for Viscor/Verify Tab
 @app.route('/viscor_issue')
 def viscor_issue():
     if 'role' not in session: return redirect(url_for('login'))
     user_role = get_user_role()
-    # Fetch pending verification reels based on status Pending_Verify
     viscor_reels = Reel.query.filter_by(status='Pending_Verify', store_location='Viscor Lanka').all()
     packwell_reels = Reel.query.filter(Reel.status == 'Pending_Verify', Reel.store_location.like('Packwell%')).all()
     return render_template('viscor_issue.html', reels=viscor_reels, packwell_reels=packwell_reels, user_role=user_role)
