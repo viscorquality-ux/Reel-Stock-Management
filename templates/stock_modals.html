@@ -97,7 +97,7 @@
 <div class="modal fade" id="returnReel{{ stock.id }}" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content text-dark">
-      <form action="{{ url_for('process_return') }}" method="POST">
+      <form action="{{ url_for('partial_return') }}" method="POST">
           <div class="modal-header bg-info text-white">
               <h5 class="modal-title"><i class="bi bi-arrow-counterclockwise me-2"></i>Process Partial Return: {{ stock.reel_number }}</h5>
               <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
