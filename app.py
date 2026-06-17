@@ -126,7 +126,7 @@ def dashboard():
     
     finished = Reel.query.filter_by(status='Issued').count()
     damage_sell = Reel.query.filter(Reel.status.in_(['Damaged', 'Sold'])).count()
-    active_weight = active_weight if active_weight is not None else 0
+    active_weight = 0
     
     return render_template('dashboard.html', 
                            total_active=total_active,
