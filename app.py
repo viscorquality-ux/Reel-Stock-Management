@@ -49,6 +49,7 @@ class SRRequest(db.Model):
     calculated_weight = db.Column(db.Float, nullable=False)
     board_width = db.Column(db.Float, nullable=True)
     board_length = db.Column(db.Float, nullable=True)
+    cartoon_amount = db.Column(db.Integer, default=1)
     component_type = db.Column(db.String(50), nullable=True)
     flute_type = db.Column(db.String(10), nullable=True)
     excess_weight = db.Column(db.Float, default=0.0)
@@ -242,6 +243,7 @@ def sr_request():
         try:
             b_width = float(request.form.get('board_width', 0.0))
             b_length = float(request.form.get('board_length', 0.0))
+            cartoon_amt = int(request.form.get('cartoon_amount', 1))
             gsm = int(request.form.get('gsm', 0))
             qty = int(request.form.get('qty', 0))
             comp_type = request.form.get('component_type')
@@ -259,6 +261,7 @@ def sr_request():
                 sr_number=new_sr_num,
                 po_number=request.form.get('po_number'),
                 reel_size=float(request.form.get('reel_size')),
+                cartoon_amount=cartoon_amt,
                 gsm=gsm,
                 material_name=request.form.get('material_name'),
                 qty=qty,
