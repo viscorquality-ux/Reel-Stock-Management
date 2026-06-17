@@ -155,87 +155,111 @@
                             <table class="table table-bordered table-sm align-middle mb-0 text-center">
                                 <thead class="table-light small">
                                     <tr>
-                                        <th>Material Name</th><th>GSM</th><th>Board Specs</th><th>Target W.</th><th>Status</th><th>SR Number</th><th>Actions</th>
+                                        <th>Material Name</th>
+                                        <th>GSM</th>
+                                        <th>Board Specs</th>
+                                        <th>Total Target W.</th>
+                                        <th>Status</th>
+                                        <th>SR Number</th>
+                                        <th>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody class="small">
-                                    {% for paper in info.papers %}
-                                    <tr>
-                                        <td class="fw-bold">{{ paper.material_name }}</td>
-                                        <td>{{ paper.gsm }}</td>
-                                        <td>{{ paper.board_width }}x{{ paper.board_length }}m<br>
-                                            <span class="badge bg-secondary">
-                                                {{ paper.component_type }} {% if paper.flute_type %} ({{ paper.flute_type }}){% endif %}
-                                            </span>
-                                        </td>
-                                        <td class="fw-bold text-success">{{ paper.total_weight }} kg</td>
-                                        <td>
-                                            {% if paper.status == 'Pending' %}<span class="badge bg-warning text-dark">Pending</span>
-                                            {% else %}<span class="badge bg-info">Approved</span>{% endif %}
-                                        </td>
-                                        <td class="fw-bold text-primary">{{ paper.sr_number or 'N/A' }}</td>
-                                        <td>
-                                            <div class="d-flex gap-1 justify-content-center">
-                                                {% if paper.status == 'Pending' %}
-                                                    {% if user_role not in ['programmer1', 'programmer2', 'dataop1', 'dataop2'] %}
-                                                    <form action="/approve_sr/{{ paper.id }}" method="POST"><button class="btn btn-xs btn-warning text-dark py-0 px-1 fw-bold">Approve</button></form>
-                                                    {% endif %}
-                                                    
-                                                    {% if user_role in ['programmer1', 'programmer2', 'admin'] %}
-                                                    <button class="btn btn-xs btn-primary py-0 px-1 fw-bold" data-bs-toggle="modal" data-bs-target="#editSrModal{{ paper.id }}">Edit</button>
-                                                    {% endif %}
+                                    {% for group_key, group in info.groups.items() %}
+                                        {% set rowspan_count = group.srs|length %}
+                                        
+                                        {% for sr in group.srs %}
+                                        <tr>
+                                            {% if loop.first %}
+                                            <td class="fw-bold align-middle bg-light" rowspan="{{ rowspan_count }}">{{ group.material_name }}</td>
+                                            <td class="align-middle bg-light" rowspan="{{ rowspan_count }}">{{ group.gsm }}</td>
+                                            {% endif %}
+                                            
+                                            <td class="align-middle">
+                                                {{ sr.board_width }}x{{ sr.board_length }}m<br>
+                                                <span class="badge bg-secondary">
+                                                    {{ sr.component_type }} {% if sr.flute_type %} ({{ sr.flute_type }}){% endif %}
+                                                </span>
+                                            </td>
+                                            
+                                            {% if loop.first %}
+                                            <td class="fw-bold text-success fs-6 align-middle bg-light" rowspan="{{ rowspan_count }}">{{ group.total_weight | round(2) }} kg</td>
+                                            {% endif %}
+                                            
+                                            <td class="align-middle">
+                                                {% if sr.status == 'Pending' %}<span class="badge bg-warning text-dark">Pending</span>
+                                                {% else %}<span class="badge bg-info">Approved</span>{% endif %}
+                                            </td>
+                                            
+                                            <td class="fw-bold text-primary align-middle">{{ sr.sr_number or 'N/A' }}</td>
+                                            
+                                            <td class="align-middle">
+                                                <div class="d-flex gap-1 justify-content-center">
+                                                    {% if sr.status == 'Pending' %}
+                                                        {% if user_role not in ['programmer1', 'programmer2', 'dataop1', 'dataop2'] %}
+                                                        <form action="/approve_sr/{{ sr.id }}" method="POST"><button class="btn btn-xs btn-warning text-dark py-0 px-1 fw-bold">Approve</button></form>
+                                                        {% endif %}
+                                                        
+                                                        {% if user_role in ['programmer1', 'programmer2', 'admin'] %}
+                                                        <button class="btn btn-xs btn-primary py-0 px-1 fw-bold" data-bs-toggle="modal" data-bs-target="#editSrModal{{ sr.id }}">Edit</button>
+                                                        {% endif %}
 
-                                                {% elif paper.status == 'Approved' and user_role not in ['programmer1', 'programmer2', 'super1', 'super2'] %}
-                                                    <form action="/proceed_sr/{{ paper.id }}" method="POST"><button class="btn btn-xs btn-success py-0 px-1 fw-bold"><i class="bi bi-cpu"></i> FIFO Proceed</button></form>
-                                                {% else %}<span class="text-muted small">Locked</span>{% endif %}
+                                                    {% elif sr.status == 'Approved' and user_role not in ['programmer1', 'programmer2', 'super1', 'super2'] %}
+                                                        <form action="/proceed_sr/{{ sr.id }}" method="POST"><button class="btn btn-xs btn-success py-0 px-1 fw-bold"><i class="bi bi-cpu"></i> Proceed</button></form>
+                                                    {% else %}<span class="text-muted small">Locked</span>{% endif %}
+                                                </div>
+                                            </td>
+                                        </tr>
+
+                                        <div class="modal fade" id="editSrModal{{ sr.id }}" tabindex="-1" aria-hidden="true">
+                                            <div class="modal-dialog">
+                                                <form action="/edit_sr/{{ sr.id }}" method="POST" class="modal-content">
+                                                    <div class="modal-header bg-primary text-white">
+                                                        <h5 class="modal-title fw-bold"><i class="bi bi-pencil"></i> Edit SR Request: {{ sr.sr_number }}</h5>
+                                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                                    </div>
+                                                    <div class="modal-body text-start">
+                                                        <div class="mb-2">
+                                                            <label class="form-label fw-bold">Board Width</label>
+                                                            <input type="number" step="0.001" name="board_width" class="form-control" value="{{ sr.board_width }}" required>
+                                                        </div>
+                                                        <div class="mb-2">
+                                                            <label class="form-label fw-bold">Board Length</label>
+                                                            <input type="number" step="0.001" name="board_length" class="form-control" value="{{ sr.board_length }}" required>
+                                                        </div>
+                                                        <div class="mb-2">
+                                                            <label class="form-label fw-bold">Amount of Cartoon</label>
+                                                            <input type="number" name="cartoon_amount" class="form-control" value="{{ sr.cartoon_amount }}" required>
+                                                        </div>
+                                                        <div class="mb-2">
+                                                            <label class="form-label fw-bold">GSM</label>
+                                                            <input type="number" name="gsm" class="form-control" value="{{ sr.gsm }}" required>
+                                                        </div>
+                                                        <div class="mb-2">
+                                                            <label class="form-label fw-bold">Quantity</label>
+                                                            <input type="number" name="qty" class="form-control" value="{{ sr.qty }}" required>
+                                                        </div>
+                                                        <div class="mb-2">
+                                                            <label class="form-label fw-bold">Component Type</label>
+                                                            <select name="component_type" class="form-select">
+                                                                <option value="Top" {% if sr.component_type == 'Top' %}selected{% endif %}>Top</option>
+                                                                <option value="Bottom" {% if sr.component_type == 'Bottom' %}selected{% endif %}>Bottom</option>
+                                                                <option value="Corru" {% if sr.component_type == 'Corru' %}selected{% endif %}>Corru</option>
+                                                            </select>
+                                                        </div>
+                                                        <div class="mb-2">
+                                                            <label class="form-label fw-bold">Excess Weight (kg)</label>
+                                                            <input type="number" step="0.1" name="excess_weight" class="form-control" value="{{ sr.excess_weight }}">
+                                                        </div>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                        <button type="submit" class="btn btn-primary fw-bold">Save Changes</button>
+                                                    </div>
+                                                </form>
                                             </div>
-                                        </td>
-                                    </tr>
-
-                                    <div class="modal fade" id="editSrModal{{ paper.id }}" tabindex="-1" aria-hidden="true">
-                                        <div class="modal-dialog">
-                                            <form action="/edit_sr/{{ paper.id }}" method="POST" class="modal-content">
-                                                <div class="modal-header bg-primary text-white">
-                                                    <h5 class="modal-title fw-bold"><i class="bi bi-pencil"></i> Edit SR Request: {{ paper.sr_number }}</h5>
-                                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                                                </div>
-                                                <div class="modal-body text-start">
-                                                    <div class="mb-2">
-                                                        <label class="form-label fw-bold">Board Width</label>
-                                                        <input type="number" step="0.001" name="board_width" class="form-control" value="{{ paper.board_width }}" required>
-                                                    </div>
-                                                    <div class="mb-2">
-                                                        <label class="form-label fw-bold">Board Length</label>
-                                                        <input type="number" step="0.001" name="board_length" class="form-control" value="{{ paper.board_length }}" required>
-                                                    </div>
-                                                    <div class="mb-2">
-                                                        <label class="form-label fw-bold">GSM</label>
-                                                        <input type="number" name="gsm" class="form-control" value="{{ paper.gsm }}" required>
-                                                    </div>
-                                                    <div class="mb-2">
-                                                        <label class="form-label fw-bold">Quantity</label>
-                                                        <input type="number" name="qty" class="form-control" value="{{ paper.qty }}" required>
-                                                    </div>
-                                                    <div class="mb-2">
-                                                        <label class="form-label fw-bold">Component Type</label>
-                                                        <select name="component_type" class="form-select">
-                                                            <option value="Top" {% if paper.component_type == 'Top' %}selected{% endif %}>Top</option>
-                                                            <option value="Bottom" {% if paper.component_type == 'Bottom' %}selected{% endif %}>Bottom</option>
-                                                            <option value="Corru" {% if paper.component_type == 'Corru' %}selected{% endif %}>Corru</option>
-                                                        </select>
-                                                    </div>
-                                                    <div class="mb-2">
-                                                        <label class="form-label fw-bold">Excess Weight (kg)</label>
-                                                        <input type="number" step="0.1" name="excess_weight" class="form-control" value="{{ paper.excess_weight }}">
-                                                    </div>
-                                                </div>
-                                                <div class="modal-footer">
-                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                                    <button type="submit" class="btn btn-primary fw-bold">Save Changes</button>
-                                                </div>
-                                            </form>
                                         </div>
-                                    </div>
+                                        {% endfor %}
                                     {% endfor %}
                                 </tbody>
                             </table>
@@ -263,28 +287,26 @@
     }
 
     function calculateSRWeight() {
-    let w = parseFloat(document.getElementById('board_width').value) || 0.0;
-    let l = parseFloat(document.getElementById('board_length').value) || 0.0;
-    let gsm = parseFloat(document.getElementById('gsm').value) || 0.0;
-    let qty = parseInt(document.getElementById('qty').value) || 0;
-    let cartoon_amt = parseFloat(document.getElementById('cartoon_amount').value) || 1.0; // නව අගය
-    let excess = parseFloat(document.getElementById('excess_weight').value) || 0.0;
+        let w = parseFloat(document.getElementById('board_width').value) || 0.0;
+        let l = parseFloat(document.getElementById('board_length').value) || 0.0;
+        let gsm = parseFloat(document.getElementById('gsm').value) || 0.0;
+        let qty = parseInt(document.getElementById('qty').value) || 0;
+        let cartoon_amt = parseFloat(document.getElementById('cartoon_amount').value) || 1.0;
+        let excess = parseFloat(document.getElementById('excess_weight').value) || 0.0;
 
-    let componentType = document.querySelector('input[name="component_type"]:checked').value;
+        let componentType = document.querySelector('input[name="component_type"]:checked').value;
 
-    // නව සමීකරණය: (Board width * Board length * (GSM/1000) / Amount of Cartoon) * Qty
-    let baseWeight = ((w * l) * (gsm / 1000.0) / cartoon_amt) * qty;
+        let baseWeight = ((w * l) * (gsm / 1000.0) / cartoon_amt) * qty;
 
-    // Corru නම් 1.5 න් ගුණ කිරීම, අනෙක්වා (Top/Bottom) සඳහා 1 න් ගුණ කිරීම (එනම් එලෙසම තැබීම)
-    if (componentType === 'Corru') {
-        baseWeight = baseWeight * 1.5;
+        if (componentType === 'Corru') {
+            baseWeight = baseWeight * 1.5;
+        }
+
+        let finalTotal = baseWeight + excess;
+
+        document.getElementById('baseWeightLabel').innerText = baseWeight.toFixed(2);
+        document.getElementById('totalWeightDisplay').innerText = finalTotal.toFixed(2) + " kg";
     }
-
-    let finalTotal = baseWeight + excess;
-
-    document.getElementById('baseWeightLabel').innerText = baseWeight.toFixed(2);
-    document.getElementById('totalWeightDisplay').innerText = finalTotal.toFixed(2) + " kg";
-}
 
     document.addEventListener("DOMContentLoaded", function() {
         toggleFlute();
