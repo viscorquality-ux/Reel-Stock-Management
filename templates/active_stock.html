@@ -257,7 +257,6 @@
         document.getElementById('dynWeight').innerText = totalWeight.toFixed(2);
     }
 
-    // Step by step Multi-filtering engine
     document.getElementById('stepSearchInput').addEventListener('input', function() {
         let keywords = this.value.toLowerCase().trim().split(/\s+/);
         let activePane = document.querySelector('.tab-pane.active');
@@ -279,7 +278,6 @@
         calculateDynamicTotals();
     });
 
-    // Recalculate dynamic values when shifting tabs
     document.querySelectorAll('button[data-bs-toggle="tab"]').forEach(tabBtn => {
         tabBtn.addEventListener('shown.bs.tab', function () {
             document.getElementById('stepSearchInput').value = ""; 
