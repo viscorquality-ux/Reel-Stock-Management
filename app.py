@@ -215,7 +215,23 @@ def mark_damage_sell(id):
     db.session.commit()
     flash(f"✅ Reel {reel.reel_number} marked as {action_type}!", "success")
     return redirect(url_for('active_stock'))
-
+@app.route('/mark_finished/<int:id>', methods=['POST'])
+def mark_finished(id):
+    reel = Reel.query.get_or_404(id)
+    reel.status = 'Issued' # අවසන් වී ඇති බැවින් තත්ත්වය සලකුණු කරයි
+    
+    # Finished Log එකට එකතු කිරීම
+    db.session.add(ReelHistory(
+        reel_id=reel.id,
+        usage_type='Finished Usage',
+        weight_before=reel.current_weight,
+        weight_after=0.0,
+        remarks=f"Reel {reel.reel_number} fully consumed."
+    ))
+    db.session.commit()
+    flash(f"✅ Reel {reel.reel_number} marked as Finished!", "success")
+    return redirect(url_for('finished_usage_stock'))
+    
 @app.route('/mark_return/<int:id>', methods=['POST'])
 def mark_return(id):
     if get_user_role() in ['super1', 'super2']:
