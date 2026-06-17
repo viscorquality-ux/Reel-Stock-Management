@@ -53,7 +53,7 @@
                                 <th>Reel Number</th>
                                 <th>Paper Name</th>
                                 <th>Weight (kg)</th>
-                                <th>Doc Number</th>
+                                <th>Doc Number (SR Number)</th>
                                 <th>Warehouse Location</th>
                                 <th>Actions</th>
                             </tr>
@@ -63,19 +63,17 @@
                                 {% for stock in stocks %}
                                 <tr>
                                     <td class="fw-bold text-primary">{{ stock.reel_number }}</td>
-                                    <td><span class="badge bg-secondary">{{ stock.reel_type }}</span></td>
+                                    <td><span class="badge bg-secondary">{{ stock.material_name }}</span></td>
                                     <td class="fw-bold">{{ stock.weight_kg }} kg</td>
-                                    <td>{{ stock.gate_pass_number or stock.sr_number or 'N/A' }}</td>
-                                    <td>{{ stock.location }}</td>
+                                    <td class="fw-bold text-success">{{ stock.associated_sr.sr_number if stock.associated_sr else (stock.history[-1].doc_number if stock.history else 'N/A') }}</td>
+                                    <td>{{ stock.store_location }}</td>
                                     <td>
                                         <div class="d-flex justify-content-center gap-2">
-                                            <!-- Partial Return Button (Disabled for super1, super2) -->
                                             {% if user_role not in ['programmer1', 'programmer2', 'super1', 'super2'] %}
                                             <button class="btn btn-sm btn-warning fw-bold" data-bs-toggle="modal" data-bs-target="#partialModal{{ stock.id }}">Partial Return</button>
                                               {% endif %}
                                             
-                                            <!-- Mark as Finished Button (Disabled for super1, super2) -->
-                                            <form action="{{ url_for('finish_reel', id=stock.id) }}" method="POST" style="display:inline;">
+                                            <form action="/finish_reel/{{ stock.id }}" method="POST" style="display:inline;">
                                                 <button type="submit" class="btn btn-sm btn-success fw-bold" {% if session.get('role') in ['super1', 'super2'] %}disabled title="Super users cannot perform actions"{% endif %}>
                                                     <i class="bi bi-check-all"></i> Mark Finished
                                                 </button>
@@ -94,12 +92,11 @@
         </div>
     </div>
 
-    <!-- MODALS SECTION -->
     {% if stocks %}
         {% for stock in stocks %}
         <div class="modal fade" id="partialModal{{ stock.id }}" tabindex="-1" aria-labelledby="partialModalLabel{{ stock.id }}" aria-hidden="true">
             <div class="modal-dialog">
-                <form action="{{ url_for('partial_return', id=stock.id) }}" method="POST" class="modal-content">
+                <form action="/partial_return/{{ stock.id }}" method="POST" class="modal-content">
                     <div class="modal-header bg-warning text-dark">
                         <h5 class="modal-title fw-bold" id="partialModalLabel{{ stock.id }}"><i class="bi bi-arrow-return-left"></i> Partial Return: {{ stock.reel_number }}</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
