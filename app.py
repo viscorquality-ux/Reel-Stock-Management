@@ -152,6 +152,10 @@ def add_stock():
             else:
                 rcv_date = datetime.now(colombo_tz).date()
 
+            # Radio button එකෙන් status එක ලබා ගැනීම (Used Reel තේරුවහොත් Used ලෙසත් නැතහොත් Full ලෙසත්)
+            status_input = request.form.get('status')
+            reel_status = 'Used' if status_input == 'Used Reel' else 'Full'
+
             new_reel = Reel(
                 reel_number=reel_num,
                 size_cm=float(request.form.get('size_cm')),
@@ -160,6 +164,7 @@ def add_stock():
                 reel_type=request.form.get('reel_type'),
                 weight_kg=float(request.form.get('weight_kg')),
                 current_weight=float(request.form.get('weight_kg')),
+                status=reel_status, # අලුත් තත්වය ලබා දීම
                 store_location=request.form.get('store_location'),
                 supplier_name=request.form.get('supplier_name'),
                 received_date=rcv_date
@@ -184,7 +189,6 @@ def active_stock():
     
     return render_template('active_stock.html', full_reels=full_reels, used_reels=used_reels, sr_requested_reels=sr_requested_reels, user_role=user_role)
 
-# --- නව Active Stock Action Routes ---
 @app.route('/edit_active_reel/<int:id>', methods=['POST'])
 def edit_active_reel(id):
     if get_user_role() in ['super1', 'super2']:
@@ -219,11 +223,11 @@ def mark_return(id):
         return redirect(url_for('active_stock'))
         
     reel = Reel.query.get_or_404(id)
-    reel.status = 'Returned'
+    # අලුත් Return ක්‍රියාවලිය (Packwell Return වෙත යැවීම)
+    reel.status = 'Pending_Return'
     db.session.commit()
-    flash(f"✅ Reel {reel.reel_number} has been Returned!", "success")
+    flash(f"✅ Reel {reel.reel_number} has been sent to Packwell Returns for verification!", "success")
     return redirect(url_for('active_stock'))
-# ----------------------------------------
 
 @app.route('/sr_request', methods=['GET', 'POST'])
 def sr_request():
@@ -249,7 +253,6 @@ def sr_request():
             excess_w = float(request.form.get('excess_weight', 0.0))
             tot_weight = calc_weight + excess_w
             
-            # Auto Generate SR Number
             new_sr_num = f"SR-{datetime.now(colombo_tz).strftime('%Y%m%d%H%M')}-{random.randint(10,99)}"
             
             new_sr = SRRequest(
@@ -286,7 +289,6 @@ def sr_request():
 
     return render_template('sr_request.html', all_requests=all_requests, grouped_requests=grouped_requests, user_role=user_role)
 
-# --- නව Programmer Edit SR Route ---
 @app.route('/edit_sr/<int:id>', methods=['POST'])
 def edit_sr(id):
     user_role = get_user_role()
@@ -319,7 +321,6 @@ def edit_sr(id):
     db.session.commit()
     flash(f"✅ SR Request {sr.sr_number} Edited Successfully!", "success")
     return redirect(url_for('sr_request'))
-# -----------------------------------
 
 @app.route('/approve_sr/<int:id>', methods=['POST'])
 def approve_sr(id):
@@ -376,7 +377,6 @@ def proceed_sr(id):
     flash(f"🚀 FIFO Allocation Completed! Reels moved to Active Stock (SR Requested Mini Tab).", "success")
     return redirect(url_for('active_stock'))
 
-# --- නව Direct Issue Route (SR Requested සිට Issued Stock එකට) ---
 @app.route('/issue_reel_direct/<int:id>', methods=['POST'])
 def issue_reel_direct(id):
     user_role = get_user_role()
@@ -403,11 +403,9 @@ def issue_reel_direct(id):
         flash(f"✅ Reel {reel.reel_number} successfully Issued! SR Number ({sr_num}) automatically applied.", "success")
         
     return redirect(url_for('active_stock'))
-# -------------------------------------------------------------
 
 @app.route('/issue_reel/<int:id>', methods=['POST'])
 def issue_reel(id):
-    # පරණ issue function එක Damaged ඒවාට භාවිත වේ
     user_role = get_user_role()
     if user_role in ['programmer1', 'programmer2', 'super1', 'super2']:
         flash("❌ Access Denied.", "danger")
@@ -440,7 +438,31 @@ def viscor_issue():
     user_role = get_user_role()
     viscor_reels = Reel.query.filter_by(status='Pending_Verify', store_location='Viscor Lanka').all()
     packwell_reels = Reel.query.filter(Reel.status == 'Pending_Verify', Reel.store_location.like('Packwell%')).all()
-    return render_template('viscor_issue.html', reels=viscor_reels, packwell_reels=packwell_reels, user_role=user_role)
+    
+    # අලුත් Packwell Return Tab එක සඳහා
+    packwell_returns = Reel.query.filter_by(status='Pending_Return').all()
+    
+    return render_template('viscor_issue.html', reels=viscor_reels, packwell_reels=packwell_reels, packwell_returns=packwell_returns, user_role=user_role)
+
+@app.route('/accept_return/<int:id>', methods=['POST'])
+def accept_return(id):
+    user_role = get_user_role()
+    if user_role not in ['dataop2', 'admin']:
+        flash("❌ Unauthorized Action. Only DataOp2 can accept Packwell Returns.", "danger")
+        return redirect(url_for('viscor_issue'))
+        
+    reel = Reel.query.get_or_404(id)
+    new_loc = request.form.get('accept_location')
+    
+    if new_loc:
+        reel.store_location = new_loc
+    
+    # බර අනුව Full ද Used ද යන්න තීරණය කිරීම
+    reel.status = 'Used' if reel.current_weight < reel.weight_kg else 'Full'
+    
+    db.session.commit()
+    flash(f"✅ Reel {reel.reel_number} Accepted & Moved to Active Stock at {new_loc}!", "success")
+    return redirect(url_for('viscor_issue'))
 
 @app.route('/accept_viscor/<int:id>', methods=['POST'])
 def accept_viscor(id):
@@ -466,7 +488,7 @@ def accept_packwell(id):
         reel.store_location = new_loc
     reel.status = 'Used' if reel.current_weight < reel.weight_kg else 'Full'
     db.session.commit()
-    flash(f"✅ Reel {reel.reel_number} Returned & Accepted at {new_loc}!", "success")
+    flash(f"✅ Reel {reel.reel_number} Verified & Accepted at {new_loc}!", "success")
     return redirect(url_for('viscor_issue'))
 
 @app.route('/partial_return/<int:id>', methods=['POST'])
@@ -505,7 +527,7 @@ def partial_return(id):
 def issued_stock():
     if 'role' not in session: return redirect(url_for('login'))
     reels = Reel.query.filter_by(status='Issued').order_by(Reel.id.desc()).all()
-    return render_template('issued_stock.html', stocks=reels, user_role=get_user_role()) # Fixed parameter names
+    return render_template('issued_stock.html', stocks=reels, user_role=get_user_role()) 
 
 @app.route('/finished_usage_stock')
 def finished_usage_stock():
@@ -516,22 +538,12 @@ def finished_usage_stock():
 @app.route('/damage_sell_stock')
 def damage_sell_stock():
     if 'role' not in session: return redirect(url_for('login'))
-    reels = Reel.query.filter(Reel.status.in_(['Damaged', 'Sold', 'Returned'])).all() # Added Returned mapping here optionally
-    return render_template('damage_sell_stock.html', reels=reels, user_role=get_user_role())
-
-@app.route('/update_location/<int:id>', methods=['POST'])
-def update_location(id):
-    user_role = get_user_role()
-    if user_role in ['super1', 'super2']:
-        flash("❌ Action Not Allowed.", "danger")
-        return redirect(url_for('active_stock'))
-    reel = Reel.query.get_or_404(id)
-    new_loc = request.form.get('location')
-    if new_loc:
-        reel.store_location = new_loc
-        db.session.commit()
-        flash("📍 Location Updated.", "success")
-    return redirect(url_for('active_stock'))
+    reels = Reel.query.filter(Reel.status.in_(['Damaged', 'Sold', 'Returned'])).all()
+    
+    # අලුත් Conditional Issue History ලබා ගැනීම
+    cond_issued_logs = ReelHistory.query.filter_by(usage_type='Conditional Issue (Damaged)').order_by(ReelHistory.timestamp.desc()).all()
+    
+    return render_template('damage_sell_stock.html', reels=reels, cond_issued_logs=cond_issued_logs, user_role=get_user_role())
 
 @app.route('/reset_db_now')
 def reset_db_now():
@@ -541,7 +553,7 @@ def reset_db_now():
         db.session.execute(text('SET FOREIGN_KEY_CHECKS = 1;'))
         db.create_all()
         db.session.commit()
-        return "✅ Database Updated Successfully (Force Reset Applied)! All new columns (SR Number included) are ready. <br><br> <a href='/'>Click Here to go back to Login Page</a>"
+        return "✅ Database Updated Successfully (Force Reset Applied)! All new columns are ready. <br><br> <a href='/'>Click Here to go back to Login Page</a>"
     except Exception as e:
         db.session.rollback()
         return f"❌ Error resetting database: {str(e)}"
