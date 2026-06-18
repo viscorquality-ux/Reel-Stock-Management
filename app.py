@@ -607,7 +607,7 @@ def reset_db_now():
 import pandas as pd
 import math
 
-st.set_page_config(page_title="Stock & SR Management", layout="wide")
+#st.set_page_config(page_title="Stock & SR Management", layout="wide")
 
 # --- සැබෑ සිස්ටම් එකේදී මෙය ඔබේ Database එකෙන් පැමිණිය යුතුයි ---
 def get_stock_data():
