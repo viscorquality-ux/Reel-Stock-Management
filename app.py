@@ -606,9 +606,119 @@ def reset_db_now():
     except Exception as e:
         db.session.rollback()
         return f"❌ Error resetting database: {str(e)}"
-import streamlit as st
-import pandas as pd
-import math
+# 1. මෙය අනිවාර්යයෙන්ම ඉහළින්ම තිබිය යුතුයි (කිසිදු වෙනසක් නොකරන්න)
+st.set_page_config(page_title="Stock & SR Management", layout="wide")
+
+# 2. දත්ත පද්ධතිය (ඔබේ සැබෑ Database එකක් ඇත්නම් පසුව මෙයට සම්බන්ධ කරන්න)
+def get_stock_data():
+    return pd.DataFrame({
+        "Stock_ID": ["STK-1", "STK-2", "STK-3", "STK-4", "STK-5"],
+        "Reel_Size": [1000, 1200, 1200, 1400, 1200], 
+        "Material": ["Kraft Liner", "Fluting", "Testliner", "Kraft Liner", "White Top"],
+        "GSM": [150, 120, 140, 150, 130],
+        "Total_Weight_Kg": [1250, 1050, 1100, 1300, 950],
+        "Reel_Count": [2, 4, 3, 5, 2]
+    })
+
+# 3. Session State සැකසීම
+if 'sr_requests' not in st.session_state:
+    st.session_state.sr_requests = []
+
+st.title("🏭 Reel Stock & SR Request System")
+
+# 4. URL එකෙන් දත්ත ලබා ගැනීම (Planner එකෙන් එන Data අල්ලා ගැනීම)
+query_params = st.query_params
+
+if "reel" in query_params and "po" in query_params:
+    inc_reel = int(query_params["reel"])
+    inc_po = query_params["po"]
+    inc_qty = int(query_params["qty"])
+    
+    # අමතර 6% ක ප්‍රමාණයක් එකතු කිරීම (Buffer)
+    buffer_qty = math.ceil(inc_qty * 1.06)
+    
+    st.success(f"📥 Received from Planner! PO: **{inc_po}** | Target Reel: **{inc_reel}mm**")
+    st.info(f"Original Qty: {inc_qty} | **Final SR Qty (+6% Buffer): {buffer_qty}**")
+    
+    st.subheader(f"Step 1: Active Stock Filtered by {inc_reel}mm")
+    
+    # අදාළ Reel Size එකට පමණක් Active Stock ෆිල්ටර් කිරීම
+    all_stock = get_stock_data()
+    filtered_stock = all_stock[all_stock["Reel_Size"] == inc_reel]
+    
+    if filtered_stock.empty:
+        st.error(f"No stock available for {inc_reel}mm!")
+    else:
+        with st.form("sr_allocation_form"):
+            sh1, sh2, sh3, sh4, sh5 = st.columns([3, 1, 2, 2, 3])
+            sh1.write("**Material**")
+            sh2.write("**GSM**")
+            sh3.write("**Total Weight**")
+            sh4.write("**Reel Count**")
+            sh5.write("**Assign (T / B / C)**")
+            st.markdown("---")
+            
+            allocations = {}
+            for idx, row in filtered_stock.iterrows():
+                c1, c2, c3, c4, c5 = st.columns([3, 1, 2, 2, 3])
+                c1.write(row["Material"])
+                c2.write(row["GSM"])
+                c3.write(f"{row['Total_Weight_Kg']} Kg")
+                c4.write(row["Reel_Count"])
+                
+                with c5:
+                    # Tick 3ක් දැමීම (T/B/C)
+                    tc1, tc2, tc3 = st.columns(3)
+                    t = tc1.checkbox("T", key=f"T_{row['Stock_ID']}")
+                    b = tc2.checkbox("B", key=f"B_{row['Stock_ID']}")
+                    c = tc3.checkbox("C", key=f"C_{row['Stock_ID']}")
+                    
+                    assigned = []
+                    if t: assigned.append("Top")
+                    if b: assigned.append("Bottom")
+                    if c: assigned.append("Corrugation")
+                    
+                    if assigned:
+                        allocations[row["Material"]] = assigned
+            
+            if st.form_submit_button("Generate SR Request"):
+                if not allocations:
+                    st.error("Please assign at least one material (T/B/C)!")
+                else:
+                    st.session_state.sr_requests.append({
+                        "PO": inc_po,
+                        "Reel_Size": inc_reel,
+                        "Req_Qty": buffer_qty,
+                        "Details": allocations
+                    })
+                    st.success("SR Request Generated Successfully!")
+
+st.write("---")
+
+# 5. අවසාන SR Report එක පෙන්වීම
+st.subheader("📑 Final SR Reports (Grouped by Reel Size)")
+
+if not st.session_state.sr_requests:
+    st.write("No SR requests yet.")
+else:
+    df_sr = pd.DataFrame(st.session_state.sr_requests)
+    grouped = df_sr.groupby("Reel_Size")
+    
+    for reel_size, group in grouped:
+        st.markdown(f"### 📦 Reel Size: {reel_size} mm")
+        
+        report_data = []
+        for _, row in group.iterrows():
+            for mat, roles in row["Details"].items():
+                report_data.append({
+                    "PO Number": row["PO"],
+                    "Quantity": row["Req_Qty"],
+                    "Assigned Material": mat,
+                    "Usage (T/B/C)": ", ".join(roles)
+                })
+        
+        # ලස්සනට Table එකක් ලෙස පෙන්වීම
+        st.table(pd.DataFrame(report_data))
 
 if __name__ == '__main__':
     with app.app_context():
