@@ -55,7 +55,8 @@ class SRRequest(db.Model):
     excess_weight = db.Column(db.Float, default=0.0)
     total_weight = db.Column(db.Float, nullable=False)
     status = db.Column(db.String(50), default='Pending')
-    warehouse = db.Column(db.String(50), default='Any') # නව Location Column එක
+    warehouse = db.Column(db.String(100), nullable=False, default='Viscor Lanka') # අලුත් Column
+    is_printed = db.Column(db.Boolean, default=False) # අලුත් Column
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(colombo_tz))
     reels = db.relationship('Reel', backref='associated_sr', lazy=True)
 
@@ -124,7 +125,7 @@ def dashboard():
     used_count = Reel.query.filter_by(status='Used').count()
     sr_req_count = Reel.query.filter_by(status='SR_Requested').count()
     
-    finished = Reel.query.filter_by(status='Finished').count()
+    finished = Reel.query.filter_by(status='Issued').count()
     damage_sell = Reel.query.filter(Reel.status.in_(['Damaged', 'Sold'])).count()
     active_weight = 0
     
@@ -217,27 +218,6 @@ def mark_damage_sell(id):
     flash(f"✅ Reel {reel.reel_number} marked as {action_type}!", "success")
     return redirect(url_for('active_stock'))
 
-@app.route('/finish_reel/<int:id>', methods=['POST'])
-def finish_reel(id):
-    reel = Reel.query.get_or_404(id)
-    old_weight = reel.current_weight
-    reel.status = 'Finished'
-    reel.current_weight = 0.0
-    
-    sr_num_disp = reel.associated_sr.sr_number if reel.associated_sr else 'N/A'
-    
-    db.session.add(ReelHistory(
-        reel_id=reel.id,
-        usage_type='Finished Usage',
-        weight_before=old_weight,
-        weight_after=0.0,
-        doc_number=sr_num_disp,
-        remarks=f"Reel {reel.reel_number} fully consumed."
-    ))
-    db.session.commit()
-    flash(f"✅ Reel {reel.reel_number} marked as Finished and moved to Finished/Usage Logs!", "success")
-    return redirect(url_for('issued_stock'))
-    
 @app.route('/mark_return/<int:id>', methods=['POST'])
 def mark_return(id):
     if get_user_role() in ['super1', 'super2']:
@@ -267,6 +247,7 @@ def sr_request():
             gsm = int(request.form.get('gsm', 0))
             qty = int(request.form.get('qty', 0))
             comp_type = request.form.get('component_type')
+            warehouse_input = request.form.get('warehouse')
             
             calc_weight = ((b_width * b_length) * (gsm / 1000.0)) / cartoon_amt * qty
             if comp_type == 'Corru':
@@ -276,13 +257,6 @@ def sr_request():
             tot_weight = calc_weight + excess_w
             
             new_sr_num = f"SR-{datetime.now(colombo_tz).strftime('%Y%m%d%H%M')}-{random.randint(10,99)}"
-            
-            # Location restriction assignment
-            wh = 'Any'
-            if user_role == 'programmer1': wh = 'Viscor Lanka'
-            elif user_role == 'programmer2': wh = 'Packwell'
-            elif user_role == 'dataop1': wh = 'Viscor Lanka'
-            elif user_role == 'dataop2': wh = 'Packwell'
             
             new_sr = SRRequest(
                 sr_number=new_sr_num,
@@ -299,37 +273,44 @@ def sr_request():
                 flute_type=request.form.get('flute_type'),
                 excess_weight=excess_w,
                 total_weight=round(tot_weight, 2),
-                warehouse=wh
+                warehouse=warehouse_input,
+                is_printed=False
             )
             db.session.add(new_sr)
             db.session.commit()
-            flash(f"📊 SR Request Logged Successfully! Assigned SR Number: {new_sr_num} (Target: {wh})", "success")
+            flash(f"📊 SR Request Logged Successfully! Assigned SR Number: {new_sr_num}", "success")
         except Exception as e:
             db.session.rollback()
             flash(f"Error logging request: {str(e)}", "danger")
             
-    all_requests = SRRequest.query.order_by(SRRequest.created_at.desc()).all()
+    # Location Filter (Super1 -> Viscor, Super2 -> Packwell)
+    query = SRRequest.query.filter(SRRequest.status.in_(['Pending', 'Approved']))
+    if user_role == 'super1':
+        query = query.filter(SRRequest.warehouse == 'Viscor Lanka')
+    elif user_role == 'super2':
+        query = query.filter(SRRequest.warehouse.like('Packwell%'))
+        
+    all_requests = query.order_by(SRRequest.created_at.desc()).all()
     grouped_requests = {}
     
     for r in all_requests:
-        if r.status in ['Pending', 'Approved']:
-            size = r.reel_size
-            if size not in grouped_requests:
-                grouped_requests[size] = { 'po_list': set(), 'groups': {} }
-                
-            grouped_requests[size]['po_list'].add(r.po_number)
+        size = r.reel_size
+        if size not in grouped_requests:
+            grouped_requests[size] = { 'po_list': set(), 'groups': {} }
             
-            group_key = f"{r.material_name}_{r.gsm}"
-            if group_key not in grouped_requests[size]['groups']:
-                grouped_requests[size]['groups'][group_key] = {
-                    'material_name': r.material_name,
-                    'gsm': r.gsm,
-                    'total_weight': 0.0,
-                    'srs': []
-                }
-                
-            grouped_requests[size]['groups'][group_key]['total_weight'] += r.total_weight
-            grouped_requests[size]['groups'][group_key]['srs'].append(r)
+        grouped_requests[size]['po_list'].add(r.po_number)
+        
+        group_key = f"{r.material_name}_{r.gsm}"
+        if group_key not in grouped_requests[size]['groups']:
+            grouped_requests[size]['groups'][group_key] = {
+                'material_name': r.material_name,
+                'gsm': r.gsm,
+                'total_weight': 0.0,
+                'srs': []
+            }
+            
+        grouped_requests[size]['groups'][group_key]['total_weight'] += r.total_weight
+        grouped_requests[size]['groups'][group_key]['srs'].append(r)
 
     return render_template('sr_request.html', all_requests=all_requests, grouped_requests=grouped_requests, user_role=user_role)
 
@@ -349,6 +330,7 @@ def edit_sr(id):
     comp_type = request.form.get('component_type', sr.component_type)
     excess_w = float(request.form.get('excess_weight', sr.excess_weight))
     cartoon_amt = float(request.form.get('cartoon_amount', sr.cartoon_amount))
+    warehouse_input = request.form.get('warehouse', sr.warehouse)
     
     calc_weight = ((b_width * b_length) * (gsm / 1000.0)) / cartoon_amt * qty
     if comp_type == 'Corru':
@@ -361,6 +343,7 @@ def edit_sr(id):
     sr.cartoon_amount = cartoon_amt
     sr.component_type = comp_type
     sr.excess_weight = excess_w
+    sr.warehouse = warehouse_input
     sr.calculated_weight = round(calc_weight, 2)
     sr.total_weight = round(calc_weight + excess_w, 2)
     
@@ -371,85 +354,80 @@ def edit_sr(id):
 @app.route('/approve_sr/<int:id>', methods=['POST'])
 def approve_sr(id):
     user_role = get_user_role()
-    if user_role in ['programmer1', 'programmer2']:
-        flash("❌ Unauthorized Action.", "danger")
+    
+    # Block dataop1 and dataop2 from approving
+    if user_role in ['programmer1', 'programmer2', 'dataop1', 'dataop2']:
+        flash("❌ Unauthorized Action: You do not have permission to approve.", "danger")
         return redirect(url_for('sr_request'))
+        
     sr = SRRequest.query.get_or_404(id)
+    
+    # Location restriction validation just to be fully secure
+    if user_role == 'super1' and sr.warehouse != 'Viscor Lanka':
+        flash("❌ Unauthorized: You can only approve Viscor Lanka requests.", "danger")
+        return redirect(url_for('sr_request'))
+    if user_role == 'super2' and not sr.warehouse.startswith('Packwell'):
+        flash("❌ Unauthorized: You can only approve Packwell requests.", "danger")
+        return redirect(url_for('sr_request'))
+        
     if sr.status == 'Pending':
         sr.status = 'Approved'
         db.session.commit()
         flash(f"✅ SR Request for PO {sr.po_number} has been Approved!", "success")
     return redirect(url_for('sr_request'))
 
-@app.route('/proceed_sr_batch', methods=['POST'])
-def proceed_sr_batch():
+@app.route('/mark_printed/<int:id>', methods=['POST'])
+def mark_printed(id):
+    sr = SRRequest.query.get_or_404(id)
+    if sr.status == 'Approved':
+        sr.is_printed = True
+        db.session.commit()
+    return '', 204 # Return empty so fetch() resolves cleanly without reload redirect
+
+@app.route('/proceed_sr/<int:id>', methods=['POST'])
+def proceed_sr(id):
     user_role = get_user_role()
-    if user_role not in ['dataop1', 'dataop2', 'admin']:
+    if user_role in ['programmer1', 'programmer2', 'super1', 'super2']:
         flash("❌ Unauthorized Action.", "danger")
         return redirect(url_for('sr_request'))
-
-    mat_name = request.form.get('material_name')
-    gsm = int(request.form.get('gsm', 0))
-    size = float(request.form.get('reel_size', 0.0))
-
-    approved_srs = SRRequest.query.filter_by(
-        material_name=mat_name, 
-        gsm=gsm, 
-        reel_size=size, 
-        status='Approved'
-    ).all()
-
-    # Filter based on authorized location for the user
-    if user_role == 'dataop1':
-        approved_srs = [sr for sr in approved_srs if sr.warehouse in ['Viscor Lanka', 'Any']]
-    elif user_role == 'dataop2':
-        approved_srs = [sr for sr in approved_srs if sr.warehouse in ['Packwell', 'Any']]
-    
-    if not approved_srs:
-        flash("❌ No valid Approved SRs found for your authorized location in this batch.", "warning")
+        
+    sr = SRRequest.query.get_or_404(id)
+    if sr.status != 'Approved':
+        flash("❌ SR Request must be Approved first.", "warning")
         return redirect(url_for('sr_request'))
-
-    total_needed = sum(sr.total_weight for sr in approved_srs)
-    
-    # Filter available active stock
-    reel_query = Reel.query.filter(
-        Reel.size_cm == size,
-        Reel.material_name == mat_name,
-        Reel.gsm == gsm,
-        Reel.status.in_(['Full', 'Used'])
-    )
-    
-    if user_role == 'dataop1':
-        reel_query = reel_query.filter(Reel.store_location == 'Viscor Lanka')
-    elif user_role == 'dataop2':
-        reel_query = reel_query.filter(Reel.store_location.like('Packwell%'))
-
-    available_reels = reel_query.order_by(text("FIELD(status, 'Used', 'Full')"), Reel.received_date.asc()).all()
-
+        
+    if not sr.is_printed:
+        flash("❌ ERROR: SR Request must be PRINTED before it can be processed.", "danger")
+        return redirect(url_for('sr_request'))
+        
+    target_weight = sr.total_weight
     allocated_weight = 0.0
     matched_reels = []
-
+    
+    available_reels = Reel.query.filter(
+        Reel.size_cm == sr.reel_size,
+        Reel.gsm == sr.gsm,
+        Reel.material_name == sr.material_name,
+        Reel.status.in_(['Full', 'Used'])
+    ).order_by(text("FIELD(status, 'Full', 'Used')"), Reel.received_date.asc()).all()
+    
     for reel in available_reels:
-        if allocated_weight >= total_needed:
+        if allocated_weight >= target_weight:
             break
         matched_reels.append(reel)
         allocated_weight += reel.current_weight
-
-    if allocated_weight < total_needed:
-        flash(f"❌ ප්‍රමාණවත් තොග නොමැත! අවශ්‍යයි: {round(total_needed, 2)}kg, තිබෙන්නේ: {round(allocated_weight, 2)}kg", "danger")
+        
+    if allocated_weight < target_weight:
+        flash(f"❌ ප්‍රමාණවත් සක්‍රීය තොග නොමැත! අවශ්‍යයි: {target_weight}kg, තිබෙන්නේ: {allocated_weight}kg", "danger")
         return redirect(url_for('sr_request'))
-
-    # Process and Map
-    primary_sr = approved_srs[0]
+        
     for reel in matched_reels:
         reel.status = 'SR_Requested'
-        reel.sr_request_id = primary_sr.id
-    
-    for sr in approved_srs:
-        sr.status = 'Processed'
+        reel.sr_request_id = sr.id
         
+    sr.status = 'Processed'
     db.session.commit()
-    flash(f"🚀 Batch Processing Completed! {len(matched_reels)} Reels assigned based on Total Weight ({round(total_needed, 2)}kg).", "success")
+    flash(f"🚀 FIFO Allocation Completed! Reels moved to Active Stock (SR Requested Mini Tab).", "success")
     return redirect(url_for('active_stock'))
 
 @app.route('/issue_reel_direct/<int:id>', methods=['POST'])
@@ -580,7 +558,6 @@ def partial_return(id):
         reel.status = 'Used'
         reel.sr_request_id = None
         
-        # මෙය Finished / Usage ටැබ් එකේ දර්ශනය වීම සඳහා
         db.session.add(ReelHistory(
             reel_id=reel.id,
             usage_type='Partial Return',
@@ -604,49 +581,8 @@ def issued_stock():
 @app.route('/finished_usage_stock')
 def finished_usage_stock():
     if 'role' not in session: return redirect(url_for('login'))
-    
-    start_date = request.args.get('start_date')
-    end_date = request.args.get('end_date')
-    
-    finished_reels = Reel.query.filter_by(status='Finished').order_by(Reel.id.desc()).all()
-    total_finished_weight = sum(r.weight_kg for r in finished_reels)
-    
-    usage_logs = ReelHistory.query.filter(ReelHistory.usage_type.in_(['Partial Return', 'Finished Usage'])).order_by(ReelHistory.timestamp.desc()).all()
-    
-    # Template එකට අවශ්‍ය පරිදි දත්ත සකස් කිරීම
-    for r in finished_reels:
-        r.paper_name = r.material_name
-        hist = ReelHistory.query.filter_by(reel_id=r.id, usage_type='Finished Usage').first()
-        r.sr_number_display = r.associated_sr.sr_number if r.associated_sr else (hist.doc_number if hist and hist.doc_number else 'N/A')
-        r.updated_at = hist.timestamp if hist else r.received_date
-
-    total_used_weight_log = 0.0
-    for log in usage_logs:
-        log.action_type = log.usage_type
-        log.usage_details = log.remarks
-        log.weight_used = round(log.weight_before - log.weight_after, 2)
-        total_used_weight_log += log.weight_used
-
-    return render_template('finished_usage_stock.html', 
-                           finished_reels=finished_reels, 
-                           usage_logs=usage_logs,
-                           total_finished_weight=round(total_finished_weight, 2),
-                           total_used_weight_log=round(total_used_weight_log, 2),
-                           start_date=start_date, end_date=end_date,
-                           user_role=get_user_role())
-
-@app.route('/update_finished_sr/<int:id>', methods=['POST'])
-def update_finished_sr(id):
-    reel = Reel.query.get_or_404(id)
-    new_sr = request.form.get('sr_number', '').strip()
-    hist = ReelHistory.query.filter_by(reel_id=reel.id, usage_type='Finished Usage').first()
-    if hist:
-        hist.doc_number = new_sr
-        db.session.commit()
-        flash("SR Number updated.", "success")
-    else:
-        flash("Could not update SR Number. Log not found.", "danger")
-    return redirect(url_for('finished_usage_stock'))
+    reels = Reel.query.filter_by(status='Issued').all()
+    return render_template('finished_usage_stock.html', reels=reels, user_role=get_user_role())
 
 @app.route('/damage_sell_stock')
 def damage_sell_stock():
