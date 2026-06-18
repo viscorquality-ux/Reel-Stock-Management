@@ -149,9 +149,8 @@
                     <div class="card-body bg-white p-3 rounded">
                         <div class="mb-2"><strong>1. PO Numbers - </strong> <span class="badge bg-dark">{{ info.po_list|join(', ') }}</span></div>
                         <div class="mb-2"><strong>2. Reel Size - </strong> <span class="badge bg-primary text-white">{{ size }} cm</span></div>
-                        <div class="mt-2"><strong>3. Table Matrix Details:</strong></div>
                         
-                        <div class="table-responsive mt-1">
+                        <div class="table-responsive mt-3">
                             <table class="table table-bordered table-sm align-middle mb-0 text-center">
                                 <thead class="table-light small">
                                     <tr>
@@ -159,7 +158,7 @@
                                         <th>GSM</th>
                                         <th>Board Specs</th>
                                         <th>Total Target W.</th>
-                                        <th>Status</th>
+                                        <th>Status / Location</th>
                                         <th>SR Number</th>
                                         <th>Actions</th>
                                     </tr>
@@ -189,6 +188,7 @@
                                             <td class="align-middle">
                                                 {% if sr.status == 'Pending' %}<span class="badge bg-warning text-dark">Pending</span>
                                                 {% else %}<span class="badge bg-info">Approved</span>{% endif %}
+                                                <br><span class="badge bg-secondary opacity-75 mt-1" style="font-size: 0.7em;"><i class="bi bi-geo-alt-fill"></i> {{ sr.warehouse }}</span>
                                             </td>
                                             
                                             <td class="fw-bold text-primary align-middle">{{ sr.sr_number or 'N/A' }}</td>
@@ -196,16 +196,16 @@
                                             <td class="align-middle">
                                                 <div class="d-flex gap-1 justify-content-center">
                                                     {% if sr.status == 'Pending' %}
-                                                        {% if user_role not in ['programmer1', 'programmer2', 'dataop1', 'dataop2'] %}
+                                                        {% if (user_role == 'dataop1' and sr.warehouse == 'Viscor Lanka') or (user_role == 'dataop2' and sr.warehouse == 'Packwell') or user_role == 'admin' %}
                                                         <form action="/approve_sr/{{ sr.id }}" method="POST"><button class="btn btn-xs btn-warning text-dark py-0 px-1 fw-bold">Approve</button></form>
                                                         {% endif %}
                                                         
-                                                        {% if user_role in ['programmer1', 'programmer2', 'admin'] %}
+                                                        {% if (user_role == 'programmer1' and sr.warehouse == 'Viscor Lanka') or (user_role == 'programmer2' and sr.warehouse == 'Packwell') or user_role == 'admin' %}
                                                         <button class="btn btn-xs btn-primary py-0 px-1 fw-bold" data-bs-toggle="modal" data-bs-target="#editSrModal{{ sr.id }}">Edit</button>
                                                         {% endif %}
 
-                                                    {% elif sr.status == 'Approved' and user_role not in ['programmer1', 'programmer2', 'super1', 'super2'] %}
-                                                        <form action="/proceed_sr_batch/{{ sr.id }}" method="POST"><button class="btn btn-xs btn-success py-0 px-1 fw-bold"><i class="bi bi-cpu"></i> Proceed</button></form>
+                                                    {% elif sr.status == 'Approved' %}
+                                                        <span class="text-success fw-bold"><i class="bi bi-check2"></i> Ready</span>
                                                     {% else %}<span class="text-muted small">Locked</span>{% endif %}
                                                 </div>
                                             </td>
@@ -260,6 +260,33 @@
                                             </div>
                                         </div>
                                         {% endfor %}
+                                        
+                                        {% if user_role in ['dataop1', 'dataop2', 'admin'] %}
+                                            {% set valid_batch = namespace(value=false) %}
+                                            {% set batch_weight = namespace(value=0) %}
+                                            
+                                            {% for sr in group.srs %}
+                                                {% if sr.status == 'Approved' %}
+                                                    {% if (user_role == 'dataop1' and sr.warehouse in ['Viscor Lanka', 'Any']) or (user_role == 'dataop2' and sr.warehouse in ['Packwell', 'Any']) or user_role == 'admin' %}
+                                                        {% set valid_batch.value = true %}
+                                                        {% set batch_weight.value = batch_weight.value + sr.total_weight %}
+                                                    {% endif %}
+                                                {% endif %}
+                                            {% endfor %}
+
+                                            {% if valid_batch.value %}
+                                            <tr>
+                                                <td colspan="7" class="bg-light text-end p-2 border-bottom border-secondary border-2">
+                                                    <form action="/proceed_sr_batch" method="POST" class="m-0">
+                                                        <input type="hidden" name="material_name" value="{{ group.material_name }}">
+                                                        <input type="hidden" name="gsm" value="{{ group.gsm }}">
+                                                        <input type="hidden" name="reel_size" value="{{ size }}">
+                                                        <button type="submit" class="btn btn-sm btn-success fw-bold px-4 py-2 shadow-sm"><i class="bi bi-cpu"></i> Batch Proceed Valid Weight ({{ batch_weight.value | round(2) }} kg)</button>
+                                                    </form>
+                                                </td>
+                                            </tr>
+                                            {% endif %}
+                                        {% endif %}
                                     {% endfor %}
                                 </tbody>
                             </table>
