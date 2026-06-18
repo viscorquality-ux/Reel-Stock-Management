@@ -15,7 +15,9 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item"><a class="nav-link" href="/dashboard">Dashboard</a></li>
+                    {% if session.get('role') not in ['programmer1', 'programmer2', 'super1', 'super2'] %}
                     <li class="nav-item"><a class="nav-link" href="/add_stock">Add Stock</a></li>
+                    {% endif %}
                     <li class="nav-item"><a class="nav-link" href="/active_stock">Active Stock</a></li>
                     <li class="nav-item"><a class="nav-link" href="/viscor_issue">Verify / Returns</a></li>
                     <li class="nav-item"><a class="nav-link active" href="/issued_stock">Issued Stock</a></li>
@@ -94,11 +96,11 @@
 
     {% if stocks %}
         {% for stock in stocks %}
-        <div class="modal fade" id="partialModal{{ stock.id }}" tabindex="-1" aria-labelledby="partialModalLabel{{ stock.id }}" aria-hidden="true">
+        <div class="modal fade" id="partialModal{{ stock.id }}" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog">
                 <form action="/partial_return/{{ stock.id }}" method="POST" class="modal-content">
                     <div class="modal-header bg-warning text-dark">
-                        <h5 class="modal-title fw-bold" id="partialModalLabel{{ stock.id }}"><i class="bi bi-arrow-return-left"></i> Partial Return: {{ stock.reel_number }}</h5>
+                        <h5 class="modal-title fw-bold"><i class="bi bi-arrow-return-left"></i> Partial Return: {{ stock.reel_number }}</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body text-start">
@@ -106,7 +108,7 @@
                         <div class="mb-3">
                             <label class="form-label fw-bold">Enter New Remaining Weight (kg)</label>
                             <input type="number" step="0.01" class="form-control border-warning" name="new_weight" placeholder="e.g., 150.25" required>
-                            <div class="form-text text-danger mt-1"><i class="bi bi-info-circle"></i> This reel will move back to Active Stock as a "Used Reel".</div>
+                            <div class="form-text text-danger mt-1"><i class="bi bi-info-circle"></i> This reel will move back to Active Stock as a "Used Reel" and it will log the usage in Finished/Usage Tab.</div>
                         </div>
                     </div>
                     <div class="modal-footer">
