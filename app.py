@@ -1,33 +1,23 @@
 import streamlit as st
 import pandas as pd
 import uuid
-from sqlalchemy import create_engine, text
 
 st.set_page_config(page_title="Pro Box Planner", layout="wide")
 
-# MySQL Database Connection Setup
-# ඔයාගේ Aiven Cloud MySQL URI එක මෙතනට දාලා තියෙන්නේ
-DB_URI = 'mysql+pymysql://avnadmin:AVNS_gHRTw4Hzio_XlhXcm7d@mysql-3e9936af-viscorquality-0270.g.aivencloud.com:28643/defaultdb'
+# Constants (Planner operates in mm)
+REEL_SIZES_MM = list(range(1000, 1501, 50))
+TRIM_MM = 10
+GAP_MM = 3
 
-# Streamlit වල Database එක හැම තිස්සෙම Connect නොවී එක පාරක් Connect වෙන්න cache කරගන්නවා
-@st.cache_resource
-def get_db_engine():
-    return create_engine(DB_URI)
-
-engine = get_db_engine()
-
-# Constants
-REEL_SIZES = list(range(1000, 1501, 50))
-TRIM = 10
-GAP = 3
-
+# Session State Initialization (එක පාරක් Log වුණාම App එක ඇතුලේ දිගටම Logged In වෙලා ඉන්නවා)
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 if 'order_list' not in st.session_state:
     st.session_state.order_list = []
 
-VALID_USERS = {"user1": "123", "user2": "456"}
+VALID_USERS = {"user1": "123", "user2": "456", "super1": "789"}
 
+# Login Interface
 if not st.session_state.logged_in:
     st.title("🔒 Login to Pro Box Planner")
     with st.form("login_form"):
@@ -36,6 +26,7 @@ if not st.session_state.logged_in:
         if st.form_submit_button("Login"):
             if username in VALID_USERS and VALID_USERS[username] == password:
                 st.session_state.logged_in = True
+                st.session_state.username = username
                 st.rerun()
             else:
                 st.error("Invalid Username or Password")
@@ -45,17 +36,18 @@ def get_blank_size(l, w, h, flute):
     allowance = {"B": 3.0, "C": 4.0, "E": 1.5, "N": 1.0}.get(flute, 4.0)
     return h + w + (2 * allowance), (2 * l) + (2 * w) + 6
 
-def get_ideal_reels(blank_w):
+def get_ideal_reels(blank_w_mm):
     results = []
-    for reel in REEL_SIZES:
-        eff_w = reel - TRIM
-        ups = int((eff_w + GAP) // (blank_w + GAP))
+    for reel in REEL_SIZES_MM:
+        eff_w = reel - TRIM_MM
+        ups = int((eff_w + GAP_MM) // (blank_w_mm + GAP_MM))
         if ups > 0:
-            results.append({"Size": reel, "Waste": reel - ((ups * blank_w) + ((ups - 1) * GAP))})
+            results.append({"Size": reel, "Waste": reel - ((ups * blank_w_mm) + ((ups - 1) * GAP_MM))})
     return sorted(results, key=lambda x: x["Waste"])[:2]
 
 st.title("📦 Professional Corrugated Board Planner")
-if st.button("Logout"):
+st.sidebar.write(f"Logged in as: **{st.session_state.get('username', 'User')}**")
+if st.sidebar.button("Logout"):
     st.session_state.logged_in = False
     st.rerun()
 
@@ -91,7 +83,7 @@ with tab1:
         cols = st.columns([2, 3, 2, 1, 1, 1, 1])
         cols[0].write(order["PO_Number"])
         cols[1].write(order["Client_Product"])
-        cols[2].write(f"{order['Blank_W']} x {order['Blank_L']}")
+        cols[2].write(f"{order['Blank_W']} x {order['Blank_L']} mm")
         cols[3].write(order["Ply"])
         cols[4].write(order["Qty"])
         if cols[6].button("Delete", key=f"del_{order['ID']}"):
@@ -105,7 +97,7 @@ with tab2:
     ph1, ph2, ph3, ph4, ph5 = st.columns([2, 2, 2, 3, 3])
     ph1.write("**PO Number**")
     ph2.write("**Client**")
-    ph3.write("**Blank W**")
+    ph3.write("**Blank W (mm)**")
     ph4.write("**Option 1 (Best)**")
     ph5.write("**Option 2 (Alt)**")
     st.markdown("---")
@@ -121,10 +113,13 @@ with tab2:
         
         if len(options) > 0:
             opt1 = options[0]
-            link1 = f"{base_url}?po={order['PO_Number']}&reel={opt1['Size']}&qty={order['Qty']}"
-            c4.link_button(f"Opt 1: {opt1['Size']}mm (W:{opt1['Waste']:.1f})", link1)
+            # mm අගය 10න් බෙදා cm අගය (reel_cm) සාදා URL එකට එකතු කිරීම සහ auto_user එක යැවීම
+            reel_cm1 = opt1['Size'] / 10
+            link1 = f"{base_url}?po={order['PO_Number']}&reel_cm={reel_cm1}&qty={order['Qty']}&auto_user=super1"
+            c4.link_button(f"Opt 1: {opt1['Size']}mm ({reel_cm1}cm) (W:{opt1['Waste']:.1f})", link1)
             
         if len(options) > 1:
             opt2 = options[1]
-            link2 = f"{base_url}?po={order['PO_Number']}&reel={opt2['Size']}&qty={order['Qty']}"
-            c5.link_button(f"Opt 2: {opt2['Size']}mm (W:{opt2['Waste']:.1f})", link2)
+            reel_cm2 = opt2['Size'] / 10
+            link2 = f"{base_url}?po={order['PO_Number']}&reel_cm={reel_cm2}&qty={order['Qty']}&auto_user=super1"
+            c5.link_button(f"Opt 2: {opt2['Size']}mm ({reel_cm2}cm) (W:{opt2['Waste']:.1f})", link2)
