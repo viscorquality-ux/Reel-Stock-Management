@@ -9,6 +9,15 @@
     <style>
         body { background-color: #f8f9fa; }
         .nav-link.active { font-weight: bold; }
+        
+        /* Print Styles: Hide forms and navbars, show only the matrix clearly */
+        @media print {
+            .navbar, .col-md-5, .btn, .alert, .modal { display: none !important; }
+            .col-md-7 { width: 100% !important; flex: 0 0 100% !important; max-width: 100% !important; }
+            .card { border: none !important; box-shadow: none !important; }
+            body { background-color: white !important; }
+            * { -webkit-print-color-adjust: exact !important; color-adjust: exact !important; }
+        }
     </style>
 </head>
 <body>
@@ -49,6 +58,21 @@
                         <div class="alert alert-danger fw-bold">You are not authorized to create SRs.</div>
                         {% else %}
                         <form action="/sr_request" method="POST">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Target Warehouse</label>
+                                <select name="warehouse" class="form-select border-2" required>
+                                    <option value="" disabled selected>Select Target Warehouse...</option>
+                                    <option value="Viscor Lanka">Viscor Lanka</option>
+                                    <option value="Packwell W 1">Packwell W 1</option>
+                                    <option value="Packwell W 2">Packwell W 2</option>
+                                    <option value="Packwell W 3">Packwell W 3</option>
+                                    <option value="Packwell W 4">Packwell W 4</option>
+                                    <option value="Packwell W 5">Packwell W 5</option>
+                                    <option value="Packwell W 6">Packwell W 6</option>
+                                    <option value="Packwell W 7">Packwell W 7</option>
+                                </select>
+                            </div>
+                            
                             <div class="mb-3">
                                 <label class="form-label fw-bold">PO Number</label>
                                 <input type="text" name="po_number" class="form-control" required placeholder="Enter PO reference...">
@@ -141,7 +165,7 @@
                 <h4 class="fw-bold mb-3"><i class="bi bi-folder2-open"></i> Live Size Matrix Requirements</h4>
                 
                 {% if not grouped_requests %}
-                <div class="card p-4 text-center text-muted border-0 shadow-sm">No pending/approved requests currently grouped.</div>
+                <div class="card p-4 text-center text-muted border-0 shadow-sm">No pending/approved requests currently available for your view.</div>
                 {% endif %}
 
                 {% for size, info in grouped_requests.items() %}
@@ -149,8 +173,9 @@
                     <div class="card-body bg-white p-3 rounded">
                         <div class="mb-2"><strong>1. PO Numbers - </strong> <span class="badge bg-dark">{{ info.po_list|join(', ') }}</span></div>
                         <div class="mb-2"><strong>2. Reel Size - </strong> <span class="badge bg-primary text-white">{{ size }} cm</span></div>
+                        <div class="mt-2"><strong>3. Table Matrix Details:</strong></div>
                         
-                        <div class="table-responsive mt-3">
+                        <div class="table-responsive mt-1">
                             <table class="table table-bordered table-sm align-middle mb-0 text-center">
                                 <thead class="table-light small">
                                     <tr>
@@ -158,7 +183,8 @@
                                         <th>GSM</th>
                                         <th>Board Specs</th>
                                         <th>Total Target W.</th>
-                                        <th>Status / Location</th>
+                                        <th>Warehouse</th>
+                                        <th>Status</th>
                                         <th>SR Number</th>
                                         <th>Actions</th>
                                     </tr>
@@ -185,28 +211,40 @@
                                             <td class="fw-bold text-success fs-6 align-middle bg-light" rowspan="{{ rowspan_count }}">{{ group.total_weight | round(2) }} kg</td>
                                             {% endif %}
                                             
+                                            <td class="align-middle fw-bold text-secondary">{{ sr.warehouse }}</td>
+                                            
                                             <td class="align-middle">
                                                 {% if sr.status == 'Pending' %}<span class="badge bg-warning text-dark">Pending</span>
                                                 {% else %}<span class="badge bg-info">Approved</span>{% endif %}
-                                                <br><span class="badge bg-secondary opacity-75 mt-1" style="font-size: 0.7em;"><i class="bi bi-geo-alt-fill"></i> {{ sr.warehouse }}</span>
                                             </td>
                                             
                                             <td class="fw-bold text-primary align-middle">{{ sr.sr_number or 'N/A' }}</td>
                                             
                                             <td class="align-middle">
-                                                <div class="d-flex gap-1 justify-content-center">
+                                                <div class="d-flex gap-1 justify-content-center flex-wrap">
                                                     {% if sr.status == 'Pending' %}
-                                                        {% if (user_role == 'dataop1' and sr.warehouse == 'Viscor Lanka') or (user_role == 'dataop2' and sr.warehouse == 'Packwell') or user_role == 'admin' %}
-                                                        <form action="/approve_sr/{{ sr.id }}" method="POST"><button class="btn btn-xs btn-warning text-dark py-0 px-1 fw-bold">Approve</button></form>
+                                                        {% if user_role in ['super1', 'super2', 'admin'] %}
+                                                            <form action="/approve_sr/{{ sr.id }}" method="POST"><button class="btn btn-xs btn-warning text-dark py-0 px-1 fw-bold">Approve</button></form>
                                                         {% endif %}
                                                         
-                                                        {% if (user_role == 'programmer1' and sr.warehouse == 'Viscor Lanka') or (user_role == 'programmer2' and sr.warehouse == 'Packwell') or user_role == 'admin' %}
+                                                        {% if user_role in ['programmer1', 'programmer2', 'admin'] %}
                                                         <button class="btn btn-xs btn-primary py-0 px-1 fw-bold" data-bs-toggle="modal" data-bs-target="#editSrModal{{ sr.id }}">Edit</button>
                                                         {% endif %}
 
                                                     {% elif sr.status == 'Approved' %}
-                                                        <span class="text-success fw-bold"><i class="bi bi-check2"></i> Ready</span>
-                                                    {% else %}<span class="text-muted small">Locked</span>{% endif %}
+                                                        {% if not sr.is_printed %}
+                                                            <button class="btn btn-xs btn-dark py-0 px-1 fw-bold text-white shadow-sm" onclick="printAndEnable({{ sr.id }})">
+                                                                <i class="bi bi-printer"></i> Print to Proceed
+                                                            </button>
+                                                        {% else %}
+                                                            <span class="badge bg-secondary ms-1"><i class="bi bi-printer-fill"></i> Printed</span>
+                                                            {% if user_role not in ['programmer1', 'programmer2', 'super1', 'super2'] %}
+                                                                <form action="/proceed_sr/{{ sr.id }}" method="POST"><button class="btn btn-xs btn-success py-0 px-1 fw-bold ms-1"><i class="bi bi-cpu"></i> FIFO Proceed</button></form>
+                                                            {% endif %}
+                                                        {% endif %}
+                                                    {% else %}
+                                                        <span class="text-muted small">Locked</span>
+                                                    {% endif %}
                                                 </div>
                                             </td>
                                         </tr>
@@ -219,6 +257,19 @@
                                                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                                                     </div>
                                                     <div class="modal-body text-start">
+                                                        <div class="mb-2">
+                                                            <label class="form-label fw-bold">Target Warehouse</label>
+                                                            <select name="warehouse" class="form-select" required>
+                                                                <option value="Viscor Lanka" {% if sr.warehouse == 'Viscor Lanka' %}selected{% endif %}>Viscor Lanka</option>
+                                                                <option value="Packwell W 1" {% if sr.warehouse == 'Packwell W 1' %}selected{% endif %}>Packwell W 1</option>
+                                                                <option value="Packwell W 2" {% if sr.warehouse == 'Packwell W 2' %}selected{% endif %}>Packwell W 2</option>
+                                                                <option value="Packwell W 3" {% if sr.warehouse == 'Packwell W 3' %}selected{% endif %}>Packwell W 3</option>
+                                                                <option value="Packwell W 4" {% if sr.warehouse == 'Packwell W 4' %}selected{% endif %}>Packwell W 4</option>
+                                                                <option value="Packwell W 5" {% if sr.warehouse == 'Packwell W 5' %}selected{% endif %}>Packwell W 5</option>
+                                                                <option value="Packwell W 6" {% if sr.warehouse == 'Packwell W 6' %}selected{% endif %}>Packwell W 6</option>
+                                                                <option value="Packwell W 7" {% if sr.warehouse == 'Packwell W 7' %}selected{% endif %}>Packwell W 7</option>
+                                                            </select>
+                                                        </div>
                                                         <div class="mb-2">
                                                             <label class="form-label fw-bold">Board Width</label>
                                                             <input type="number" step="0.001" name="board_width" class="form-control" value="{{ sr.board_width }}" required>
@@ -260,33 +311,6 @@
                                             </div>
                                         </div>
                                         {% endfor %}
-                                        
-                                        {% if user_role in ['dataop1', 'dataop2', 'admin'] %}
-                                            {% set valid_batch = namespace(value=false) %}
-                                            {% set batch_weight = namespace(value=0) %}
-                                            
-                                            {% for sr in group.srs %}
-                                                {% if sr.status == 'Approved' %}
-                                                    {% if (user_role == 'dataop1' and sr.warehouse in ['Viscor Lanka', 'Any']) or (user_role == 'dataop2' and sr.warehouse in ['Packwell', 'Any']) or user_role == 'admin' %}
-                                                        {% set valid_batch.value = true %}
-                                                        {% set batch_weight.value = batch_weight.value + sr.total_weight %}
-                                                    {% endif %}
-                                                {% endif %}
-                                            {% endfor %}
-
-                                            {% if valid_batch.value %}
-                                            <tr>
-                                                <td colspan="7" class="bg-light text-end p-2 border-bottom border-secondary border-2">
-                                                    <form action="/proceed_sr_batch" method="POST" class="m-0">
-                                                        <input type="hidden" name="material_name" value="{{ group.material_name }}">
-                                                        <input type="hidden" name="gsm" value="{{ group.gsm }}">
-                                                        <input type="hidden" name="reel_size" value="{{ size }}">
-                                                        <button type="submit" class="btn btn-sm btn-success fw-bold px-4 py-2 shadow-sm"><i class="bi bi-cpu"></i> Batch Proceed Valid Weight ({{ batch_weight.value | round(2) }} kg)</button>
-                                                    </form>
-                                                </td>
-                                            </tr>
-                                            {% endif %}
-                                        {% endif %}
                                     {% endfor %}
                                 </tbody>
                             </table>
@@ -333,6 +357,18 @@
 
         document.getElementById('baseWeightLabel').innerText = baseWeight.toFixed(2);
         document.getElementById('totalWeightDisplay').innerText = finalTotal.toFixed(2) + " kg";
+    }
+
+    // Print & Enable Proceed Function
+    function printAndEnable(srId) {
+        window.print();
+        
+        fetch('/mark_printed/' + srId, { method: 'POST' })
+            .then(response => {
+                if (response.ok) {
+                    window.location.reload();
+                }
+            });
     }
 
     document.addEventListener("DOMContentLoaded", function() {
