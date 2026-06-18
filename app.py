@@ -1,10 +1,7 @@
 import streamlit as st
 import pandas as pd
 import uuid
-
-app = Flask(__name__)
-app.secret_key = 'viscor_packwell_ultimate_secure_key'
-
+st.set_page_config(page_title="Pro Box Planner", layout="wide")
 # DATABASE CONFIGURATION
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://avnadmin:AVNS_gHRTw4Hzio_XlhXcm7d@mysql-3e9936af-viscorquality-0270.g.aivencloud.com:28643/defaultdb'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
