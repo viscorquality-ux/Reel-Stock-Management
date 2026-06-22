@@ -14,6 +14,7 @@
             .no-print, .btn, .navbar, .alert { display: none !important; }
             body { background-color: white !important; color: black !important; }
             .card { border: none !important; box-shadow: none !important; }
+            .tab-pane { display: block !important; opacity: 1 !important; margin-bottom: 20px;}
         }
     </style>
 </head>
@@ -89,71 +90,90 @@
             </div>
         </div>
 
-        <div class="card shadow-sm border-0 mb-4 bg-white">
-            <div class="card-header bg-dark text-white fw-bold py-3"><i class="bi bi-box"></i> Full Reels Inventory List</div>
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0 text-dark">
-                    <thead class="table-light text-secondary text-uppercase fs-7">
-                        <tr>
-                            <th>ID</th><th>Reel Number</th><th>Size (cm)</th><th>Weight (kg)</th>
-                            <th>GSM</th><th>Type</th><th>Paper Name</th><th>Location</th><th>Supplier</th>
-                            <th class="no-print">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for stock in full_reels %}
-                        <tr class="full-reel-row" data-weight="{{ stock.weight_kg }}">
-                            <td><strong>#{{ stock.id }}</strong></td>
-                            <td><span class="badge bg-secondary px-2 py-1 fs-6">{{ stock.reel_number }}</span></td>
-                            <td>{{ stock.size_cm }} cm</td>
-                            <td class="fw-bold text-primary">{{ stock.weight_kg }} kg</td>
-                            <td>{{ stock.gsm }}</td>
-                            <td>{{ stock.reel_type }}</td>
-                            <td>{{ stock.material_name }}</td>
-                            <td><span class="badge bg-light text-dark border"><i class="bi bi-geo-alt"></i> {{ stock.store_location }}</span></td>
-                            <td>{{ stock.supplier_name }}</td>
-                            <td class="no-print">
-                                <button class="btn btn-success btn-sm fw-bold" {% if user_role in ['super1', 'super2', 'programmer'] %}disabled{% endif %} data-bs-toggle="modal" data-bs-target="#issue{{ stock.id }}"><i class="bi bi-truck"></i> Dispatch</button>
-                                <button class="btn btn-danger btn-sm fw-bold" {% if user_role in ['super1', 'super2', 'programmer'] %}disabled{% endif %} data-bs-toggle="modal" data-bs-target="#status{{ stock.id }}"><i class="bi bi-gear"></i> Status</button>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
+        <ul class="nav nav-tabs mb-3 no-print" id="activeStockTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active fw-bold text-primary" id="full-reels-tab" data-bs-toggle="tab" data-bs-target="#full-reels-pane" type="button" role="tab" aria-controls="full-reels-pane" aria-selected="true">
+                    <i class="bi bi-box"></i> Full Reels Inventory
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link fw-bold text-warning" id="used-reels-tab" data-bs-toggle="tab" data-bs-target="#used-reels-pane" type="button" role="tab" aria-controls="used-reels-pane" aria-selected="false">
+                    <i class="bi bi-scissors"></i> Used Reels / Balance Inventory
+                </button>
+            </li>
+        </ul>
 
-        <div class="card shadow-sm border-0 bg-white">
-            <div class="card-header bg-secondary text-white fw-bold py-3"><i class="bi bi-scissors"></i> Used Reels / Balance Inventory List</div>
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0 text-dark">
-                    <thead class="table-light text-secondary text-uppercase fs-7">
-                        <tr>
-                            <th>ID</th><th>Reel Number</th><th>Size (cm)</th><th>Remaining (kg)</th>
-                            <th>GSM</th><th>Type</th><th>Paper Name</th><th>Location</th><th>Supplier</th>
-                            <th class="no-print">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for stock in used_reels %}
-                        <tr class="used-reel-row" data-weight="{{ stock.weight_kg }}">
-                            <td><strong>#{{ stock.id }}</strong></td>
-                            <td><span class="badge bg-warning text-dark px-2 py-1 fs-6">{{ stock.reel_number }}</span></td>
-                            <td>{{ stock.size_cm }} cm</td>
-                            <td class="fw-bold text-danger">{{ stock.weight_kg }} kg</td>
-                            <td>{{ stock.gsm }}</td>
-                            <td>{{ stock.reel_type }}</td>
-                            <td>{{ stock.material_name }}</td>
-                            <td><span class="badge bg-light text-dark border"><i class="bi bi-geo-alt"></i> {{ stock.store_location }}</span></td>
-                            <td>{{ stock.supplier_name }}</td>
-                            <td class="no-print">
-                                <button class="btn btn-success btn-sm fw-bold" {% if user_role in ['super1', 'super2', 'programmer'] %}disabled{% endif %} data-bs-toggle="modal" data-bs-target="#issue{{ stock.id }}"><i class="bi bi-truck"></i> Dispatch</button>
-                                <button class="btn btn-danger btn-sm fw-bold" {% if user_role in ['super1', 'super2', 'programmer'] %}disabled{% endif %} data-bs-toggle="modal" data-bs-target="#status{{ stock.id }}"><i class="bi bi-gear"></i> Status</button>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+        <div class="tab-content" id="activeStockTabsContent">
+            <div class="tab-pane fade show active" id="full-reels-pane" role="tabpanel" aria-labelledby="full-reels-tab">
+                <div class="card shadow-sm border-0 mb-4 bg-white">
+                    <div class="card-header bg-dark text-white fw-bold py-3"><i class="bi bi-box"></i> Full Reels Inventory List</div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0 text-dark">
+                            <thead class="table-light text-secondary text-uppercase fs-7">
+                                <tr>
+                                    <th>ID</th><th>Reel Number</th><th>Size (cm)</th><th>Weight (kg)</th>
+                                    <th>GSM</th><th>Type</th><th>Paper Name</th><th>Location</th><th>Supplier</th>
+                                    <th class="no-print">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for stock in full_reels %}
+                                <tr class="full-reel-row" data-weight="{{ stock.weight_kg }}">
+                                    <td><strong>#{{ stock.id }}</strong></td>
+                                    <td><span class="badge bg-secondary px-2 py-1 fs-6">{{ stock.reel_number }}</span></td>
+                                    <td>{{ stock.size_cm }} cm</td>
+                                    <td class="fw-bold text-primary">{{ stock.weight_kg }} kg</td>
+                                    <td>{{ stock.gsm }}</td>
+                                    <td>{{ stock.reel_type }}</td>
+                                    <td>{{ stock.material_name }}</td>
+                                    <td><span class="badge bg-light text-dark border"><i class="bi bi-geo-alt"></i> {{ stock.store_location }}</span></td>
+                                    <td>{{ stock.supplier_name }}</td>
+                                    <td class="no-print">
+                                        <button class="btn btn-success btn-sm fw-bold" {% if user_role in ['super1', 'super2', 'programmer'] %}disabled{% endif %} data-bs-toggle="modal" data-bs-target="#issue{{ stock.id }}"><i class="bi bi-truck"></i> Dispatch</button>
+                                        <button class="btn btn-danger btn-sm fw-bold" {% if user_role in ['super1', 'super2', 'programmer'] %}disabled{% endif %} data-bs-toggle="modal" data-bs-target="#status{{ stock.id }}"><i class="bi bi-gear"></i> Status</button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="used-reels-pane" role="tabpanel" aria-labelledby="used-reels-tab">
+                <div class="card shadow-sm border-0 bg-white">
+                    <div class="card-header bg-secondary text-white fw-bold py-3"><i class="bi bi-scissors"></i> Used Reels / Balance Inventory List</div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0 text-dark">
+                            <thead class="table-light text-secondary text-uppercase fs-7">
+                                <tr>
+                                    <th>ID</th><th>Reel Number</th><th>Size (cm)</th><th>Remaining (kg)</th>
+                                    <th>GSM</th><th>Type</th><th>Paper Name</th><th>Location</th><th>Supplier</th>
+                                    <th class="no-print">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for stock in used_reels %}
+                                <tr class="used-reel-row" data-weight="{{ stock.current_weight }}">
+                                    <td><strong>#{{ stock.id }}</strong></td>
+                                    <td><span class="badge bg-warning text-dark px-2 py-1 fs-6">{{ stock.reel_number }}</span></td>
+                                    <td>{{ stock.size_cm }} cm</td>
+                                    <td class="fw-bold text-danger">{{ stock.current_weight }} kg</td>
+                                    <td>{{ stock.gsm }}</td>
+                                    <td>{{ stock.reel_type }}</td>
+                                    <td>{{ stock.material_name }}</td>
+                                    <td><span class="badge bg-light text-dark border"><i class="bi bi-geo-alt"></i> {{ stock.store_location }}</span></td>
+                                    <td>{{ stock.supplier_name }}</td>
+                                    <td class="no-print">
+                                        <button class="btn btn-success btn-sm fw-bold" {% if user_role in ['super1', 'super2', 'programmer'] %}disabled{% endif %} data-bs-toggle="modal" data-bs-target="#issue{{ stock.id }}"><i class="bi bi-truck"></i> Dispatch</button>
+                                        <button class="btn btn-danger btn-sm fw-bold" {% if user_role in ['super1', 'super2', 'programmer'] %}disabled{% endif %} data-bs-toggle="modal" data-bs-target="#status{{ stock.id }}"><i class="bi bi-gear"></i> Status</button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
