@@ -572,7 +572,8 @@ def reset_db_now():
     except Exception as e:
         db.session.rollback()
         return f"❌ Error resetting database: {str(e)}"
-        @app.route('/update_location/<int:id>', methods=['POST'])
+        
+@app.route('/update_location/<int:id>', methods=['POST'])
 def update_location(id):
     if 'role' not in session: return redirect(url_for('login'))
     if get_user_role() in ['super1', 'super2']:
