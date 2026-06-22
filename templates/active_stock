@@ -109,9 +109,9 @@
                             <td class="fw-bold text-primary">{{ stock.weight_kg }} kg</td>
                             <td>{{ stock.gsm }}</td>
                             <td>{{ stock.reel_type }}</td>
-                            <td>{{ stock.paper_name }}</td>
-                            <td><span class="badge bg-light text-dark border"><i class="bi bi-geo-alt"></i> {{ stock.location }}</span></td>
-                            <td>{{ stock.supplier }}</td>
+                            <td>{{ stock.material_name }}</td>
+                            <td><span class="badge bg-light text-dark border"><i class="bi bi-geo-alt"></i> {{ stock.store_location }}</span></td>
+                            <td>{{ stock.supplier_name }}</td>
                             <td class="no-print">
                                 <button class="btn btn-success btn-sm fw-bold" {% if user_role in ['super1', 'super2', 'programmer'] %}disabled{% endif %} data-bs-toggle="modal" data-bs-target="#issue{{ stock.id }}"><i class="bi bi-truck"></i> Dispatch</button>
                                 <button class="btn btn-danger btn-sm fw-bold" {% if user_role in ['super1', 'super2', 'programmer'] %}disabled{% endif %} data-bs-toggle="modal" data-bs-target="#status{{ stock.id }}"><i class="bi bi-gear"></i> Status</button>
@@ -143,9 +143,9 @@
                             <td class="fw-bold text-danger">{{ stock.weight_kg }} kg</td>
                             <td>{{ stock.gsm }}</td>
                             <td>{{ stock.reel_type }}</td>
-                            <td>{{ stock.paper_name }}</td>
-                            <td><span class="badge bg-light text-dark border"><i class="bi bi-geo-alt"></i> {{ stock.location }}</span></td>
-                            <td>{{ stock.supplier }}</td>
+                            <td>{{ stock.material_name }}</td>
+                            <td><span class="badge bg-light text-dark border"><i class="bi bi-geo-alt"></i> {{ stock.store_location }}</span></td>
+                            <td>{{ stock.supplier_name }}</td>
                             <td class="no-print">
                                 <button class="btn btn-success btn-sm fw-bold" {% if user_role in ['super1', 'super2', 'programmer'] %}disabled{% endif %} data-bs-toggle="modal" data-bs-target="#issue{{ stock.id }}"><i class="bi bi-truck"></i> Dispatch</button>
                                 <button class="btn btn-danger btn-sm fw-bold" {% if user_role in ['super1', 'super2', 'programmer'] %}disabled{% endif %} data-bs-toggle="modal" data-bs-target="#status{{ stock.id }}"><i class="bi bi-gear"></i> Status</button>
