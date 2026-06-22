@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text
-from datetime import datetime, timedelta
+from datetime import datetime
 import pytz
 import random
 
@@ -180,8 +180,8 @@ def add_stock():
 
 @app.route('/active_stock')
 def active_stock():
-    user_role = get_user_role()
     if 'role' not in session: return redirect(url_for('login'))
+    user_role = get_user_role()
     
     full_reels = Reel.query.filter_by(status='Full').order_by(Reel.received_date.asc()).all()
     used_reels = Reel.query.filter_by(status='Used').order_by(Reel.received_date.asc()).all()
@@ -215,12 +215,12 @@ def mark_damage_sell(id):
     db.session.commit()
     flash(f"✅ Reel {reel.reel_number} marked as {action_type}!", "success")
     return redirect(url_for('active_stock'))
+
 @app.route('/mark_finished/<int:id>', methods=['POST'])
 def mark_finished(id):
     reel = Reel.query.get_or_404(id)
-    reel.status = 'Issued' # අවසන් වී ඇති බැවින් තත්ත්වය සලකුණු කරයි
+    reel.status = 'Issued'
     
-    # Finished Log එකට එකතු කිරීම
     db.session.add(ReelHistory(
         reel_id=reel.id,
         usage_type='Finished Usage',
@@ -297,7 +297,6 @@ def sr_request():
     all_requests = SRRequest.query.order_by(SRRequest.created_at.desc()).all()
     grouped_requests = {}
     
-    # නවතම Grouping ක්‍රියාවලිය
     for r in all_requests:
         if r.status in ['Pending', 'Approved']:
             size = r.reel_size
@@ -335,7 +334,6 @@ def edit_sr(id):
     qty = int(request.form.get('qty', sr.qty))
     comp_type = request.form.get('component_type', sr.component_type)
     excess_w = float(request.form.get('excess_weight', sr.excess_weight))
-    
     cartoon_amt = float(request.form.get('cartoon_amount', sr.cartoon_amount))
     
     calc_weight = ((b_width * b_length) * (gsm / 1000.0)) / cartoon_amt * qty
@@ -373,7 +371,6 @@ def approve_sr(id):
 def proceed_sr_batch(sr_id):
     sr = SRRequest.query.get_or_404(sr_id)
     
-    # එකම ගුණාංග ඇති සියලුම රීල්ස් ලබා ගැනීම (FIFO අනුව)
     matching_reels = Reel.query.filter(
         Reel.size_cm == sr.reel_size,
         Reel.material_name == sr.material_name,
@@ -571,7 +568,7 @@ def reset_db_now():
         db.session.execute(text('SET FOREIGN_KEY_CHECKS = 1;'))
         db.create_all()
         db.session.commit()
-        return "✅ Database Updated Successfully (Force Reset Applied)! All new columns are ready. <br><br> <a href='/'>Click Here to go back to Login Page</a>"
+        return "✅ Database Updated Successfully (Force Reset Applied)! <br><br> <a href='/'>Click Here to go back to Login Page</a>"
     except Exception as e:
         db.session.rollback()
         return f"❌ Error resetting database: {str(e)}"
