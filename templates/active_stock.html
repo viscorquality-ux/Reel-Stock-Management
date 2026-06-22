@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Active Stock - Viscor & Packwell Stock System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <style>
+        body { background-color: #f8f9fa; }
+        .nav-link.active { font-weight: bold; }
+        .summary-badge { font-size: 1.05rem; }
+        @media print {
+            .no-print, .btn, .navbar, .alert { display: none !important; }
+            body { background-color: white !important; color: black !important; }
+            .card { border: none !important; box-shadow: none !important; }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
+        <div class="container-fluid">
+            <a class="navbar-brand fw-bold" href="/"><i class="bi bi-box-seam"></i> Stock Management</a>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item"><a class="nav-link" href="/dashboard">Dashboard</a></li>
+                    {% if user_role in ['admin', 'dataop1', 'dataop2'] %}
+                    <li class="nav-item"><a class="nav-link" href="/add_stock">Add Stock</a></li>
+                    {% endif %}
+                    <li class="nav-item"><a class="nav-link active" href="/active_stock">Active Stock</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/sr_request">SR Request</a></li>
+                </ul>
+                <ul class="navbar-nav">
+                    <li class="nav-item"><a class="nav-link text-danger fw-bold" href="/logout"><i class="bi bi-power"></i> Logout ({{ session.get('username') }})</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid my-4 px-4">
+        <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+            <div>
+                <h2 class="fw-bold text-dark m-0"><i class="bi bi-journal-text text-primary"></i> Active Reels Registry</h2>
+                <p class="text-muted m-0">Live stock tracking visualization for Viscor Lanka & Packwell Warehouses</p>
+            </div>
+            <div class="d-flex gap-2">
+                <button onclick="window.print()" class="btn btn-primary fw-bold no-print shadow-sm">
+                    <i class="bi bi-printer"></i> Print Stock Report
+                </button>
+                <div class="input-group text-dark no-print" style="max-width: 350px;">
+                    <span class="input-group-text bg-white border-end-0 shadow-sm"><i class="bi bi-search text-muted"></i></span>
+                    <input type="text" id="liveSearchInput" class="form-control border-start-0 shadow-sm" placeholder="Live filter registry items...">
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-3 mb-4 no-print">
+            <div class="col-md-3">
+                <div class="card shadow-sm border-0 border-start border-primary border-4 bg-white">
+                    <div class="card-body py-3">
+                        <small class="text-muted fw-bold text-uppercase">Full Reels In Stock</small>
+                        <h4 class="fw-bold text-primary m-0" id="fullReelCount">0</h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card shadow-sm border-0 border-start border-success border-4 bg-white">
+                    <div class="card-body py-3">
+                        <small class="text-muted fw-bold text-uppercase">Total Weight Full (kg)</small>
+                        <h4 class="fw-bold text-success m-0" id="fullReelWeight">0.00</h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card shadow-sm border-0 border-start border-warning border-4 bg-white">
+                    <div class="card-body py-3">
+                        <small class="text-muted fw-bold text-uppercase">Used Reels In Stock</small>
+                        <h4 class="fw-bold text-warning m-0" id="usedReelCount">0</h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card shadow-sm border-0 border-start border-danger border-4 bg-white">
+                    <div class="card-body py-3">
+                        <small class="text-muted fw-bold text-uppercase">Total Weight Used (kg)</small>
+                        <h4 class="fw-bold text-danger m-0" id="usedReelWeight">0.00</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0 mb-4 bg-white">
+            <div class="card-header bg-dark text-white fw-bold py-3"><i class="bi bi-box"></i> Full Reels Inventory List</div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0 text-dark">
+                    <thead class="table-light text-secondary text-uppercase fs-7">
+                        <tr>
+                            <th>ID</th><th>Reel Number</th><th>Size (cm)</th><th>Weight (kg)</th>
+                            <th>GSM</th><th>Type</th><th>Paper Name</th><th>Location</th><th>Supplier</th>
+                            <th class="no-print">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for stock in full_reels %}
+                        <tr class="full-reel-row" data-weight="{{ stock.weight_kg }}">
+                            <td><strong>#{{ stock.id }}</strong></td>
+                            <td><span class="badge bg-secondary px-2 py-1 fs-6">{{ stock.reel_number }}</span></td>
+                            <td>{{ stock.size_cm }} cm</td>
+                            <td class="fw-bold text-primary">{{ stock.weight_kg }} kg</td>
+                            <td>{{ stock.gsm }}</td>
+                            <td>{{ stock.reel_type }}</td>
+                            <td>{{ stock.material_name }}</td>
+                            <td><span class="badge bg-light text-dark border"><i class="bi bi-geo-alt"></i> {{ stock.store_location }}</span></td>
+                            <td>{{ stock.supplier_name }}</td>
+                            <td class="no-print">
+                                <button class="btn btn-success btn-sm fw-bold" {% if user_role in ['super1', 'super2', 'programmer'] %}disabled{% endif %} data-bs-toggle="modal" data-bs-target="#issue{{ stock.id }}"><i class="bi bi-truck"></i> Dispatch</button>
+                                <button class="btn btn-danger btn-sm fw-bold" {% if user_role in ['super1', 'super2', 'programmer'] %}disabled{% endif %} data-bs-toggle="modal" data-bs-target="#status{{ stock.id }}"><i class="bi bi-gear"></i> Status</button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0 bg-white">
+            <div class="card-header bg-secondary text-white fw-bold py-3"><i class="bi bi-scissors"></i> Used Reels / Balance Inventory List</div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0 text-dark">
+                    <thead class="table-light text-secondary text-uppercase fs-7">
+                        <tr>
+                            <th>ID</th><th>Reel Number</th><th>Size (cm)</th><th>Remaining (kg)</th>
+                            <th>GSM</th><th>Type</th><th>Paper Name</th><th>Location</th><th>Supplier</th>
+                            <th class="no-print">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for stock in used_reels %}
+                        <tr class="used-reel-row" data-weight="{{ stock.weight_kg }}">
+                            <td><strong>#{{ stock.id }}</strong></td>
+                            <td><span class="badge bg-warning text-dark px-2 py-1 fs-6">{{ stock.reel_number }}</span></td>
+                            <td>{{ stock.size_cm }} cm</td>
+                            <td class="fw-bold text-danger">{{ stock.weight_kg }} kg</td>
+                            <td>{{ stock.gsm }}</td>
+                            <td>{{ stock.reel_type }}</td>
+                            <td>{{ stock.material_name }}</td>
+                            <td><span class="badge bg-light text-dark border"><i class="bi bi-geo-alt"></i> {{ stock.store_location }}</span></td>
+                            <td>{{ stock.supplier_name }}</td>
+                            <td class="no-print">
+                                <button class="btn btn-success btn-sm fw-bold" {% if user_role in ['super1', 'super2', 'programmer'] %}disabled{% endif %} data-bs-toggle="modal" data-bs-target="#issue{{ stock.id }}"><i class="bi bi-truck"></i> Dispatch</button>
+                                <button class="btn btn-danger btn-sm fw-bold" {% if user_role in ['super1', 'super2', 'programmer'] %}disabled{% endif %} data-bs-toggle="modal" data-bs-target="#status{{ stock.id }}"><i class="bi bi-gear"></i> Status</button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    {% for stock in full_reels + used_reels %}
+        {% include 'stock_modals.html' %}
+    {% endfor %}
+
+    <script>
+    function calculateDynamicTotals() {
+        let fullCount = 0; let fullWeight = 0.0;
+        let fullRows = document.querySelectorAll('.full-reel-row');
+        fullRows.forEach(row => {
+            if (row.style.display !== 'none') {
+                fullCount++;
+                let weight = parseFloat(row.getAttribute('data-weight')) || 0.0;
+                fullWeight += weight;
+            }
+        });
+        document.getElementById('fullReelCount').innerText = fullCount;
+        document.getElementById('fullReelWeight').innerText = fullWeight.toFixed(2);
+
+        let usedCount = 0; let usedWeight = 0.0;
+        let usedRows = document.querySelectorAll('.used-reel-row');
+        usedRows.forEach(row => {
+            if (row.style.display !== 'none') {
+                usedCount++;
+                let weight = parseFloat(row.getAttribute('data-weight')) || 0.0;
+                usedWeight += weight;
+            }
+        });
+        document.getElementById('usedReelCount').innerText = usedCount;
+        document.getElementById('usedReelWeight').innerText = usedWeight.toFixed(2);
+    }
+
+    document.getElementById('liveSearchInput').addEventListener('input', function() {
+        let inputVal = this.value.toLowerCase().replace(/\s+/g, '');
+        let allRows = document.querySelectorAll('.full-reel-row, .used-reel-row');
+        allRows.forEach(row => {
+            let textContent = row.innerText.toLowerCase().replace(/\s+/g, '');
+            row.style.display = (inputVal === '' || textContent.includes(inputVal)) ? '' : 'none';
+        });
+        calculateDynamicTotals();
+    });
+
+    document.addEventListener("DOMContentLoaded", function() {
+        calculateDynamicTotals();
+    });
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
