@@ -71,9 +71,9 @@
                                         <div class="d-flex justify-content-center gap-2">
                                             {% if user_role not in ['programmer1', 'programmer2', 'super1', 'super2'] %}
                                             <button class="btn btn-sm btn-warning fw-bold" data-bs-toggle="modal" data-bs-target="#partialModal{{ stock.id }}">Partial Return</button>
-                                              {% endif %}
+                                            {% endif %}
                                             
-                                            <form action="/finish_reel/{{ stock.id }}" method="POST" style="display:inline;">
+                                            <form action="/mark_finished/{{ stock.id }}" method="POST" style="display:inline;">
                                                 <button type="submit" class="btn btn-sm btn-success fw-bold" {% if session.get('role') in ['super1', 'super2'] %}disabled title="Super users cannot perform actions"{% endif %}>
                                                     <i class="bi bi-check-all"></i> Mark Finished
                                                 </button>
