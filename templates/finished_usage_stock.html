@@ -97,7 +97,7 @@
                     <table class="table table-striped table-hover align-middle mb-0">
                         <thead class="table-dark">
                             <tr>
-                                <th>Reel No</th><th>Material</th><th>Paper Type</th><th>Size</th><th>GSM</th><th>SR Num</th><th>Finished Date</th>
+                                <th>Reel No</th><th>Material</th><th>Paper Type</th><th>Size</th><th>GSM</th><th>SR Num</th><th>Received Date</th>
                                 {% if session.get('role') in ['admin', 'dataop1'] %}
                                 <th class="no-print">Action</th>
                                 {% endif %}
@@ -107,12 +107,12 @@
                             {% for reel in finished_reels %}
                             <tr>
                                 <td class="fw-bold text-success">{{ reel.reel_number }}</td>
-                                <td>{{ reel.paper_name }}</td>
+                                <td>{{ reel.material_name }}</td>
                                 <td>{{ reel.reel_type }}</td>
                                 <td>{{ reel.size_cm }} cm</td>
                                 <td>{{ reel.gsm }}</td>
-                                <td class="fw-bold text-primary">{{ reel.sr_number or 'N/A' }}</td>
-                                <td>{{ reel.updated_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td class="fw-bold text-primary">{{ reel.associated_sr.sr_number if reel.associated_sr else (reel.history[-1].doc_number if reel.history else 'N/A') }}</td>
+                                <td>{{ reel.received_date.strftime('%Y-%m-%d') if reel.received_date else 'N/A' }}</td>
                                 {% if session.get('role') in ['admin', 'dataop1'] %}
                                 <td class="no-print">
                                     <button class="btn btn-sm btn-outline-primary fw-bold" data-bs-toggle="modal" data-bs-target="#srModal{{ reel.id }}">
@@ -132,7 +132,7 @@
             <div class="card shadow border-0 border-top border-primary border-4">
                 <div class="card-header bg-white d-flex justify-content-between align-items-center">
                     <h5 class="mb-0 fw-bold">Usage & Return Logs</h5>
-                    <span class="badge bg-primary fs-6">Total Logged Usage: {{ total_used_weight_log }} kg</span>
+                    <span class="badge bg-primary fs-6">Total Logged Deductions: {{ total_used_weight_log }} kg</span>
                 </div>
                 <div class="table-responsive">
                     <table class="table table-striped table-hover align-middle mb-0">
@@ -146,9 +146,9 @@
                             <tr>
                                 <td>{{ log.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
                                 <td class="fw-bold">{{ log.reel.reel_number if log.reel else 'N/A' }}</td>
-                                <td><span class="badge bg-primary">{{ log.action_type }}</span></td>
-                                <td>{{ log.usage_details }}</td>
-                                <td class="fw-bold text-danger">{{ log.weight_used }} kg</td>
+                                <td><span class="badge bg-primary">{{ log.usage_type }}</span></td>
+                                <td>{{ log.remarks }}</td>
+                                <td class="fw-bold text-danger">{{ "%.2f"|format(log.weight_before - log.weight_after) }} kg</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -172,7 +172,7 @@
                     <form action="/update_finished_sr/{{ reel.id }}" method="POST">
                         <div class="mb-3">
                             <label class="form-label fw-bold">Manual SR Number for {{ reel.reel_number }}</label>
-                            <input type="text" name="sr_number" class="form-control" value="{{ reel.sr_number or '' }}" placeholder="Enter SR Number..." required>
+                            <input type="text" name="sr_number" class="form-control" value="{{ reel.history[-1].doc_number if reel.history else '' }}" placeholder="Enter SR Number..." required>
                         </div>
                         <div class="d-flex gap-2 justify-content-end mt-4">
                             <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Close</button>
