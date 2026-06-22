@@ -572,6 +572,23 @@ def reset_db_now():
     except Exception as e:
         db.session.rollback()
         return f"❌ Error resetting database: {str(e)}"
+        @app.route('/update_location/<int:id>', methods=['POST'])
+def update_location(id):
+    if 'role' not in session: return redirect(url_for('login'))
+    if get_user_role() in ['super1', 'super2']:
+        flash("❌ Action Not Allowed.", "danger")
+        return redirect(url_for('active_stock'))
+        
+    reel = Reel.query.get_or_404(id)
+    new_location = request.form.get('store_location')
+    if new_location:
+        reel.store_location = new_location
+        db.session.commit()
+        flash(f"✅ Reel {reel.reel_number} location updated to {new_location} successfully!", "success")
+    else:
+        flash("❌ Invalid Location.", "danger")
+        
+    return redirect(url_for('active_stock'))
 
 if __name__ == '__main__':
     with app.app_context():
