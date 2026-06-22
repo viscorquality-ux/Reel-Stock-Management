@@ -219,7 +219,7 @@ def mark_damage_sell(id):
 @app.route('/mark_finished/<int:id>', methods=['POST'])
 def mark_finished(id):
     reel = Reel.query.get_or_404(id)
-    reel.status = 'Finished' # Properly set to Finished so it leaves Issued Stock
+    reel.status = 'Finished' # FIX: Set to 'Finished' to properly remove from 'Issued' tab
     
     # Finished Log එකට එකතු කිරීම
     db.session.add(ReelHistory(
@@ -231,7 +231,7 @@ def mark_finished(id):
     ))
     db.session.commit()
     flash(f"✅ Reel {reel.reel_number} marked as Finished!", "success")
-    return redirect(url_for('issued_stock'))
+    return redirect(url_for('issued_stock')) # Keep them on the issued_stock page after finishing
     
 @app.route('/mark_return/<int:id>', methods=['POST'])
 def mark_return(id):
