@@ -254,7 +254,6 @@ def mark_finished(id):
     reel = Reel.query.get_or_404(id)
     old_weight = reel.current_weight
     
-    # වෙනස් කල කොටස: status එක 'Finished' ලෙස වෙනස් කිරීම
     reel.status = 'Finished' 
     reel.current_weight = 0.0 
     
@@ -405,9 +404,10 @@ def approve_sr(id):
         flash(f"✅ SR Request for PO {sr.po_number} has been Approved!", "success")
     return redirect(url_for('sr_request'))
 
-@app.route('/proceed_sr_batch/<int:sr_id>', methods=['POST'])
-def proceed_sr_batch(sr_id):
-    sr = SRRequest.query.get_or_404(sr_id)
+# ✅ වෙනස් කරන ලදී: Route එක /proceed_sr/<int:id> ලෙස වෙනස් කර ඇත (404 Error එක විසඳීම)
+@app.route('/proceed_sr/<int:id>', methods=['POST'])
+def proceed_sr(id):
+    sr = SRRequest.query.get_or_404(id)
     
     matching_reels = Reel.query.filter(
         Reel.size_cm == sr.reel_size,
@@ -473,7 +473,11 @@ def issue_reel(id):
         
     reel = Reel.query.get_or_404(id)
     doc_num = request.form.get('doc_number', '').strip()
+    
+    # ✅ වෙනස් කරන ලදී: Modal එකෙන් එන approval_remark එකත් මේකටම අල්ලගැනීමට සකසා ඇත
     remarks = request.form.get('remarks', '').strip()
+    if not remarks:
+        remarks = request.form.get('approval_remark', '').strip()
     
     if reel.status == 'Damaged':
         old_weight = reel.current_weight
@@ -499,7 +503,7 @@ def issue_reel(id):
             weight_before=old_weight,
             weight_after=0.0,
             doc_number=doc_num,
-            remarks="Manual Dispatch"
+            remarks="Manual Dispatch" if not remarks else remarks
         ))
         db.session.commit()
         flash(f"✅ Reel {reel.reel_number} successfully Dispatched!", "success")
@@ -599,7 +603,6 @@ def issued_stock():
     reels = Reel.query.filter_by(status='Issued').order_by(Reel.id.desc()).all()
     return render_template('issued_stock.html', stocks=reels, user_role=get_user_role()) 
 
-# සම්පූර්ණයෙන් නිවැරදි කල Route එක
 @app.route('/finished_usage_stock')
 def finished_usage_stock():
     if 'role' not in session: return redirect(url_for('login'))
@@ -607,11 +610,9 @@ def finished_usage_stock():
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
     
-    # වෙනම queries සාදාගැනීම
     finished_reels_query = Reel.query.filter_by(status='Finished')
     usage_logs_query = ReelHistory.query.filter(ReelHistory.usage_type.in_(['Finished Usage', 'Partial Return']))
     
-    # Date filter කිරීම
     if start_date and end_date:
         try:
             s_date = datetime.strptime(start_date, '%Y-%m-%d')
@@ -623,7 +624,6 @@ def finished_usage_stock():
     finished_reels = finished_reels_query.order_by(Reel.id.desc()).all()
     usage_logs = usage_logs_query.order_by(ReelHistory.timestamp.desc()).all()
     
-    # Totals ගණනය කිරීම
     total_finished_weight = sum([r.weight_kg for r in finished_reels])
     total_used_weight_log = sum([(l.weight_before - l.weight_after) for l in usage_logs if l.weight_before is not None and l.weight_after is not None])
     
@@ -635,8 +635,7 @@ def finished_usage_stock():
                            start_date=start_date or '',
                            end_date=end_date or '',
                            user_role=get_user_role())
-
-# අලුතින් එක් කළ Route එක - SR update කිරීමට                           
+                         
 @app.route('/update_finished_sr/<int:id>', methods=['POST'])
 def update_finished_sr(id):
     user_role = get_user_role()
@@ -656,12 +655,16 @@ def update_finished_sr(id):
         
     return redirect(url_for('finished_usage_stock'))
 
+# ✅ වෙනස් කරන ලදී: HTML එකට හරියටම ගැලපෙන විදිහට variables යවා ඇත (හිස්ව පෙන්වන දෝෂය විසඳීම)
 @app.route('/damage_sell_stock')
 def damage_sell_stock():
     if 'role' not in session: return redirect(url_for('login'))
-    reels = Reel.query.filter(Reel.status.in_(['Damaged', 'Sold', 'Returned'])).all()
-    cond_issued_logs = ReelHistory.query.filter_by(usage_type='Conditional Issue (Damaged)').order_by(ReelHistory.timestamp.desc()).all()
-    return render_template('damage_sell_stock.html', reels=reels, cond_issued_logs=cond_issued_logs, user_role=get_user_role())
+    
+    damaged_reels = Reel.query.filter_by(status='Damaged').all()
+    sold_reels = Reel.query.filter_by(status='Sold').all()
+    cond_logs = ReelHistory.query.filter_by(usage_type='Conditional Issue (Damaged)').order_by(ReelHistory.timestamp.desc()).all()
+    
+    return render_template('damage_sell_stock.html', damaged_reels=damaged_reels, sold_reels=sold_reels, cond_logs=cond_logs, user_role=get_user_role())
 
 @app.route('/reset_db_now')
 def reset_db_now():
