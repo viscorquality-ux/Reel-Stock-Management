@@ -44,9 +44,9 @@
           <div class="modal-body text-start">
               <div class="mb-3">
                   <label class="form-label fw-bold">Ref Document Type Specification Selector:</label>
-                  <select name="doc_type" id="doc_type_{{ stock.id }}" class="form-select" onchange="handleDocTypeChange('{{ stock.id }}')" required>
-                      <option value="SR" selected>SR (Store Request Reference)</option>
-                      <option value="GP">GP (Gate Pass Identification)</option>
+                  <select name="doc_type" class="form-select" onchange="autoGenerateSR(this)" required>
+                    <option value="Gate Pass">Gate Pass</option>
+                    <option value="SR">SR Number</option>
                   </select>
               </div>
               <div class="mb-3">
