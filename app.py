@@ -409,35 +409,57 @@ def approve_sr(id):
     return redirect(url_for('sr_request'))
 
 # ✅ වෙනස් කරන ලදී: Route එක /proceed_sr/<int:id> ලෙස වෙනස් කර ඇත (404 Error එක විසඳීම)
-@app.route('/proceed_sr/<int:id>', methods=['POST'])
-def proceed_sr(id):
-    sr = SRRequest.query.get_or_404(id)
+@app.route('/proceed_sr_batch/<int:sr_id>', methods=['POST'])
+def proceed_sr_batch(sr_id):
+    sr = SRRequest.query.get_or_404(sr_id)
     
-    matching_reels = Reel.query.filter(
+    total_needed = sr.total_weight
+    current_allocated = 0.0
+    allocated_reels = []
+    
+    # පියවර 1: මුලින්ම සාදා නිම කල (Full) Reels පමණක් FIFO ක්‍රමයට ලබා ගැනීම
+    full_reels = Reel.query.filter(
         Reel.size_cm == sr.reel_size,
         Reel.material_name == sr.material_name,
         Reel.gsm == sr.gsm,
         Reel.status == 'Full'
     ).order_by(Reel.received_date.asc()).all()
     
-    total_needed = sr.total_weight
-    current_allocated = 0.0
-    
-    for reel in matching_reels:
+    for reel in full_reels:
         if current_allocated < total_needed:
-            reel.status = 'SR_Requested'
-            reel.sr_request_id = sr.id
+            allocated_reels.append(reel)
             current_allocated += reel.current_weight
         else:
             break
             
+    # පියවර 2: Full Reels වලින් බර මදි වුවහොත් පමණක් භාගෙට භාවිතා කල (Used) Reels පරීක්ෂා කිරීම
+    if current_allocated < total_needed:
+        used_reels = Reel.query.filter(
+            Reel.size_cm == sr.reel_size,
+            Reel.material_name == sr.material_name,
+            Reel.gsm == sr.gsm,
+            Reel.status == 'Used'
+        ).order_by(Reel.received_date.asc()).all()
+        
+        for reel in used_reels:
+            if current_allocated < total_needed:
+                allocated_reels.append(reel)
+                current_allocated += reel.current_weight
+            else:
+                break
+                
+    # පියවර 3: මුළු අවශ්‍ය බර ප්‍රමාණයම තොග තුළ තිබේ නම් පමණක් දත්ත යාවත්කාලීන කිරීම
     if current_allocated >= total_needed:
+        for reel in allocated_reels:
+            reel.status = 'SR_Requested'
+            reel.sr_request_id = sr.id
         sr.status = 'Processed'
         db.session.commit()
-        flash("🚀 Batch Processing Completed Successfully!", "success")
+        flash("🚀 Batch Processing Completed Successfully using optimal Full & Used stocks!", "success")
     else:
+        # තොග මදි නම් කිසිදු වෙනසක් සිදු නොවේ (Rollback)
         db.session.rollback()
-        flash("❌ Not enough stock to satisfy this request.", "danger")
+        flash(f"❌ Not enough stock to satisfy this request. (Required: {total_needed} kg | Available: {current_allocated} kg)", "danger")
         
     return redirect(url_for('sr_request'))
 
