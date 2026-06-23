@@ -57,7 +57,8 @@ class SRRequest(db.Model):
     status = db.Column(db.String(50), default='Pending')
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(colombo_tz))
     reels = db.relationship('Reel', backref='associated_sr', lazy=True)
-
+    warehouse = db.Column(db.String(100), nullable=True)
+    
 class ReelHistory(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     reel_id = db.Column(db.Integer, db.ForeignKey('reel.id'), nullable=False)
