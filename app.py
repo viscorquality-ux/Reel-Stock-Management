@@ -286,10 +286,7 @@ def sr_request():
     if 'role' not in session: return redirect(url_for('login'))
     
     if request.method == 'POST':
-        if user_role in ['super1', 'super2', 'dataop1', 'dataop2']:
-            flash("❌ Action Not Allowed for your role.", "danger")
-            return redirect(url_for('sr_request'))
-            
+        # [සටහන: කලින් තිබූ Role Restriction බ්ලොක් එක ඉවත් කර ඇත]
         try:
             b_width = float(request.form.get('board_width', 0.0))
             b_length = float(request.form.get('board_length', 0.0))
@@ -305,7 +302,15 @@ def sr_request():
             excess_w = float(request.form.get('excess_weight', 0.0))
             tot_weight = calc_weight + excess_w
             
-            new_sr_num = f"SR-{datetime.now(colombo_tz).strftime('%Y%m%d%H%M')}-{random.randint(10,99)}"
+            # --- SR Prefix Logic ---
+            prefix = "SR"  # Default Prefix
+            if user_role in ['dataop1', 'programmer1', 'super1']:
+                prefix = "SRVL"
+            elif user_role in ['dataop2', 'programmer2', 'super2']:
+                prefix = "SRPL"
+                
+            new_sr_num = f"{prefix}-{datetime.now(colombo_tz).strftime('%Y%m%d%H%M')}-{random.randint(10,99)}"
+            # -----------------------
             
             new_sr = SRRequest(
                 sr_number=new_sr_num,
@@ -354,7 +359,6 @@ def sr_request():
             grouped_requests[size]['groups'][group_key]['srs'].append(r)
 
     return render_template('sr_request.html', all_requests=all_requests, grouped_requests=grouped_requests, user_role=user_role)
-
 @app.route('/edit_sr/<int:id>', methods=['POST'])
 def edit_sr(id):
     user_role = get_user_role()
