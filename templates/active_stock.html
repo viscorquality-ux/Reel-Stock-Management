@@ -14,9 +14,7 @@
             .no-print, .btn, .navbar, .alert { display: none !important; }
             body { background-color: white !important; color: black !important; }
             .card { border: none !important; box-shadow: none !important; }
-            .tab-pane:not(.active) { display: none !important; } /* Only prints the selected tab */
-            .tab-pane.active { display: block !important; opacity: 1 !important; margin-bottom: 20px;}
-            .nav-tabs { display: none !important; }
+            .tab-pane { display: block !important; opacity: 1 !important; margin-bottom: 20px;}
         }
     </style>
 </head>
@@ -52,7 +50,7 @@
                 </button>
                 <div class="input-group text-dark no-print" style="max-width: 350px;">
                     <span class="input-group-text bg-white border-end-0 shadow-sm"><i class="bi bi-search text-muted"></i></span>
-                    <input type="text" id="liveSearchInput" class="form-control border-start-0 shadow-sm" placeholder="Live filter registry items...">
+                    <input type="text" id="liveSearchInput" class="form-control border-start-0 shadow-sm" placeholder="Search by Size, GSM, Material, Location...">
                 </div>
             </div>
         </div>
@@ -131,9 +129,8 @@
                                     <td><span class="badge bg-light text-dark border"><i class="bi bi-geo-alt"></i> {{ stock.store_location }}</span></td>
                                     <td>{{ stock.supplier_name }}</td>
                                     <td class="no-print">
-                                        <button class="btn btn-info btn-sm fw-bold text-white mb-1" {% if session.get('role') in ['super1', 'super2'] %}disabled{% endif %} data-bs-toggle="modal" data-bs-target="#editReel{{ stock.id }}"><i class="bi bi-pencil-square"></i> Edit</button>
-                                        <button class="btn btn-success btn-sm fw-bold mb-1" {% if session.get('role') in ['super1', 'super2', 'programmer1', 'programmer2'] %}disabled{% endif %} data-bs-toggle="modal" data-bs-target="#issue{{ stock.id }}"><i class="bi bi-truck"></i> Dispatch</button>
-                                        <button class="btn btn-danger btn-sm fw-bold mb-1" {% if session.get('role') in ['super1', 'super2', 'programmer1', 'programmer2'] %}disabled{% endif %} data-bs-toggle="modal" data-bs-target="#updateStatus{{ stock.id }}"><i class="bi bi-gear"></i> Status</button>
+                                        <button class="btn btn-success btn-sm fw-bold" {% if session.get('role') in ['super1', 'super2', 'programmer1', 'programmer2'] %}disabled{% endif %} data-bs-toggle="modal" data-bs-target="#issue{{ stock.id }}"><i class="bi bi-truck"></i> Dispatch</button>
+                                        <button class="btn btn-danger btn-sm fw-bold" {% if session.get('role') in ['super1', 'super2', 'programmer1', 'programmer2'] %}disabled{% endif %} data-bs-toggle="modal" data-bs-target="#status{{ stock.id }}"><i class="bi bi-gear"></i> Status</button>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -168,9 +165,8 @@
                                     <td><span class="badge bg-light text-dark border"><i class="bi bi-geo-alt"></i> {{ stock.store_location }}</span></td>
                                     <td>{{ stock.supplier_name }}</td>
                                     <td class="no-print">
-                                        <button class="btn btn-info btn-sm fw-bold text-white mb-1" {% if session.get('role') in ['super1', 'super2'] %}disabled{% endif %} data-bs-toggle="modal" data-bs-target="#editReel{{ stock.id }}"><i class="bi bi-pencil-square"></i> Edit</button>
-                                        <button class="btn btn-success btn-sm fw-bold mb-1" {% if session.get('role') in ['super1', 'super2', 'programmer1', 'programmer2'] %}disabled{% endif %} data-bs-toggle="modal" data-bs-target="#issue{{ stock.id }}"><i class="bi bi-truck"></i> Dispatch</button>
-                                        <button class="btn btn-danger btn-sm fw-bold mb-1" {% if session.get('role') in ['super1', 'super2', 'programmer1', 'programmer2'] %}disabled{% endif %} data-bs-toggle="modal" data-bs-target="#updateStatus{{ stock.id }}"><i class="bi bi-gear"></i> Status</button>
+                                        <button class="btn btn-success btn-sm fw-bold" {% if session.get('role') in ['super1', 'super2', 'programmer1', 'programmer2'] %}disabled{% endif %} data-bs-toggle="modal" data-bs-target="#issue{{ stock.id }}"><i class="bi bi-truck"></i> Dispatch</button>
+                                        <button class="btn btn-danger btn-sm fw-bold" {% if session.get('role') in ['super1', 'super2', 'programmer1', 'programmer2'] %}disabled{% endif %} data-bs-toggle="modal" data-bs-target="#status{{ stock.id }}"><i class="bi bi-gear"></i> Status</button>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -215,13 +211,23 @@
         document.getElementById('usedReelWeight').innerText = usedWeight.toFixed(2);
     }
 
+    // නව පියවරෙන් පියවර (Step-by-Step Multi-Filter) සෙවුම් පද්ධතිය
     document.getElementById('liveSearchInput').addEventListener('input', function() {
-        let inputVal = this.value.toLowerCase().replace(/\s+/g, '');
+        // ඇතුලත් කල වාක්‍යය හිස්තැන් (spaces) මඟින් වෙන් කර වෙන වෙනම keywords සාදාගැනීම
+        let keywords = this.value.toLowerCase().split(/\s+/).filter(word => word.trim() !== '');
         let allRows = document.querySelectorAll('.full-reel-row, .used-reel-row');
+        
         allRows.forEach(row => {
-            let textContent = row.innerText.toLowerCase().replace(/\s+/g, '');
-            row.style.display = (inputVal === '' || textContent.includes(inputVal)) ? '' : 'none';
+            let textContent = row.innerText.toLowerCase();
+            
+            // පරිශීලකයා ඇතුලත් කල සියලුම වචන අදාළ row එකෙහි අඩංගුදැයි පරික්ෂා කිරීම
+            let isMatch = keywords.every(keyword => textContent.includes(keyword));
+            
+            // සියලුම වචන ගැලපේ නම් පමණක් row එක පෙන්වයි
+            row.style.display = isMatch ? '' : 'none';
         });
+        
+        // උඩින් ඇති එකතුවන් (Total Weights) dynamic ලෙස යාවත්කාලීන කිරීම
         calculateDynamicTotals();
     });
 
