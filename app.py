@@ -693,9 +693,17 @@ def update_finished_sr(id):
 @app.route('/damage_sell_stock')
 def damage_sell_stock():
     if 'role' not in session: return redirect(url_for('login'))
-    reels = Reel.query.filter(Reel.status.in_(['Damaged', 'Sold', 'Returned'])).all()
-    cond_issued_logs = ReelHistory.query.filter_by(usage_type='Conditional Issue (Damaged)').order_by(ReelHistory.timestamp.desc()).all()
-    return render_template('damage_sell_stock.html', reels=reels, cond_issued_logs=cond_issued_logs, user_role=get_user_role())
+    
+    # දත්ත වෙන වෙනම වෙන් කර ලබා ගැනීම
+    damaged_reels = Reel.query.filter_by(status='Damaged').all()
+    sold_reels = Reel.query.filter_by(status='Sold').all()
+    cond_logs = ReelHistory.query.filter_by(usage_type='Conditional Issue (Damaged)').order_by(ReelHistory.timestamp.desc()).all()
+    
+    return render_template('damage_sell_stock.html', 
+                           damaged_reels=damaged_reels, 
+                           sold_reels=sold_reels, 
+                           cond_logs=cond_logs, 
+                           user_role=get_user_role())
 
 @app.route('/reset_db_now')
 def reset_db_now():
