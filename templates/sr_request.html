@@ -211,7 +211,6 @@
                                             </td>
                                         </tr>
 
-                                        <div class="modal fade" id="editSrModal{{ sr.id }}" tabindex="-1" aria-hidden="true">
                                             <div class="modal-dialog">
                                                 <form action="/edit_sr/{{ sr.id }}" method="POST" class="modal-content">
                                                     <div class="modal-header bg-primary text-white">
@@ -269,6 +268,8 @@
                 {% endfor %}
             </div>
         </div>
+                                                    <div class="modal fade" id="editSrModal{{ sr.id }}" tabindex="-1" aria-hidden="true">
+    
     </div>
 
     <script>
