@@ -123,7 +123,7 @@ def dashboard():
     used_count = Reel.query.filter_by(status='Used').count()
     sr_req_count = Reel.query.filter_by(status='SR_Requested').count()
     
-    finished = Reel.query.filter_by(status='Issued').count()
+    finished = Reel.query.filter_by(status='Finished').count()
     damage_sell = Reel.query.filter(Reel.status.in_(['Damaged', 'Sold'])).count()
     active_weight = 0
     
@@ -229,9 +229,10 @@ def mark_damage_sell(id):
     action_type = request.form.get('action_type')
     remarks = request.form.get('remarks', '')
     
-    if action_type == 'Issued':  # This represents marking as 'Finished'
+    if action_type == 'Finished':  
         old_w = reel.current_weight
-        reel.status = 'Issued'
+        reel.status = 'Finished'
+        reel.current_weight = 0.0
         db.session.add(ReelHistory(
             reel_id=reel.id,
             usage_type='Finished Usage',
@@ -250,12 +251,16 @@ def mark_damage_sell(id):
 @app.route('/mark_finished/<int:id>', methods=['POST'])
 def mark_finished(id):
     reel = Reel.query.get_or_404(id)
-    reel.status = 'Issued' 
+    old_weight = reel.current_weight
+    
+    # වෙනස් කල කොටස: status එක 'Finished' ලෙස වෙනස් කිරීම
+    reel.status = 'Finished' 
+    reel.current_weight = 0.0 
     
     db.session.add(ReelHistory(
         reel_id=reel.id,
         usage_type='Finished Usage',
-        weight_before=reel.current_weight,
+        weight_before=old_weight,
         weight_after=0.0,
         remarks=f"Reel {reel.reel_number} fully consumed."
     ))
@@ -593,11 +598,62 @@ def issued_stock():
     reels = Reel.query.filter_by(status='Issued').order_by(Reel.id.desc()).all()
     return render_template('issued_stock.html', stocks=reels, user_role=get_user_role()) 
 
+# සම්පූර්ණයෙන් නිවැරදි කල Route එක
 @app.route('/finished_usage_stock')
 def finished_usage_stock():
     if 'role' not in session: return redirect(url_for('login'))
-    reels = Reel.query.filter_by(status='Issued').all()
-    return render_template('finished_usage_stock.html', reels=reels, user_role=get_user_role())
+    
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    
+    # වෙනම queries සාදාගැනීම
+    finished_reels_query = Reel.query.filter_by(status='Finished')
+    usage_logs_query = ReelHistory.query.filter(ReelHistory.usage_type.in_(['Finished Usage', 'Partial Return']))
+    
+    # Date filter කිරීම
+    if start_date and end_date:
+        try:
+            s_date = datetime.strptime(start_date, '%Y-%m-%d')
+            e_date = datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1)
+            usage_logs_query = usage_logs_query.filter(ReelHistory.timestamp >= s_date, ReelHistory.timestamp < e_date)
+        except Exception as e:
+            pass
+            
+    finished_reels = finished_reels_query.order_by(Reel.id.desc()).all()
+    usage_logs = usage_logs_query.order_by(ReelHistory.timestamp.desc()).all()
+    
+    # Totals ගණනය කිරීම
+    total_finished_weight = sum([r.weight_kg for r in finished_reels])
+    total_used_weight_log = sum([(l.weight_before - l.weight_after) for l in usage_logs if l.weight_before is not None and l.weight_after is not None])
+    
+    return render_template('finished_usage_stock.html', 
+                           finished_reels=finished_reels,
+                           usage_logs=usage_logs,
+                           total_finished_weight=round(total_finished_weight, 2),
+                           total_used_weight_log=round(total_used_weight_log, 2),
+                           start_date=start_date or '',
+                           end_date=end_date or '',
+                           user_role=get_user_role())
+
+# අලුතින් එක් කළ Route එක - SR update කිරීමට                           
+@app.route('/update_finished_sr/<int:id>', methods=['POST'])
+def update_finished_sr(id):
+    user_role = get_user_role()
+    if user_role not in ['admin', 'dataop1']:
+        flash("❌ Unauthorized Action.", "danger")
+        return redirect(url_for('finished_usage_stock'))
+        
+    reel = Reel.query.get_or_404(id)
+    new_sr = request.form.get('sr_number')
+    
+    if reel.history:
+        reel.history[-1].doc_number = new_sr
+        db.session.commit()
+        flash(f"✅ SR Number updated for {reel.reel_number}", "success")
+    else:
+        flash("❌ No history log found to update.", "danger")
+        
+    return redirect(url_for('finished_usage_stock'))
 
 @app.route('/damage_sell_stock')
 def damage_sell_stock():
