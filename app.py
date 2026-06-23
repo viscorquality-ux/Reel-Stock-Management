@@ -82,6 +82,14 @@ def datetimeformat(value, format='%Y-%m-%d %I:%M %p'):
 def get_user_role():
     return SmartRole(session.get('role', ''))
 
+# Helper function to generate auto SR prefix based on role
+def get_sr_prefix(role):
+    if role in ['dataop1', 'programmer1', 'super1']:
+        return "SRVL"
+    elif role in ['dataop2', 'programmer2', 'super2']:
+        return "SRPL"
+    return "SR"
+
 @app.route('/', methods=['GET', 'POST'])
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -286,7 +294,10 @@ def sr_request():
     if 'role' not in session: return redirect(url_for('login'))
     
     if request.method == 'POST':
-        # [සටහන: කලින් තිබූ Role Restriction බ්ලොක් එක ඉවත් කර ඇත]
+        if user_role in ['super1', 'super2', 'dataop1', 'dataop2']:
+            flash("❌ Action Not Allowed for your role.", "danger")
+            return redirect(url_for('sr_request'))
+            
         try:
             b_width = float(request.form.get('board_width', 0.0))
             b_length = float(request.form.get('board_length', 0.0))
@@ -302,15 +313,9 @@ def sr_request():
             excess_w = float(request.form.get('excess_weight', 0.0))
             tot_weight = calc_weight + excess_w
             
-            # --- SR Prefix Logic ---
-            prefix = "SR"  # Default Prefix
-            if user_role in ['dataop1', 'programmer1', 'super1']:
-                prefix = "SRVL"
-            elif user_role in ['dataop2', 'programmer2', 'super2']:
-                prefix = "SRPL"
-                
+            # Auto generated SR prefix matching the role logic
+            prefix = get_sr_prefix(user_role)
             new_sr_num = f"{prefix}-{datetime.now(colombo_tz).strftime('%Y%m%d%H%M')}-{random.randint(10,99)}"
-            # -----------------------
             
             new_sr = SRRequest(
                 sr_number=new_sr_num,
@@ -359,6 +364,7 @@ def sr_request():
             grouped_requests[size]['groups'][group_key]['srs'].append(r)
 
     return render_template('sr_request.html', all_requests=all_requests, grouped_requests=grouped_requests, user_role=user_role)
+
 @app.route('/edit_sr/<int:id>', methods=['POST'])
 def edit_sr(id):
     user_role = get_user_role()
@@ -408,7 +414,7 @@ def approve_sr(id):
         flash(f"✅ SR Request for PO {sr.po_number} has been Approved!", "success")
     return redirect(url_for('sr_request'))
 
-# ✅ වෙනස් කරන ලදී: Route එක /proceed_sr/<int:id> ලෙස වෙනස් කර ඇත (404 Error එක විසඳීම)
+# Optimized Proceed Batch - Processes Full reels first, then uses Used reels if needed using FIFO
 @app.route('/proceed_sr_batch/<int:sr_id>', methods=['POST'])
 def proceed_sr_batch(sr_id):
     sr = SRRequest.query.get_or_404(sr_id)
@@ -417,7 +423,7 @@ def proceed_sr_batch(sr_id):
     current_allocated = 0.0
     allocated_reels = []
     
-    # පියවර 1: මුලින්ම සාදා නිම කල (Full) Reels පමණක් FIFO ක්‍රමයට ලබා ගැනීම
+    # Step 1: Allocate Full Reels (FIFO sorted by received date)
     full_reels = Reel.query.filter(
         Reel.size_cm == sr.reel_size,
         Reel.material_name == sr.material_name,
@@ -432,7 +438,7 @@ def proceed_sr_batch(sr_id):
         else:
             break
             
-    # පියවර 2: Full Reels වලින් බර මදි වුවහොත් පමණක් භාගෙට භාවිතා කල (Used) Reels පරීක්ෂා කිරීම
+    # Step 2: If Full reels are not enough, allocate remaining weight from Used Reels (FIFO sorted)
     if current_allocated < total_needed:
         used_reels = Reel.query.filter(
             Reel.size_cm == sr.reel_size,
@@ -448,7 +454,7 @@ def proceed_sr_batch(sr_id):
             else:
                 break
                 
-    # පියවර 3: මුළු අවශ්‍ය බර ප්‍රමාණයම තොග තුළ තිබේ නම් පමණක් දත්ත යාවත්කාලීන කිරීම
+    # Step 3: Finalize allocation only if total weight matches requirements
     if current_allocated >= total_needed:
         for reel in allocated_reels:
             reel.status = 'SR_Requested'
@@ -457,7 +463,6 @@ def proceed_sr_batch(sr_id):
         db.session.commit()
         flash("🚀 Batch Processing Completed Successfully using optimal Full & Used stocks!", "success")
     else:
-        # තොග මදි නම් කිසිදු වෙනසක් සිදු නොවේ (Rollback)
         db.session.rollback()
         flash(f"❌ Not enough stock to satisfy this request. (Required: {total_needed} kg | Available: {current_allocated} kg)", "danger")
         
@@ -499,25 +504,27 @@ def issue_reel(id):
         
     reel = Reel.query.get_or_404(id)
     doc_num = request.form.get('doc_number', '').strip()
-    
-    # ✅ වෙනස් කරන ලදී: Modal එකෙන් එන approval_remark එකත් මේකටම අල්ලගැනීමට සකසා ඇත
     remarks = request.form.get('remarks', '').strip()
-    if not remarks:
-        remarks = request.form.get('approval_remark', '').strip()
     
     if reel.status == 'Damaged':
         old_weight = reel.current_weight
         reel.status = 'Issued'
+        
+        # Auto generate SR number automatically for conditional Damage/Sell issue 
+        prefix = get_sr_prefix(user_role)
+        auto_sr = f"{prefix}-COND-{datetime.now(colombo_tz).strftime('%Y%m%d%H%M')}-{random.randint(10,99)}"
+        final_doc_num = doc_num if doc_num else auto_sr
+        
         db.session.add(ReelHistory(
             reel_id=reel.id,
             usage_type='Conditional Issue (Damaged)',
             weight_before=old_weight,
             weight_after=0.0,
-            doc_number=doc_num,
-            remarks=remarks
+            doc_number=final_doc_num,
+            remarks=remarks if remarks else 'Damaged stock conditionally issued'
         ))
         db.session.commit()
-        flash(f"✅ Damaged Reel {reel.reel_number} conditionally issued!", "success")
+        flash(f"✅ Damaged Reel {reel.reel_number} conditionally issued with SR: {final_doc_num}!", "success")
         return redirect(url_for('damage_sell_stock'))
         
     elif reel.status in ['Full', 'Used']:
@@ -528,8 +535,8 @@ def issue_reel(id):
             usage_type='Issued to Production',
             weight_before=old_weight,
             weight_after=0.0,
-            doc_number=doc_num,
-            remarks="Manual Dispatch" if not remarks else remarks
+            doc_number=doc_num if doc_num else 'Manual Dispatch',
+            remarks="Manual Dispatch"
         ))
         db.session.commit()
         flash(f"✅ Reel {reel.reel_number} successfully Dispatched!", "success")
@@ -623,11 +630,13 @@ def partial_return(id):
         flash(f"Error handling return: {str(e)}", "danger")
     return redirect(url_for('active_stock'))
 
+# Unified queries to show both Direct SR issuance and Manual Dispatch seamlessly
 @app.route('/issued_stock')
 def issued_stock():
     if 'role' not in session: return redirect(url_for('login'))
     reels = Reel.query.filter_by(status='Issued').order_by(Reel.id.desc()).all()
-    return render_template('issued_stock.html', stocks=reels, user_role=get_user_role()) 
+    manual_issue_logs = ReelHistory.query.filter_by(usage_type='Issued to Production').order_by(ReelHistory.timestamp.desc()).all()
+    return render_template('issued_stock.html', stocks=reels, manual_logs=manual_issue_logs, user_role=get_user_role()) 
 
 @app.route('/finished_usage_stock')
 def finished_usage_stock():
@@ -661,7 +670,7 @@ def finished_usage_stock():
                            start_date=start_date or '',
                            end_date=end_date or '',
                            user_role=get_user_role())
-                         
+
 @app.route('/update_finished_sr/<int:id>', methods=['POST'])
 def update_finished_sr(id):
     user_role = get_user_role()
@@ -681,16 +690,12 @@ def update_finished_sr(id):
         
     return redirect(url_for('finished_usage_stock'))
 
-# ✅ වෙනස් කරන ලදී: HTML එකට හරියටම ගැලපෙන විදිහට variables යවා ඇත (හිස්ව පෙන්වන දෝෂය විසඳීම)
 @app.route('/damage_sell_stock')
 def damage_sell_stock():
     if 'role' not in session: return redirect(url_for('login'))
-    
-    damaged_reels = Reel.query.filter_by(status='Damaged').all()
-    sold_reels = Reel.query.filter_by(status='Sold').all()
-    cond_logs = ReelHistory.query.filter_by(usage_type='Conditional Issue (Damaged)').order_by(ReelHistory.timestamp.desc()).all()
-    
-    return render_template('damage_sell_stock.html', damaged_reels=damaged_reels, sold_reels=sold_reels, cond_logs=cond_logs, user_role=get_user_role())
+    reels = Reel.query.filter(Reel.status.in_(['Damaged', 'Sold', 'Returned'])).all()
+    cond_issued_logs = ReelHistory.query.filter_by(usage_type='Conditional Issue (Damaged)').order_by(ReelHistory.timestamp.desc()).all()
+    return render_template('damage_sell_stock.html', reels=reels, cond_issued_logs=cond_issued_logs, user_role=get_user_role())
 
 @app.route('/reset_db_now')
 def reset_db_now():
