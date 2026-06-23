@@ -129,8 +129,9 @@
                                     <td><span class="badge bg-light text-dark border"><i class="bi bi-geo-alt"></i> {{ stock.store_location }}</span></td>
                                     <td>{{ stock.supplier_name }}</td>
                                     <td class="no-print">
+                                        <button class="btn btn-info btn-sm fw-bold text-white" {% if session.get('role') in ['super1', 'super2', 'programmer1', 'programmer2'] %}disabled{% endif %} data-bs-toggle="modal" data-bs-target="#editReel{{ stock.id }}"><i class="bi bi-pencil-square"></i> Edit</button>
                                         <button class="btn btn-success btn-sm fw-bold" {% if session.get('role') in ['super1', 'super2', 'programmer1', 'programmer2'] %}disabled{% endif %} data-bs-toggle="modal" data-bs-target="#issue{{ stock.id }}" onclick="autoFillSR('doc_number_{{ stock.id }}')"><i class="bi bi-truck"></i> Dispatch</button>
-                                        <button class="btn btn-danger btn-sm fw-bold" {% if session.get('role') in ['super1', 'super2', 'programmer1', 'programmer2'] %}disabled{% endif %} data-bs-toggle="modal" data-bs-target="#status{{ stock.id }}"><i class="bi bi-gear"></i> Status</button>
+                                        <button class="btn btn-danger btn-sm fw-bold" {% if session.get('role') in ['super1', 'super2', 'programmer1', 'programmer2'] %}disabled{% endif %} data-bs-toggle="modal" data-bs-target="#updateStatus{{ stock.id }}"><i class="bi bi-gear"></i> Status</button>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -165,8 +166,9 @@
                                     <td><span class="badge bg-light text-dark border"><i class="bi bi-geo-alt"></i> {{ stock.store_location }}</span></td>
                                     <td>{{ stock.supplier_name }}</td>
                                     <td class="no-print">
+                                        <button class="btn btn-info btn-sm fw-bold text-white" {% if session.get('role') in ['super1', 'super2', 'programmer1', 'programmer2'] %}disabled{% endif %} data-bs-toggle="modal" data-bs-target="#editReel{{ stock.id }}"><i class="bi bi-pencil-square"></i> Edit</button>
                                         <button class="btn btn-success btn-sm fw-bold" {% if session.get('role') in ['super1', 'super2', 'programmer1', 'programmer2'] %}disabled{% endif %} data-bs-toggle="modal" data-bs-target="#issue{{ stock.id }}" onclick="autoFillSR('doc_number_{{ stock.id }}')"><i class="bi bi-truck"></i> Dispatch</button>
-                                        <button class="btn btn-danger btn-sm fw-bold" {% if session.get('role') in ['super1', 'super2', 'programmer1', 'programmer2'] %}disabled{% endif %} data-bs-toggle="modal" data-bs-target="#status{{ stock.id }}"><i class="bi bi-gear"></i> Status</button>
+                                        <button class="btn btn-danger btn-sm fw-bold" {% if session.get('role') in ['super1', 'super2', 'programmer1', 'programmer2'] %}disabled{% endif %} data-bs-toggle="modal" data-bs-target="#updateStatus{{ stock.id }}"><i class="bi bi-gear"></i> Status</button>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -185,39 +187,34 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
-    // -------------------------------------------------------------
     // SR Number Auto Generation Logic
-    // -------------------------------------------------------------
     function autoFillSR(inputId) {
         let inputField = document.getElementById(inputId);
+        if(!inputField) return;
         let now = new Date();
         let year = now.getFullYear();
         let month = String(now.getMonth() + 1).padStart(2, '0');
         let day = String(now.getDate()).padStart(2, '0');
         let hours = String(now.getHours()).padStart(2, '0');
         let minutes = String(now.getMinutes()).padStart(2, '0');
-        let randomNum = Math.floor(Math.random() * 90) + 10; // 10 to 99
-        
-        // SR Request Backend එකෙහි format එකට සමානවම (SR-YYYYMMDDHHMM-RR)
+        let randomNum = Math.floor(Math.random() * 90) + 10;
         inputField.value = `SR-${year}${month}${day}${hours}${minutes}-${randomNum}`;
     }
 
-    // SR / GP dropdown වෙනස් වන විට සිදුවිය යුතු දේ
     function handleDocTypeChange(stockId) {
-        let type = document.getElementById('doc_type_' + stockId).value;
+        let typeSelect = document.getElementById('doc_type_' + stockId);
         let inputField = document.getElementById('doc_number_' + stockId);
+        if(!typeSelect || !inputField) return;
         
-        if (type === 'GP') {
-            inputField.value = ''; // GP තේරූ විට හිස් කරයි
+        if (typeSelect.value === 'GP') {
+            inputField.value = '';
             inputField.placeholder = "Enter Gate Pass (GP) number...";
         } else {
-            autoFillSR('doc_number_' + stockId); // SR තේරූ විට නැවතත් අලුත් අංකයක් දමයි
+            autoFillSR('doc_number_' + stockId);
         }
     }
 
-    // -------------------------------------------------------------
-    // Search & Calculations Logic
-    // -------------------------------------------------------------
+    // Calculations & Multi-Step Search Filter
     function calculateDynamicTotals() {
         let fullCount = 0; let fullWeight = 0.0;
         let fullRows = document.querySelectorAll('.full-reel-row');
@@ -244,7 +241,7 @@
         document.getElementById('usedReelWeight').innerText = usedWeight.toFixed(2);
     }
 
-    document.getElementById('liveSearchInput').addEventListener('input', function() {
+    document.getElementById('SearchInput').addEventListener('input', function() {
         let keywords = this.value.toLowerCase().split(/\s+/).filter(word => word.trim() !== '');
         let allRows = document.querySelectorAll('.full-reel-row, .used-reel-row');
         
