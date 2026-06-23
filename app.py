@@ -203,7 +203,6 @@ def edit_active_reel(id):
     flash(f"✅ Reel {reel.reel_number} Updated Successfully!", "success")
     return redirect(url_for('active_stock'))
 
-# 🆕 ADDED MISSING ROUTE FOR UPDATE LOCATION (මෙම කොටස අලුතින් එකතු කරන ලදි)
 @app.route('/update_location/<int:id>', methods=['POST'])
 def update_location(id):
     if get_user_role() in ['super1', 'super2']:
@@ -228,9 +227,24 @@ def mark_damage_sell(id):
         
     reel = Reel.query.get_or_404(id)
     action_type = request.form.get('action_type')
-    reel.status = action_type
+    remarks = request.form.get('remarks', '')
+    
+    if action_type == 'Issued':  # This represents marking as 'Finished'
+        old_w = reel.current_weight
+        reel.status = 'Issued'
+        db.session.add(ReelHistory(
+            reel_id=reel.id,
+            usage_type='Finished Usage',
+            weight_before=old_w,
+            weight_after=0.0,
+            remarks=remarks
+        ))
+        flash(f"✅ Reel {reel.reel_number} marked as Fully Finished!", "success")
+    else:
+        reel.status = action_type
+        flash(f"✅ Reel {reel.reel_number} marked as {action_type}!", "success")
+
     db.session.commit()
-    flash(f"✅ Reel {reel.reel_number} marked as {action_type}!", "success")
     return redirect(url_for('active_stock'))
 
 @app.route('/mark_finished/<int:id>', methods=['POST'])
@@ -469,6 +483,20 @@ def issue_reel(id):
         db.session.commit()
         flash(f"✅ Damaged Reel {reel.reel_number} conditionally issued!", "success")
         return redirect(url_for('damage_sell_stock'))
+        
+    elif reel.status in ['Full', 'Used']:
+        old_weight = reel.current_weight
+        reel.status = 'Issued'
+        db.session.add(ReelHistory(
+            reel_id=reel.id,
+            usage_type='Issued to Production',
+            weight_before=old_weight,
+            weight_after=0.0,
+            doc_number=doc_num,
+            remarks="Manual Dispatch"
+        ))
+        db.session.commit()
+        flash(f"✅ Reel {reel.reel_number} successfully Dispatched!", "success")
         
     return redirect(url_for('active_stock'))
 
