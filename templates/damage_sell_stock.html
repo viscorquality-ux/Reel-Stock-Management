@@ -86,11 +86,11 @@
                             {% for reel in damaged_reels %}
                             <tr class="reel-row">
                                 <td class="fw-bold r-no text-danger">{{ reel.reel_number }}</td>
-                                <td><span class="r-mat">{{ reel.paper_name }}</span> (<span class="r-pname">{{ reel.reel_type }}</span>)</td>
+                                <td><span class="r-mat">{{ reel.material_name }}</span></td>
                                 <td class="r-size" data-val="{{ reel.size_cm }}">{{ reel.size_cm }} cm</td>
                                 <td class="r-gsm" data-val="{{ reel.gsm }}">{{ reel.gsm }}</td>
                                 <td>{{ reel.weight_kg }} kg</td>
-                                <td>{{ reel.location }}</td>
+                                <td>{{ reel.store_location }}</td>
                                 {% if session.get('role') not in ['super1', 'super2'] %}
                                 <td class="no-print">
                                     <button class="btn btn-sm btn-warning fw-bold text-dark" data-bs-toggle="modal" data-bs-target="#condIssueModal{{ reel.id }}"><i class="bi bi-shield-exclamation"></i> Conditional Issue</button>
@@ -117,11 +117,11 @@
                             {% for reel in sold_reels %}
                             <tr class="reel-row">
                                 <td class="fw-bold r-no text-primary">{{ reel.reel_number }}</td>
-                                <td><span class="r-mat">{{ reel.paper_name }}</span> (<span class="r-pname">{{ reel.reel_type }}</span>)</td>
+                                <td><span class="r-mat">{{ reel.material_name }}</span></td>
                                 <td class="r-size" data-val="{{ reel.size_cm }}">{{ reel.size_cm }} cm</td>
                                 <td class="r-gsm" data-val="{{ reel.gsm }}">{{ reel.gsm }}</td>
                                 <td>{{ reel.weight_kg }} kg</td>
-                                <td>{{ reel.location }}</td>
+                                <td>{{ reel.store_location }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -144,8 +144,8 @@
                             <tr>
                                 <td>{{ log.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
                                 <td class="fw-bold">{{ log.reel.reel_number if log.reel else 'N/A' }}</td>
-                                <td>{{ log.usage_details }}</td>
-                                <td><span class="badge bg-secondary">{{ log.action_type }}</span></td>
+                                <td>{{ log.remarks }}</td>
+                                <td><span class="badge bg-secondary">{{ log.usage_type }}</span></td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -166,7 +166,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body p-4">
-                    <form action="/issue_damaged_reel/{{ reel.id }}" method="POST">
+                    <form action="/issue_reel/{{ reel.id }}" method="POST">
                         <div class="mb-3">
                             <label class="form-label fw-bold">Document Type</label>
                             <select name="doc_type" class="form-select" required>
