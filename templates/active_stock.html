@@ -14,7 +14,9 @@
             .no-print, .btn, .navbar, .alert { display: none !important; }
             body { background-color: white !important; color: black !important; }
             .card { border: none !important; box-shadow: none !important; }
-            .tab-pane { display: block !important; opacity: 1 !important; margin-bottom: 20px;}
+            .tab-pane:not(.active) { display: none !important; } /* Only prints the selected tab */
+            .tab-pane.active { display: block !important; opacity: 1 !important; margin-bottom: 20px;}
+            .nav-tabs { display: none !important; }
         }
     </style>
 </head>
@@ -129,8 +131,9 @@
                                     <td><span class="badge bg-light text-dark border"><i class="bi bi-geo-alt"></i> {{ stock.store_location }}</span></td>
                                     <td>{{ stock.supplier_name }}</td>
                                     <td class="no-print">
-                                        <button class="btn btn-success btn-sm fw-bold" {% if session.get('role') in ['super1', 'super2', 'programmer1', 'programmer2'] %}disabled{% endif %} data-bs-toggle="modal" data-bs-target="#issue{{ stock.id }}"><i class="bi bi-truck"></i> Dispatch</button>
-                                        <button class="btn btn-danger btn-sm fw-bold" {% if session.get('role') in ['super1', 'super2', 'programmer1', 'programmer2'] %}disabled{% endif %} data-bs-toggle="modal" data-bs-target="#status{{ stock.id }}"><i class="bi bi-gear"></i> Status</button>
+                                        <button class="btn btn-info btn-sm fw-bold text-white mb-1" {% if session.get('role') in ['super1', 'super2'] %}disabled{% endif %} data-bs-toggle="modal" data-bs-target="#editReel{{ stock.id }}"><i class="bi bi-pencil-square"></i> Edit</button>
+                                        <button class="btn btn-success btn-sm fw-bold mb-1" {% if session.get('role') in ['super1', 'super2', 'programmer1', 'programmer2'] %}disabled{% endif %} data-bs-toggle="modal" data-bs-target="#issue{{ stock.id }}"><i class="bi bi-truck"></i> Dispatch</button>
+                                        <button class="btn btn-danger btn-sm fw-bold mb-1" {% if session.get('role') in ['super1', 'super2', 'programmer1', 'programmer2'] %}disabled{% endif %} data-bs-toggle="modal" data-bs-target="#updateStatus{{ stock.id }}"><i class="bi bi-gear"></i> Status</button>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -165,8 +168,9 @@
                                     <td><span class="badge bg-light text-dark border"><i class="bi bi-geo-alt"></i> {{ stock.store_location }}</span></td>
                                     <td>{{ stock.supplier_name }}</td>
                                     <td class="no-print">
-                                        <button class="btn btn-success btn-sm fw-bold" {% if session.get('role') in ['super1', 'super2', 'programmer1', 'programmer2'] %}disabled{% endif %} data-bs-toggle="modal" data-bs-target="#issue{{ stock.id }}"><i class="bi bi-truck"></i> Dispatch</button>
-                                        <button class="btn btn-danger btn-sm fw-bold" {% if session.get('role') in ['super1', 'super2', 'programmer1', 'programmer2'] %}disabled{% endif %} data-bs-toggle="modal" data-bs-target="#status{{ stock.id }}"><i class="bi bi-gear"></i> Status</button>
+                                        <button class="btn btn-info btn-sm fw-bold text-white mb-1" {% if session.get('role') in ['super1', 'super2'] %}disabled{% endif %} data-bs-toggle="modal" data-bs-target="#editReel{{ stock.id }}"><i class="bi bi-pencil-square"></i> Edit</button>
+                                        <button class="btn btn-success btn-sm fw-bold mb-1" {% if session.get('role') in ['super1', 'super2', 'programmer1', 'programmer2'] %}disabled{% endif %} data-bs-toggle="modal" data-bs-target="#issue{{ stock.id }}"><i class="bi bi-truck"></i> Dispatch</button>
+                                        <button class="btn btn-danger btn-sm fw-bold mb-1" {% if session.get('role') in ['super1', 'super2', 'programmer1', 'programmer2'] %}disabled{% endif %} data-bs-toggle="modal" data-bs-target="#updateStatus{{ stock.id }}"><i class="bi bi-gear"></i> Status</button>
                                     </td>
                                 </tr>
                                 {% endfor %}
