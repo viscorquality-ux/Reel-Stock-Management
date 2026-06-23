@@ -195,14 +195,22 @@
 {% endif %}
 
 <script>
-document.getElementById('liveSearchInput').addEventListener('input', function() {
-    let inputVal = this.value.toLowerCase().replace(/\s+/g, '');
-    let rows = document.querySelectorAll('.reel-row');
-    rows.forEach(row => {
-        let textContent = row.innerText.toLowerCase().replace(/\s+/g, '');
-        row.style.display = (inputVal === '' || textContent.includes(inputVal)) ? '' : 'none';
-    });
-});
+    function autoGenerateSR(selectElement) {
+        // Mea mawa select karala thiyena form eka hoya ganna
+        let form = selectElement.closest('form');
+        let docNumberInput = form.querySelector('input[name="doc_number"]');
+        
+        if (selectElement.value === 'SR') {
+            // SR kiyala select karoth timestamp ekak use karala number ekak hadanawa
+            let timestamp = new Date().getTime().toString().slice(-6);
+            docNumberInput.value = "SR-" + timestamp;
+            docNumberInput.readOnly = true; // User ta number eka edit karanna bari wenna ona nam
+        } else {
+            // Wena mokak hari select karoth input eka empty karanawa
+            docNumberInput.value = "";
+            docNumberInput.readOnly = false;
+        }
+    }
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
