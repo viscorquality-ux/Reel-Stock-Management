@@ -91,7 +91,8 @@ def get_sr_prefix(role):
 
 def apply_location_filter(query, model):
     role = session.get('role', '')
-    if role in ['dataop2', 'super2']:
+    # Programmer 2 හට Viscor Lanka දත්ත නොපෙන්වා Packwell පමණක් පෙන්වීමට යාවත්කාලීන කර ඇත
+    if role in ['dataop2', 'super2', 'programmer2']:
         return query.filter(model.store_location.like('Packwell%'))
     elif role == 'super1':
         return query.filter(model.store_location == 'Viscor Lanka')
@@ -378,7 +379,6 @@ def edit_sr(id):
     comp_type = request.form.get('component_type', sr.component_type)
     excess_w = float(request.form.get('excess_weight', sr.excess_weight))
     
-    # 0 Division Error එකක් එන එක වලක්වන්න Safety Check එකක් 
     cartoon_amt = float(request.form.get('cartoon_amount', sr.cartoon_amount))
     if cartoon_amt <= 0:
         cartoon_amt = 1.0
@@ -577,6 +577,8 @@ def viscor_issue():
     if 'role' not in session: return redirect(url_for('login'))
     user_role = get_user_role()
     
+    # මෙම පිටුවෙහි apply_location_filter භාවිත කර නොමැති නිසා, 
+    # Programmer 2 හට පෙර පරිදිම Viscor සහ Packwell දෙකෙහිම Transfer Data සහ Logs දැකගත හැක.
     viscor_reels = Reel.query.filter_by(status='Pending_Verify', store_location='Viscor Lanka').all()
     packwell_reels = Reel.query.filter(Reel.status == 'Pending_Verify', Reel.store_location.like('Packwell%')).all()
     packwell_returns = Reel.query.filter_by(status='Pending_Return').all()
