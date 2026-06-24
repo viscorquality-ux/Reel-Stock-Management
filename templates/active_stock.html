@@ -204,11 +204,42 @@
         inputField.value = `SR-${year}${month}${day}${hours}${minutes}-${randomNum}`;
     }
 
-    // New Javascript Controller to handle Viscor Transfer Feature UI Updates
+    // Toggle Viscor Checkbox Mode
+    function toggleViscorMode(stockId) {
+        let viscorCheck = document.getElementById('sendViscor' + stockId);
+        let docTypeSelect = document.getElementById('doc_type_' + stockId);
+        let docNumberInput = document.getElementById('doc_number_' + stockId);
+        let hint = document.getElementById('auto_sr_hint_' + stockId);
+
+        if (viscorCheck && viscorCheck.checked) {
+            // Disable the normal dropdown
+            if(docTypeSelect) { docTypeSelect.disabled = true; }
+            
+            // Allow typing SR or Gate pass manually
+            if(docNumberInput) {
+                docNumberInput.readOnly = false;
+                docNumberInput.placeholder = "Enter Viscor SR / Gate Pass...";
+                docNumberInput.value = ""; // Clear existing value
+            }
+            if(hint) { hint.style.display = 'none'; }
+        } else {
+            // Re-enable everything back to normal
+            if(docTypeSelect) { docTypeSelect.disabled = false; }
+            if(hint) { hint.style.display = 'block'; }
+            handleDocTypeChange(stockId); // run standard logic again
+        }
+    }
+
+    // Handle Normal Dispatch Dropdown
     function handleDocTypeChange(stockId) {
         let typeSelect = document.getElementById('doc_type_' + stockId);
         let inputField = document.getElementById('doc_number_' + stockId);
         let container = document.getElementById('doc_number_container_' + stockId);
+        let viscorCheck = document.getElementById('sendViscor' + stockId);
+
+        // Don't change values if Viscor checkbox is currently checked
+        if(viscorCheck && viscorCheck.checked) return;
+
         if(!typeSelect || !inputField) return;
         
         if (typeSelect.value === 'Gate Pass') {
@@ -220,10 +251,7 @@
             container.style.display = 'block';
             autoFillSR('doc_number_' + stockId);
             inputField.readOnly = true;
-        } else if (typeSelect.value === 'Transfer_Viscor') {
-            container.style.display = 'none';
-            inputField.value = 'TRANSFER';
-        }
+        } 
     }
 
     // Calculations & Multi-Step Search Filter
