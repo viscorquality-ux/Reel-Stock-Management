@@ -96,6 +96,11 @@
                                     <button class="btn btn-sm btn-warning fw-bold text-dark" data-bs-toggle="modal" data-bs-target="#condIssueModal{{ reel.id }}"><i class="bi bi-shield-exclamation"></i> Conditional Issue</button>
                                 </td>
                                 {% endif %}
+                                {% if user_role not in ['super1', 'super2', 'programmer1', 'programmer2'] %}
+                                <button class="btn btn-primary">Action Button</button>
+                                {% else %}
+                                <button class="btn btn-secondary" disabled>Action Disabled</button>
+                                {% endif %}
                             </tr>
                             {% endfor %}
                         </tbody>
