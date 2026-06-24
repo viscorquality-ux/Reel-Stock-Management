@@ -23,7 +23,7 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item"><a class="nav-link" href="/dashboard">Dashboard</a></li>
-                    {% if session.get('role') not in ['super1', 'super2'] %}
+                    {% if session.get('role') not in ['programmer1', 'programmer2', 'super1', 'super2'] %}
                     <li class="nav-item"><a class="nav-link" href="/add_stock">Add Stock</a></li>
                     {% endif %}
                     <li class="nav-item"><a class="nav-link" href="/active_stock">Active Stock</a></li>
@@ -79,7 +79,7 @@
                         <thead class="table-dark">
                             <tr>
                                 <th>Reel No</th><th>Material</th><th>Size</th><th>GSM</th><th>Weight</th><th>Location</th>
-                                {% if session.get('role') not in ['super1', 'super2'] %}<th class="no-print">Action</th>{% endif %}
+                                {% if session.get('role') not in ['programmer1', 'programmer2', 'super1', 'super2'] %}<th class="no-print">Action</th>{% endif %}
                             </tr>
                         </thead>
                         <tbody>
@@ -91,7 +91,7 @@
                                 <td class="r-gsm" data-val="{{ reel.gsm }}">{{ reel.gsm }}</td>
                                 <td>{{ reel.weight_kg }} kg</td>
                                 <td>{{ reel.store_location }}</td>
-                                {% if session.get('role') not in ['super1', 'super2'] %}
+                                {% if session.get('role') not in ['programmer1', 'programmer2', 'super1', 'super2'] %}
                                 <td class="no-print">
                                     <button class="btn btn-sm btn-warning fw-bold text-dark" data-bs-toggle="modal" data-bs-target="#condIssueModal{{ reel.id }}"><i class="bi bi-shield-exclamation"></i> Conditional Issue</button>
                                 </td>
@@ -156,7 +156,7 @@
     </div>
 </div>
 
-{% if session.get('role') not in ['super1', 'super2'] %}
+{% if session.get('role') not in ['programmer1', 'programmer2', 'super1', 'super2'] %}
     {% for reel in damaged_reels %}
     <div class="modal fade no-print" id="condIssueModal{{ reel.id }}" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
@@ -200,11 +200,9 @@
         let form = selectElement.closest('form');
         let docNumberInput = form.querySelector('input[name="doc_number"]');
         
-        // Flask Session එකෙන් Current User ගේ Role එක ලබාගැනීම
         let userRole = "{{ session.get('role', '') }}".toLowerCase();
         let prefix = "SR";
         
-        // Role එකට අදාලව Prefix එක තීරණය කිරීම
         if (['dataop1', 'programmer1', 'super1'].includes(userRole)) {
             prefix = "SRVL";
         } else if (['dataop2', 'programmer2', 'super2'].includes(userRole)) {
@@ -212,7 +210,6 @@
         }
         
         if (selectElement.value === 'SR') {
-            // SR අංකය Auto Generate කිරීම (Backend එකේ Format එකට සමාන වීමට)
             let now = new Date();
             let year = now.getFullYear();
             let month = String(now.getMonth() + 1).padStart(2, '0');
@@ -221,18 +218,15 @@
             let minutes = String(now.getMinutes()).padStart(2, '0');
             let randomNum = Math.floor(Math.random() * 90) + 10;
             
-            // Format: PREFIX-COND-YYYYMMDDHHMM-XX
             docNumberInput.value = `${prefix}-COND-${year}${month}${day}${hours}${minutes}-${randomNum}`;
             docNumberInput.readOnly = true; 
         } else {
-            // Gate Pass හෝ වෙනත් එකක් තේරුවොත් Auto Generate කළ අගය මකා දැමීම
             docNumberInput.value = "";
             docNumberInput.readOnly = false;
             docNumberInput.placeholder = "Enter Document Reference...";
         }
     }
 
-    // Live Search Script
     document.getElementById('liveSearchInput').addEventListener('input', function() {
         let inputVal = this.value.toLowerCase().replace(/\s+/g, '');
         let rows = document.querySelectorAll('.reel-row');
