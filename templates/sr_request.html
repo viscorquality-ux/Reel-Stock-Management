@@ -145,6 +145,17 @@
                 {% endif %}
 
                 {% for size, info in grouped_requests.items() %}
+                
+                <!-- Programmer 1 & 2 ට Print Matrix පෙන්වීම සඳහා Status Check කිරීම -->
+                {% set ns = namespace(all_approved=true) %}
+                {% for group_key, group in info.groups.items() %}
+                    {% for sr in group.srs %}
+                        {% if sr.status != 'Approved' %}
+                            {% set ns.all_approved = false %}
+                        {% endif %}
+                    {% endfor %}
+                {% endfor %}
+
                 <div class="card border-0 shadow-sm mb-3" id="matrix-card-{{ loop.index }}">
                     <div class="card-body bg-white p-3 rounded">
                         <div class="d-flex justify-content-between align-items-start mb-2">
@@ -153,8 +164,8 @@
                                 <div class="mb-2"><strong>2. Reel Size - </strong> <span class="badge bg-primary text-white">{{ size }} cm</span></div>
                             </div>
                             
-                            <!-- Super 1, Super 2 ඇතුළු අදාළ අයට Matrix එක මුද්‍රණය කිරීමට අවසරය -->
-                            {% if user_role in ['programmer1', 'programmer2', 'admin', 'super1', 'super2'] %}
+                            <!-- Admin හට සැමවිටමද, Programmer 1 & 2 ට සියලුම status Approved නම් පමණක් Print Option එක දර්ශනය වේ -->
+                            {% if user_role == 'admin' or (user_role in ['programmer1', 'programmer2'] and ns.all_approved) %}
                             <button class="btn btn-sm btn-outline-dark fw-bold px-2 py-1" onclick="printMatrixGroup('matrix-card-{{ loop.index }}', '{{ size }}')">
                                 <i class="bi bi-printer-fill"></i> Print Matrix
                             </button>
@@ -222,8 +233,8 @@
                                                         <form action="{{ url_for('proceed_sr_batch', sr_id=sr.id) }}" method="POST"><button class="btn btn-xs btn-success py-0 px-1 fw-bold"><i class="bi bi-cpu"></i> Proceed</button></form>
                                                         {% endif %}
 
-                                                        <!-- Super 1, Super 2 ඇතුළු අයට අදාළ SR එක පමණක් මුද්‍රණය කිරීමට Print Option එක -->
-                                                        {% if user_role in ['super1', 'super2', 'admin', 'programmer1', 'programmer2'] %}
+                                                        <!-- Admin සහ Programmer 1 & 2 සඳහා පමණක් Print Option එක -->
+                                                        {% if user_role in ['admin', 'programmer1', 'programmer2'] %}
                                                         <button class="btn btn-xs btn-dark py-0 px-1 fw-bold" onclick="printSingleSR('{{ sr.sr_number }}', '{{ sr.po_number }}', '{{ size }}', '{{ group.material_name }}', '{{ group.gsm }}', '{{ sr.board_width }}', '{{ sr.board_length }}', '{{ sr.component_type }}', '{{ sr.flute_type }}', '{{ sr.total_weight | round(2) }}')">
                                                             <i class="bi bi-printer"></i> Print
                                                         </button>
@@ -295,7 +306,7 @@
 
     <!-- JavaScript ක්‍රියාකාරීත්වයන් -->
     <script>
-    // තනි SR එකක් අනුමත වූ පසු මුද්‍රණය කිරීම සඳහා වන ශ්‍රිතය (For Super 1 & Super 2)
+    // තනි SR එකක් අනුමත වූ පසු මුද්‍රණය කිරීම සඳහා වන ශ්‍රිතය
     function printSingleSR(srNum, poNum, size, material, gsm, bWidth, bLength, compType, flute, weight) {
         var printWindow = window.open('', '_blank', 'height=600,width=800');
         printWindow.document.write('<html><head><title>Print SR Ticket - ' + srNum + '</title>');
@@ -338,37 +349,31 @@
         }, 600);
     }
 
-    // එක් එක් Reel Size කාඩ්පත පමණක් වෙන්කර මුද්‍රණය කිරීමේ ශ්‍රිතය (Print Matrix)
+    // Matrix Group එක (Screen එකේ පෙනෙන format එකෙන්ම) මුද්‍රණය කිරීමේ ශ්‍රිතය
     function printMatrixGroup(cardId, reelSize) {
         var originalCard = document.getElementById(cardId);
         var printContent = originalCard.cloneNode(true);
         
-        var actions = printContent.querySelectorAll('.action-column, button');
+        // Actions තීරුව සහ අදාළ බොත්තම් Print එකෙන් ඉවත් කිරීම
+        var actions = printContent.querySelectorAll('.action-column, button, form');
         actions.forEach(function(el) {
             el.remove();
         });
         
-        var printWindow = window.open('', '_blank', 'height=700,width=900');
+        var printWindow = window.open('', '_blank', 'height=800,width=1000');
         
-        printWindow.document.write('<html><head><title>Reel Size Requirement Matrix - ' + reelSize + ' cm</title>');
+        printWindow.document.write('<!DOCTYPE html><html><head><title>Reel Size Requirement Matrix - ' + reelSize + ' cm</title>');
         printWindow.document.write('<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">');
         printWindow.document.write('<style>');
-        printWindow.document.write('body { padding: 30px; font-family: sans-serif; background-color: #fff !important; }');
-        printWindow.document.write('.badge { border: 1px solid #333 !important; color: #000 !important; background: transparent !important; padding: 4px 8px; }');
-        printWindow.document.write('table { width: 100%; border-collapse: collapse; margin-top: 15px; }');
-        printWindow.document.write('th, td { border: 1px solid #000 !important; padding: 8px !important; text-align: center; }');
-        printWindow.document.write('th { background-color: #f2f2f2 !important; font-weight: bold; }');
+        printWindow.document.write('body { font-family: sans-serif; background-color: white !important; margin: 30px; }');
+        // Colors & backgrounds (Badges, Table Headers) Screen එකේ ආකාරයටම Print වීමට අදාළ CSS
+        printWindow.document.write('@media print { * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } }');
         printWindow.document.write('</style></head><body>');
         
-        printWindow.document.write('<div class="text-center mb-4">');
-        printWindow.document.write('  <h2 class="fw-bold text-uppercase" style="letter-spacing: 1px;">Viscor & Packwell</h2>');
-        printWindow.document.write('  <h5 class="text-secondary">Production Size Matrix Requirement Specification Sheet</h5>');
-        printWindow.document.write('  <hr style="border-top: 2px dashed #000;">');
-        printWindow.document.write('</div>');
-        
+        // UI එකේ පෙනෙන Content එක එලෙසම ලබා දීම
         printWindow.document.write(printContent.innerHTML);
         
-        printWindow.document.write('<div class="mt-5 small text-muted text-end">Generated on: ' + new Date().toLocaleString() + '</div>');
+        printWindow.document.write('<div class="mt-4 small text-muted text-end">Generated on: ' + new Date().toLocaleString() + '</div>');
         printWindow.document.write('</body></html>');
         
         printWindow.document.close();
@@ -377,7 +382,7 @@
         setTimeout(function() {
             printWindow.print();
             printWindow.close();
-        }, 600);
+        }, 800);
     }
 
     function toggleFlute() {
