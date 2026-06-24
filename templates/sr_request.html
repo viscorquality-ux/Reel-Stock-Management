@@ -154,7 +154,7 @@
                                 </td>
                                 {% if user_role in ['programmer1', 'programmer2'] %}
                                 <td class="no-print text-center">
-                                    <button class="btn btn-sm btn-outline-dark fw-bold" onclick="printReelSizeRow('{{ size }}', '{{ data.gsms | join(', ') }}', '{{ data.count }}', '{{ \"%.2f\" | format(data.total_weight) }}', '{{ \"%.0f\" | format(data.avg_gsm) }}')">
+                                    <button class="btn btn-sm btn-outline-dark fw-bold" onclick="printReelSizeRow('{{ size }}', '{{ data.gsms | join(', ') }}', '{{ data.count }}', '{{ "%.2f" | format(data.total_weight) }}', '{{ "%.0f" | format(data.avg_gsm) }}')">
                                         <i class="bi bi-printer"></i> Print
                                     </button>
                                 </td>
