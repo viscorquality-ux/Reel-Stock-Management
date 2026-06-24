@@ -44,12 +44,15 @@
           <div class="modal-body text-start">
               <div class="mb-3">
                   <label class="form-label fw-bold">Ref Document Type Specification Selector:</label>
-                  <select name="doc_type" class="form-select" onchange="autoGenerateSR(this)" required>
-                    <option value="Gate Pass">Gate Pass</option>
+                  <select name="doc_type" id="doc_type_{{ stock.id }}" class="form-select" onchange="handleDocTypeChange('{{ stock.id }}')" required>
+                    <option value="Gate Pass" selected>Gate Pass</option>
                     <option value="SR">SR Number</option>
+                    {% if session.get('role') == 'dataop2' %}
+                    <option value="Transfer_Viscor" class="text-primary fw-bold">Send to Viscor Lanka Verification</option>
+                    {% endif %}
                   </select>
               </div>
-              <div class="mb-3">
+              <div class="mb-3" id="doc_number_container_{{ stock.id }}">
                   <label class="form-label fw-bold">Document Reference Number Identity String:</label>
                   <input type="text" name="doc_number" id="doc_number_{{ stock.id }}" class="form-control fw-bold text-primary" required placeholder="Enter reference number">
                   <div class="form-text text-success"><i class="bi bi-info-circle"></i> An SR Number is automatically generated for your convenience.</div>
