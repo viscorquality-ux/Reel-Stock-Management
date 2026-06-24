@@ -89,7 +89,6 @@ def get_sr_prefix(role):
         return "SRPL"
     return "SR"
 
-# --- DATA FILTERING HELPER ---
 def apply_location_filter(query, model):
     role = session.get('role', '')
     if role in ['dataop2', 'super2']:
@@ -287,18 +286,6 @@ def mark_finished(id):
     flash(f"✅ Reel {reel.reel_number} marked as Finished!", "success")
     return redirect(url_for('finished_usage_stock'))
     
-@app.route('/mark_return/<int:id>', methods=['POST'])
-def mark_return(id):
-    if get_user_role() in ['super1', 'super2']:
-        flash("❌ Action Not Allowed.", "danger")
-        return redirect(url_for('active_stock'))
-        
-    reel = Reel.query.get_or_404(id)
-    reel.status = 'Pending_Return'
-    db.session.commit()
-    flash(f"✅ Reel {reel.reel_number} has been sent to Packwell Returns for verification!", "success")
-    return redirect(url_for('active_stock'))
-
 @app.route('/sr_request', methods=['GET', 'POST'])
 def sr_request():
     user_role = get_user_role()
@@ -513,15 +500,14 @@ def issue_reel(id):
     doc_num = request.form.get('doc_number', '').strip()
     remarks = request.form.get('remarks', '').strip()
     
-    # Checkbox එක Tick කරලාද කියලා බැලීම
+    # Checkbox checks
     send_to_viscor = request.form.get('send_to_viscor')
+    return_to_packwell = request.form.get('return_to_packwell')
 
     if send_to_viscor == 'yes':
         old_weight = reel.current_weight
         reel.status = 'Pending_Verify'
         reel.store_location = 'Viscor Lanka'
-        
-        # History එකට SR / Gate pass අංකය save කිරීම
         db.session.add(ReelHistory(
             reel_id=reel.id,
             usage_type='Transferred for Verification',
@@ -532,6 +518,21 @@ def issue_reel(id):
         ))
         db.session.commit()
         flash(f"✅ Reel {reel.reel_number} successfully transferred to Viscor Lanka Verification with Doc: {doc_num}!", "success")
+        return redirect(url_for('active_stock'))
+
+    if return_to_packwell == 'yes':
+        old_weight = reel.current_weight
+        reel.status = 'Pending_Return'
+        db.session.add(ReelHistory(
+            reel_id=reel.id,
+            usage_type='Returned to Packwell',
+            weight_before=old_weight,
+            weight_after=old_weight,
+            doc_number=doc_num if doc_num else 'Return Without Doc Number',
+            remarks='Returned to Packwell by Viscor Lanka'
+        ))
+        db.session.commit()
+        flash(f"✅ Reel {reel.reel_number} successfully sent to Packwell Returns with Doc: {doc_num}!", "success")
         return redirect(url_for('active_stock'))
         
     if reel.status == 'Damaged':
@@ -567,34 +568,49 @@ def issue_reel(id):
         db.session.commit()
         flash(f"✅ Reel {reel.reel_number} successfully Dispatched!", "success")
         
-        return redirect(url_for('active_stock'))
-        
-    elif reel.status in ['Full', 'Used']:
-        old_weight = reel.current_weight
-        reel.status = 'Issued'
-        db.session.add(ReelHistory(
-            reel_id=reel.id,
-            usage_type='Issued to Production',
-            weight_before=old_weight,
-            weight_after=0.0,
-            doc_number=doc_num if doc_num else 'Manual Dispatch',
-            remarks="Manual Dispatch"
-        ))
-        db.session.commit()
-        flash(f"✅ Reel {reel.reel_number} successfully Dispatched!", "success")
-        
-        return redirect(url_for('active_stock'))
+    return redirect(url_for('active_stock'))
 
 @app.route('/viscor_issue')
 def viscor_issue():
     if 'role' not in session: return redirect(url_for('login'))
     user_role = get_user_role()
     
-    viscor_reels = apply_location_filter(Reel.query, Reel).filter_by(status='Pending_Verify', store_location='Viscor Lanka').all()
-    packwell_reels = apply_location_filter(Reel.query, Reel).filter(Reel.status == 'Pending_Verify', Reel.store_location.like('Packwell%')).all()
-    packwell_returns = apply_location_filter(Reel.query, Reel).filter_by(status='Pending_Return').all()
+    # Notice: Apply location filters removed for these queries so the SENDER can see pending items
+    viscor_reels = Reel.query.filter_by(status='Pending_Verify', store_location='Viscor Lanka').all()
+    packwell_reels = Reel.query.filter(Reel.status == 'Pending_Verify', Reel.store_location.like('Packwell%')).all()
+    packwell_returns = Reel.query.filter_by(status='Pending_Return').all()
     
-    return render_template('viscor_issue.html', reels=viscor_reels, packwell_reels=packwell_reels, packwell_returns=packwell_returns, user_role=user_role)
+    # Setup Data for Transfer History Tab
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    
+    history_query = ReelHistory.query.filter(
+        ReelHistory.usage_type.in_([
+            'Transferred for Verification', 
+            'Returned to Packwell', 
+            'Viscor Return Accepted', 
+            'Packwell Return Accepted'
+        ])
+    )
+    
+    if start_date and end_date:
+        try:
+            s_date = datetime.strptime(start_date, '%Y-%m-%d')
+            e_date = datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1)
+            history_query = history_query.filter(ReelHistory.timestamp >= s_date, ReelHistory.timestamp < e_date)
+        except Exception as e:
+            pass
+            
+    transfer_history = history_query.order_by(ReelHistory.timestamp.desc()).all()
+    
+    return render_template('viscor_issue.html', 
+                           reels=viscor_reels, 
+                           packwell_reels=packwell_reels, 
+                           packwell_returns=packwell_returns, 
+                           transfer_history=transfer_history,
+                           start_date=start_date or '',
+                           end_date=end_date or '',
+                           user_role=user_role)
 
 @app.route('/accept_return/<int:id>', methods=['POST'])
 def accept_return(id):
@@ -610,6 +626,14 @@ def accept_return(id):
         reel.store_location = new_loc
     reel.status = 'Used' if reel.current_weight < reel.weight_kg else 'Full'
     
+    db.session.add(ReelHistory(
+        reel_id=reel.id,
+        usage_type='Packwell Return Accepted',
+        weight_before=reel.current_weight,
+        weight_after=reel.current_weight,
+        doc_number='Accepted',
+        remarks=f'Accepted at {new_loc} by Packwell'
+    ))
     db.session.commit()
     flash(f"✅ Reel {reel.reel_number} Accepted & Moved to Active Stock at {new_loc}!", "success")
     return redirect(url_for('viscor_issue'))
@@ -622,6 +646,15 @@ def accept_viscor(id):
         return redirect(url_for('viscor_issue'))
     reel = Reel.query.get_or_404(id)
     reel.status = 'Used' if reel.current_weight < reel.weight_kg else 'Full'
+    
+    db.session.add(ReelHistory(
+        reel_id=reel.id,
+        usage_type='Viscor Return Accepted',
+        weight_before=reel.current_weight,
+        weight_after=reel.current_weight,
+        doc_number='Accepted',
+        remarks='Verified & Accepted at Viscor Lanka'
+    ))
     db.session.commit()
     flash(f"✅ Reel {reel.reel_number} Verified & Accepted at Viscor!", "success")
     return redirect(url_for('viscor_issue'))
