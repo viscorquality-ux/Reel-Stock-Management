@@ -567,7 +567,7 @@ def issue_reel(id):
         db.session.commit()
         flash(f"✅ Reel {reel.reel_number} successfully Dispatched!", "success")
         
-    return redirect(url_for('active_stock'))
+        return redirect(url_for('active_stock'))
         
     elif reel.status in ['Full', 'Used']:
         old_weight = reel.current_weight
@@ -583,7 +583,7 @@ def issue_reel(id):
         db.session.commit()
         flash(f"✅ Reel {reel.reel_number} successfully Dispatched!", "success")
         
-    return redirect(url_for('active_stock'))
+        return redirect(url_for('active_stock'))
 
 @app.route('/viscor_issue')
 def viscor_issue():
