@@ -513,20 +513,25 @@ def issue_reel(id):
     doc_num = request.form.get('doc_number', '').strip()
     remarks = request.form.get('remarks', '').strip()
     
-    if doc_type == 'Transfer_Viscor':
+    # Checkbox එක Tick කරලාද කියලා බැලීම
+    send_to_viscor = request.form.get('send_to_viscor')
+
+    if send_to_viscor == 'yes':
         old_weight = reel.current_weight
         reel.status = 'Pending_Verify'
         reel.store_location = 'Viscor Lanka'
+        
+        # History එකට SR / Gate pass අංකය save කිරීම
         db.session.add(ReelHistory(
             reel_id=reel.id,
             usage_type='Transferred for Verification',
             weight_before=old_weight,
             weight_after=old_weight,
-            doc_number='Transfer',
+            doc_number=doc_num if doc_num else 'Transfer Without Doc Number',
             remarks='Sent to Viscor Lanka by Packwell'
         ))
         db.session.commit()
-        flash(f"✅ Reel {reel.reel_number} successfully transferred to Viscor Lanka Verification!", "success")
+        flash(f"✅ Reel {reel.reel_number} successfully transferred to Viscor Lanka Verification with Doc: {doc_num}!", "success")
         return redirect(url_for('active_stock'))
         
     if reel.status == 'Damaged':
@@ -547,6 +552,22 @@ def issue_reel(id):
         db.session.commit()
         flash(f"✅ Damaged Reel {reel.reel_number} conditionally issued with SR: {final_doc_num}!", "success")
         return redirect(url_for('damage_sell_stock'))
+        
+    elif reel.status in ['Full', 'Used']:
+        old_weight = reel.current_weight
+        reel.status = 'Issued'
+        db.session.add(ReelHistory(
+            reel_id=reel.id,
+            usage_type='Issued to Production',
+            weight_before=old_weight,
+            weight_after=0.0,
+            doc_number=doc_num if doc_num else 'Manual Dispatch',
+            remarks="Manual Dispatch"
+        ))
+        db.session.commit()
+        flash(f"✅ Reel {reel.reel_number} successfully Dispatched!", "success")
+        
+    return redirect(url_for('active_stock'))
         
     elif reel.status in ['Full', 'Used']:
         old_weight = reel.current_weight
