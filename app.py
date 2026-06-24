@@ -793,16 +793,20 @@ def damage_sell_stock():
 
 @app.route('/reset_db_now')
 def reset_db_now():
-    try:
-        db.session.execute(text('SET FOREIGN_KEY_CHECKS = 0;'))
-        db.drop_all()
-        db.session.execute(text('SET FOREIGN_KEY_CHECKS = 1;'))
-        db.create_all()
-        db.session.commit()
-        return "✅ Database Updated Successfully (Force Reset Applied)! All new columns are ready. <br><br> <a href='/'>Click Here to go back to Login Page</a>"
-    except Exception as e:
-        db.session.rollback()
-        return f"❌ Error resetting database: {str(e)}"
+    # Production හීදී මෙය අහම්බෙන් ක්‍රියාත්මක වීම වැළැක්වීමට Admin කෙනෙකුට පමණක් සීමා කරන්න
+    if 'role' in session and session.get('role') == 'admin':
+        try:
+            db.session.execute(text('SET FOREIGN_KEY_CHECKS = 0;'))
+            db.drop_all()
+            db.session.execute(text('SET FOREIGN_KEY_CHECKS = 1;'))
+            db.create_all()
+            db.session.commit()
+            return "✅ Database Reset Successful! <br><br> <a href='/'>Go to Login</a>"
+        except Exception as e:
+            db.session.rollback()
+            return f"❌ Error: {str(e)}"
+    else:
+        return "❌ Access Denied: Unauthorized Reset Attempt.", 403
 
 if __name__ == '__main__':
     with app.app_context():
