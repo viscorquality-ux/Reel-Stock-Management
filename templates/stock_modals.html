@@ -45,7 +45,7 @@
               
               {% if session.get('role') == 'dataop2' %}
               <div class="form-check mb-3 p-3 bg-light border rounded">
-                  <input class="form-check-input border-primary" type="checkbox" name="send_to_viscor" value="yes" id="sendViscor{{ stock.id }}" onchange="toggleTransferMode('{{ stock.id }}')">
+                  <input class="form-check-input border-primary" type="checkbox" name="send_to_viscor" value="yes" id="sendViscor{{ stock.id }}">
                   <label class="form-check-label fw-bold text-primary" for="sendViscor{{ stock.id }}">
                       <i class="bi bi-building"></i> Send to Viscor Lanka Verification
                   </label>
@@ -54,7 +54,7 @@
 
               {% if session.get('role') == 'dataop1' %}
               <div class="form-check mb-3 p-3 bg-light border rounded">
-                  <input class="form-check-input border-warning" type="checkbox" name="return_to_packwell" value="yes" id="returnPackwell{{ stock.id }}" onchange="toggleTransferMode('{{ stock.id }}')">
+                  <input class="form-check-input border-warning" type="checkbox" name="return_to_packwell" value="yes" id="returnPackwell{{ stock.id }}">
                   <label class="form-check-label fw-bold text-warning" for="returnPackwell{{ stock.id }}">
                       <i class="bi bi-arrow-counterclockwise"></i> Return to Packwell Warehouse
                   </label>
@@ -63,7 +63,7 @@
 
               <div class="mb-3">
                   <label class="form-label fw-bold">Ref Document Type Specification Selector:</label>
-                  <select name="doc_type" id="doc_type_{{ stock.id }}" class="form-select" onchange="handleDocTypeChange('{{ stock.id }}')" required>
+                  <select name="doc_type" id="doc_type_{{ stock.id }}" class="form-select" required>
                     <option value="Gate Pass" selected>Gate Pass</option>
                     <option value="SR">SR Number</option>
                   </select>
@@ -71,7 +71,6 @@
               <div class="mb-3" id="doc_number_container_{{ stock.id }}">
                   <label class="form-label fw-bold">Document Reference Number Identity String:</label>
                   <input type="text" name="doc_number" id="doc_number_{{ stock.id }}" class="form-control fw-bold text-primary" required placeholder="Enter reference number">
-                  <div class="form-text text-success" id="auto_sr_hint_{{ stock.id }}"><i class="bi bi-info-circle"></i> An SR Number is automatically generated for your convenience.</div>
               </div>
           </div>
           <div class="modal-footer">
@@ -95,14 +94,14 @@
               <div class="mb-3">
                   <label class="form-label fw-bold">Select New Store Location:</label>
                   <select name="location" class="form-select" required>
-                      <option value="Viscor Lanka" {% if stock.location == 'Viscor Lanka' %}selected{% endif %}>Viscor Lanka</option>
-                      <option value="Packwell 1" {% if stock.location == 'Packwell 1' %}selected{% endif %}>Packwell 1</option>
-                      <option value="Packwell 2" {% if stock.location == 'Packwell 2' %}selected{% endif %}>Packwell 2</option>
-                      <option value="Packwell 3" {% if stock.location == 'Packwell 3' %}selected{% endif %}>Packwell 3</option>
-                      <option value="Packwell 4" {% if stock.location == 'Packwell 4' %}selected{% endif %}>Packwell 4</option>
-                      <option value="Packwell 5" {% if stock.location == 'Packwell 5' %}selected{% endif %}>Packwell 5</option>
-                      <option value="Packwell 6" {% if stock.location == 'Packwell 6' %}selected{% endif %}>Packwell 6</option>
-                      <option value="Packwell 7" {% if stock.location == 'Packwell 7' %}selected{% endif %}>Packwell 7</option>
+                      <option value="Viscor Lanka" {% if stock.store_location == 'Viscor Lanka' %}selected{% endif %}>Viscor Lanka</option>
+                      <option value="Packwell 1" {% if stock.store_location == 'Packwell 1' %}selected{% endif %}>Packwell 1</option>
+                      <option value="Packwell 2" {% if stock.store_location == 'Packwell 2' %}selected{% endif %}>Packwell 2</option>
+                      <option value="Packwell 3" {% if stock.store_location == 'Packwell 3' %}selected{% endif %}>Packwell 3</option>
+                      <option value="Packwell 4" {% if stock.store_location == 'Packwell 4' %}selected{% endif %}>Packwell 4</option>
+                      <option value="Packwell 5" {% if stock.store_location == 'Packwell 5' %}selected{% endif %}>Packwell 5</option>
+                      <option value="Packwell 6" {% if stock.store_location == 'Packwell 6' %}selected{% endif %}>Packwell 6</option>
+                      <option value="Packwell 7" {% if stock.store_location == 'Packwell 7' %}selected{% endif %}>Packwell 7</option>
                   </select>
               </div>
           </div>
@@ -155,7 +154,7 @@
               
               <div class="mb-3">
                   <label class="form-label fw-bold">Original / Current Weight (kg):</label>
-                  <input type="text" class="form-control text-muted" value="{{ stock.weight }} kg" readonly disabled>
+                  <input type="text" class="form-control text-muted" value="{{ stock.weight_kg }} kg" readonly disabled>
               </div>
               <div class="mb-3">
                   <label class="form-label fw-bold">Returned Remaining Weight (kg) *:</label>
