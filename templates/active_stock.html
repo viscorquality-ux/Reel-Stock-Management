@@ -11,7 +11,6 @@
         .nav-link.active { font-weight: bold; }
         .summary-badge { font-size: 1.05rem; }
         
-        /* Print Styles - Only active tab prints! */
         @media print {
             .no-print, .btn, .navbar, .alert, .nav-tabs { display: none !important; }
             body { background-color: white !important; color: black !important; }
@@ -190,7 +189,6 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
-    // SR Number Auto Generation Logic
     function autoFillSR(inputId) {
         let inputField = document.getElementById(inputId);
         if(!inputField) return;
@@ -204,41 +202,41 @@
         inputField.value = `SR-${year}${month}${day}${hours}${minutes}-${randomNum}`;
     }
 
-    // Toggle Viscor Checkbox Mode
-    function toggleViscorMode(stockId) {
+    // Toggle Transfer Mode for both Viscor and Packwell Returns
+    function toggleTransferMode(stockId) {
         let viscorCheck = document.getElementById('sendViscor' + stockId);
+        let packwellCheck = document.getElementById('returnPackwell' + stockId);
+        
         let docTypeSelect = document.getElementById('doc_type_' + stockId);
         let docNumberInput = document.getElementById('doc_number_' + stockId);
         let hint = document.getElementById('auto_sr_hint_' + stockId);
 
-        if (viscorCheck && viscorCheck.checked) {
-            // Disable the normal dropdown
+        let isChecked = (viscorCheck && viscorCheck.checked) || (packwellCheck && packwellCheck.checked);
+
+        if (isChecked) {
             if(docTypeSelect) { docTypeSelect.disabled = true; }
-            
-            // Allow typing SR or Gate pass manually
             if(docNumberInput) {
                 docNumberInput.readOnly = false;
                 docNumberInput.placeholder = "Enter Viscor SR / Gate Pass...";
-                docNumberInput.value = ""; // Clear existing value
+                docNumberInput.value = ""; 
             }
             if(hint) { hint.style.display = 'none'; }
         } else {
-            // Re-enable everything back to normal
             if(docTypeSelect) { docTypeSelect.disabled = false; }
             if(hint) { hint.style.display = 'block'; }
-            handleDocTypeChange(stockId); // run standard logic again
+            handleDocTypeChange(stockId); 
         }
     }
 
-    // Handle Normal Dispatch Dropdown
     function handleDocTypeChange(stockId) {
         let typeSelect = document.getElementById('doc_type_' + stockId);
         let inputField = document.getElementById('doc_number_' + stockId);
         let container = document.getElementById('doc_number_container_' + stockId);
+        
         let viscorCheck = document.getElementById('sendViscor' + stockId);
+        let packwellCheck = document.getElementById('returnPackwell' + stockId);
 
-        // Don't change values if Viscor checkbox is currently checked
-        if(viscorCheck && viscorCheck.checked) return;
+        if((viscorCheck && viscorCheck.checked) || (packwellCheck && packwellCheck.checked)) return;
 
         if(!typeSelect || !inputField) return;
         
@@ -254,7 +252,6 @@
         } 
     }
 
-    // Calculations & Multi-Step Search Filter
     function calculateDynamicTotals() {
         let fullCount = 0; let fullWeight = 0.0;
         let fullRows = document.querySelectorAll('.full-reel-row');
