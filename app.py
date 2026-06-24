@@ -82,13 +82,21 @@ def datetimeformat(value, format='%Y-%m-%d %I:%M %p'):
 def get_user_role():
     return SmartRole(session.get('role', ''))
 
-# Helper function to generate auto SR prefix based on role
 def get_sr_prefix(role):
     if role in ['dataop1', 'programmer1', 'super1']:
         return "SRVL"
     elif role in ['dataop2', 'programmer2', 'super2']:
         return "SRPL"
     return "SR"
+
+# --- DATA FILTERING HELPER ---
+def apply_location_filter(query, model):
+    role = session.get('role', '')
+    if role in ['dataop2', 'super2']:
+        return query.filter(model.store_location.like('Packwell%'))
+    elif role == 'super1':
+        return query.filter(model.store_location == 'Viscor Lanka')
+    return query
 
 @app.route('/', methods=['GET', 'POST'])
 @app.route('/login', methods=['GET', 'POST'])
@@ -127,13 +135,15 @@ def logout():
 def dashboard():
     if 'role' not in session: return redirect(url_for('login'))
     
-    total_active = Reel.query.filter(Reel.status.in_(['Full', 'Used', 'SR_Requested'])).count()
-    full_count = Reel.query.filter_by(status='Full').count()
-    used_count = Reel.query.filter_by(status='Used').count()
-    sr_req_count = Reel.query.filter_by(status='SR_Requested').count()
+    base_query = apply_location_filter(Reel.query, Reel)
     
-    finished = Reel.query.filter_by(status='Finished').count()
-    damage_sell = Reel.query.filter(Reel.status.in_(['Damaged', 'Sold'])).count()
+    total_active = base_query.filter(Reel.status.in_(['Full', 'Used', 'SR_Requested'])).count()
+    full_count = base_query.filter_by(status='Full').count()
+    used_count = base_query.filter_by(status='Used').count()
+    sr_req_count = base_query.filter_by(status='SR_Requested').count()
+    
+    finished = base_query.filter_by(status='Finished').count()
+    damage_sell = base_query.filter(Reel.status.in_(['Damaged', 'Sold'])).count()
     active_weight = 0
     
     return render_template('dashboard.html', 
@@ -192,9 +202,10 @@ def active_stock():
     user_role = get_user_role()
     if 'role' not in session: return redirect(url_for('login'))
     
-    full_reels = Reel.query.filter_by(status='Full').order_by(Reel.received_date.asc()).all()
-    used_reels = Reel.query.filter_by(status='Used').order_by(Reel.received_date.asc()).all()
-    sr_requested_reels = Reel.query.filter_by(status='SR_Requested').order_by(Reel.received_date.asc()).all()
+    base_query = apply_location_filter(Reel.query, Reel)
+    full_reels = base_query.filter_by(status='Full').order_by(Reel.received_date.asc()).all()
+    used_reels = base_query.filter_by(status='Used').order_by(Reel.received_date.asc()).all()
+    sr_requested_reels = base_query.filter_by(status='SR_Requested').order_by(Reel.received_date.asc()).all()
     
     return render_template('active_stock.html', full_reels=full_reels, used_reels=used_reels, sr_requested_reels=sr_requested_reels, user_role=user_role)
 
@@ -313,7 +324,6 @@ def sr_request():
             excess_w = float(request.form.get('excess_weight', 0.0))
             tot_weight = calc_weight + excess_w
             
-            # Auto generated SR prefix matching the role logic
             prefix = get_sr_prefix(user_role)
             new_sr_num = f"{prefix}-{datetime.now(colombo_tz).strftime('%Y%m%d%H%M')}-{random.randint(10,99)}"
             
@@ -414,7 +424,6 @@ def approve_sr(id):
         flash(f"✅ SR Request for PO {sr.po_number} has been Approved!", "success")
     return redirect(url_for('sr_request'))
 
-# Optimized Proceed Batch - Processes Full reels first, then uses Used reels if needed using FIFO
 @app.route('/proceed_sr_batch/<int:sr_id>', methods=['POST'])
 def proceed_sr_batch(sr_id):
     sr = SRRequest.query.get_or_404(sr_id)
@@ -423,7 +432,6 @@ def proceed_sr_batch(sr_id):
     current_allocated = 0.0
     allocated_reels = []
     
-    # Step 1: Allocate Full Reels (FIFO sorted by received date)
     full_reels = Reel.query.filter(
         Reel.size_cm == sr.reel_size,
         Reel.material_name == sr.material_name,
@@ -438,7 +446,6 @@ def proceed_sr_batch(sr_id):
         else:
             break
             
-    # Step 2: If Full reels are not enough, allocate remaining weight from Used Reels (FIFO sorted)
     if current_allocated < total_needed:
         used_reels = Reel.query.filter(
             Reel.size_cm == sr.reel_size,
@@ -454,7 +461,6 @@ def proceed_sr_batch(sr_id):
             else:
                 break
                 
-    # Step 3: Finalize allocation only if total weight matches requirements
     if current_allocated >= total_needed:
         for reel in allocated_reels:
             reel.status = 'SR_Requested'
@@ -503,14 +509,29 @@ def issue_reel(id):
         return redirect(url_for('active_stock'))
         
     reel = Reel.query.get_or_404(id)
+    doc_type = request.form.get('doc_type', '').strip()
     doc_num = request.form.get('doc_number', '').strip()
     remarks = request.form.get('remarks', '').strip()
     
+    if doc_type == 'Transfer_Viscor':
+        old_weight = reel.current_weight
+        reel.status = 'Pending_Verify'
+        reel.store_location = 'Viscor Lanka'
+        db.session.add(ReelHistory(
+            reel_id=reel.id,
+            usage_type='Transferred for Verification',
+            weight_before=old_weight,
+            weight_after=old_weight,
+            doc_number='Transfer',
+            remarks='Sent to Viscor Lanka by Packwell'
+        ))
+        db.session.commit()
+        flash(f"✅ Reel {reel.reel_number} successfully transferred to Viscor Lanka Verification!", "success")
+        return redirect(url_for('active_stock'))
+        
     if reel.status == 'Damaged':
         old_weight = reel.current_weight
         reel.status = 'Issued'
-        
-        # Auto generate SR number automatically for conditional Damage/Sell issue 
         prefix = get_sr_prefix(user_role)
         auto_sr = f"{prefix}-COND-{datetime.now(colombo_tz).strftime('%Y%m%d%H%M')}-{random.randint(10,99)}"
         final_doc_num = doc_num if doc_num else auto_sr
@@ -547,9 +568,10 @@ def issue_reel(id):
 def viscor_issue():
     if 'role' not in session: return redirect(url_for('login'))
     user_role = get_user_role()
-    viscor_reels = Reel.query.filter_by(status='Pending_Verify', store_location='Viscor Lanka').all()
-    packwell_reels = Reel.query.filter(Reel.status == 'Pending_Verify', Reel.store_location.like('Packwell%')).all()
-    packwell_returns = Reel.query.filter_by(status='Pending_Return').all()
+    
+    viscor_reels = apply_location_filter(Reel.query, Reel).filter_by(status='Pending_Verify', store_location='Viscor Lanka').all()
+    packwell_reels = apply_location_filter(Reel.query, Reel).filter(Reel.status == 'Pending_Verify', Reel.store_location.like('Packwell%')).all()
+    packwell_returns = apply_location_filter(Reel.query, Reel).filter_by(status='Pending_Return').all()
     
     return render_template('viscor_issue.html', reels=viscor_reels, packwell_reels=packwell_reels, packwell_returns=packwell_returns, user_role=user_role)
 
@@ -630,12 +652,16 @@ def partial_return(id):
         flash(f"Error handling return: {str(e)}", "danger")
     return redirect(url_for('active_stock'))
 
-# Unified queries to show both Direct SR issuance and Manual Dispatch seamlessly
 @app.route('/issued_stock')
 def issued_stock():
     if 'role' not in session: return redirect(url_for('login'))
-    reels = Reel.query.filter_by(status='Issued').order_by(Reel.id.desc()).all()
-    manual_issue_logs = ReelHistory.query.filter_by(usage_type='Issued to Production').order_by(ReelHistory.timestamp.desc()).all()
+    
+    reels = apply_location_filter(Reel.query, Reel).filter_by(status='Issued').order_by(Reel.id.desc()).all()
+    
+    logs_query = ReelHistory.query.join(Reel).filter(ReelHistory.usage_type == 'Issued to Production')
+    logs_query = apply_location_filter(logs_query, Reel)
+    manual_issue_logs = logs_query.order_by(ReelHistory.timestamp.desc()).all()
+    
     return render_template('issued_stock.html', stocks=reels, manual_logs=manual_issue_logs, user_role=get_user_role()) 
 
 @app.route('/finished_usage_stock')
@@ -645,8 +671,9 @@ def finished_usage_stock():
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
     
-    finished_reels_query = Reel.query.filter_by(status='Finished')
-    usage_logs_query = ReelHistory.query.filter(ReelHistory.usage_type.in_(['Finished Usage', 'Partial Return']))
+    finished_reels_query = apply_location_filter(Reel.query, Reel).filter_by(status='Finished')
+    usage_logs_query = ReelHistory.query.join(Reel).filter(ReelHistory.usage_type.in_(['Finished Usage', 'Partial Return']))
+    usage_logs_query = apply_location_filter(usage_logs_query, Reel)
     
     if start_date and end_date:
         try:
@@ -694,10 +721,11 @@ def update_finished_sr(id):
 def damage_sell_stock():
     if 'role' not in session: return redirect(url_for('login'))
     
-    # දත්ත වෙන වෙනම වෙන් කර ලබා ගැනීම
-    damaged_reels = Reel.query.filter_by(status='Damaged').all()
-    sold_reels = Reel.query.filter_by(status='Sold').all()
-    cond_logs = ReelHistory.query.filter_by(usage_type='Conditional Issue (Damaged)').order_by(ReelHistory.timestamp.desc()).all()
+    damaged_reels = apply_location_filter(Reel.query, Reel).filter_by(status='Damaged').all()
+    sold_reels = apply_location_filter(Reel.query, Reel).filter_by(status='Sold').all()
+    
+    cond_logs = ReelHistory.query.join(Reel).filter(ReelHistory.usage_type == 'Conditional Issue (Damaged)')
+    cond_logs = apply_location_filter(cond_logs, Reel).order_by(ReelHistory.timestamp.desc()).all()
     
     return render_template('damage_sell_stock.html', 
                            damaged_reels=damaged_reels, 
