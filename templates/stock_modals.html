@@ -45,9 +45,18 @@
               
               {% if session.get('role') == 'dataop2' %}
               <div class="form-check mb-3 p-3 bg-light border rounded">
-                  <input class="form-check-input border-primary" type="checkbox" name="send_to_viscor" value="yes" id="sendViscor{{ stock.id }}" onchange="toggleViscorMode('{{ stock.id }}')">
+                  <input class="form-check-input border-primary" type="checkbox" name="send_to_viscor" value="yes" id="sendViscor{{ stock.id }}" onchange="toggleTransferMode('{{ stock.id }}')">
                   <label class="form-check-label fw-bold text-primary" for="sendViscor{{ stock.id }}">
                       <i class="bi bi-building"></i> Send to Viscor Lanka Verification
+                  </label>
+              </div>
+              {% endif %}
+
+              {% if session.get('role') == 'dataop1' %}
+              <div class="form-check mb-3 p-3 bg-light border rounded">
+                  <input class="form-check-input border-warning" type="checkbox" name="return_to_packwell" value="yes" id="returnPackwell{{ stock.id }}" onchange="toggleTransferMode('{{ stock.id }}')">
+                  <label class="form-check-label fw-bold text-warning" for="returnPackwell{{ stock.id }}">
+                      <i class="bi bi-arrow-counterclockwise"></i> Return to Packwell Warehouse
                   </label>
               </div>
               {% endif %}
