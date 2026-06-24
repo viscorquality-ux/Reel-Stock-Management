@@ -42,25 +42,32 @@
               <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
           </div>
           <div class="modal-body text-start">
+              
+              {% if session.get('role') == 'dataop2' %}
+              <div class="form-check mb-3 p-3 bg-light border rounded">
+                  <input class="form-check-input border-primary" type="checkbox" name="send_to_viscor" value="yes" id="sendViscor{{ stock.id }}" onchange="toggleViscorMode('{{ stock.id }}')">
+                  <label class="form-check-label fw-bold text-primary" for="sendViscor{{ stock.id }}">
+                      <i class="bi bi-building"></i> Send to Viscor Lanka Verification
+                  </label>
+              </div>
+              {% endif %}
+
               <div class="mb-3">
                   <label class="form-label fw-bold">Ref Document Type Specification Selector:</label>
                   <select name="doc_type" id="doc_type_{{ stock.id }}" class="form-select" onchange="handleDocTypeChange('{{ stock.id }}')" required>
                     <option value="Gate Pass" selected>Gate Pass</option>
                     <option value="SR">SR Number</option>
-                    {% if session.get('role') == 'dataop2' %}
-                    <option value="Transfer_Viscor" class="text-primary fw-bold">Send to Viscor Lanka Verification</option>
-                    {% endif %}
                   </select>
               </div>
               <div class="mb-3" id="doc_number_container_{{ stock.id }}">
                   <label class="form-label fw-bold">Document Reference Number Identity String:</label>
                   <input type="text" name="doc_number" id="doc_number_{{ stock.id }}" class="form-control fw-bold text-primary" required placeholder="Enter reference number">
-                  <div class="form-text text-success"><i class="bi bi-info-circle"></i> An SR Number is automatically generated for your convenience.</div>
+                  <div class="form-text text-success" id="auto_sr_hint_{{ stock.id }}"><i class="bi bi-info-circle"></i> An SR Number is automatically generated for your convenience.</div>
               </div>
           </div>
           <div class="modal-footer">
               <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-              <button type="submit" class="btn btn-success fw-bold">Execute Production Line Dispatch</button>
+              <button type="submit" class="btn btn-success fw-bold">Execute Dispatch</button>
           </div>
       </form>
     </div>
