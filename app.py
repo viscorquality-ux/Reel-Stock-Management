@@ -91,7 +91,6 @@ def get_sr_prefix(role):
 
 def apply_location_filter(query, model):
     role = session.get('role', '')
-    # Programmer 2 හට Viscor Lanka දත්ත නොපෙන්වා Packwell පමණක් පෙන්වීමට යාවත්කාලීන කර ඇත
     if role in ['dataop2', 'super2', 'programmer2']:
         return query.filter(model.store_location.like('Packwell%'))
     elif role == 'super1':
@@ -338,7 +337,12 @@ def sr_request():
             db.session.rollback()
             flash(f"Error logging request: {str(e)}", "danger")
             
-    all_requests = SRRequest.query.order_by(SRRequest.created_at.desc()).all()
+    # Viscor SRs (SRVL) ඉවත් කිරීම සඳහා Dataop2/Super2/Programmer2 හට සීමා කිරීම
+    if user_role in ['dataop2', 'super2', 'programmer2']:
+        all_requests = SRRequest.query.filter(SRRequest.sr_number.like('SRPL%')).order_by(SRRequest.created_at.desc()).all()
+    else:
+        all_requests = SRRequest.query.order_by(SRRequest.created_at.desc()).all()
+        
     grouped_requests = {}
     
     for r in all_requests:
@@ -577,8 +581,6 @@ def viscor_issue():
     if 'role' not in session: return redirect(url_for('login'))
     user_role = get_user_role()
     
-    # මෙම පිටුවෙහි apply_location_filter භාවිත කර නොමැති නිසා, 
-    # Programmer 2 හට පෙර පරිදිම Viscor සහ Packwell දෙකෙහිම Transfer Data සහ Logs දැකගත හැක.
     viscor_reels = Reel.query.filter_by(status='Pending_Verify', store_location='Viscor Lanka').all()
     packwell_reels = Reel.query.filter(Reel.status == 'Pending_Verify', Reel.store_location.like('Packwell%')).all()
     packwell_returns = Reel.query.filter_by(status='Pending_Return').all()
@@ -735,7 +737,7 @@ def finished_usage_stock():
         try:
             s_date = datetime.strptime(start_date, '%Y-%m-%d')
             e_date = datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1)
-            usage_logs_query = usage_logs_query.filter(ReelHistory.timestamp >= s_date, ReelHistory.timestamp < e_date)
+            usage_logs_query = usage_logs_query.filter(ReelHistory.timestamp >= s_date, usage_logs_query.timestamp < e_date)
         except Exception as e:
             pass
             
