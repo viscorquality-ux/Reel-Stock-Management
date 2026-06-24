@@ -10,6 +10,21 @@
         body { background-color: #f8f9fa; }
         .nav-link.active { font-weight: bold; }
         .summary-badge { font-size: 1.05rem; }
+
+        .table-scroll-container {
+            max-height: 600px; /* ඔබට අවශ්‍ය පරිදි Table එකේ උස (height) වෙනස් කරගන්න */
+            overflow-y: auto;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        /* පහළට Scroll කිරීමේදී Header එක රැඳී තිබීමට (Sticky Header) */
+        .table-scroll-container thead th {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background-color: #212529; /* Dark අඳුරු වර්ණය */
+            color: #fff;
+            box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.4);
         
         @media print {
             .no-print, .btn, .navbar, .alert, .nav-tabs { display: none !important; }
