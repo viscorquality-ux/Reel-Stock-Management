@@ -9,10 +9,13 @@
     <style>
         body { background-color: #f8f9fa; }
         .nav-link.active { font-weight: bold; }
+        @media print {
+            .no-print, .navbar, .alert { display: none !important; }
+        }
     </style>
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm no-print">
         <div class="container-fluid">
             <a class="navbar-brand fw-bold" href="/"><i class="bi bi-box-seam"></i> Stock Management</a>
             <div class="collapse navbar-collapse" id="navbarNav">
@@ -22,7 +25,11 @@
                     <li class="nav-item"><a class="nav-link" href="/add_stock">Add Stock</a></li>
                     {% endif %}
                     <li class="nav-item"><a class="nav-link" href="/active_stock">Active Stock</a></li>
-                    <li class="nav-item"><a class="nav-link active" href="/sr_request">SR Request</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/viscor_issue">Verify / Returns</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/issued_stock">Issued Stock</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/finished_usage_stock">Finished / Usage</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/damage_sell_stock">Damage / Sell Stock</a></li>
+                    <li class="nav-item"><a class="nav-link active text-info" href="/sr_request">SR Requests</a></li>
                 </ul>
                 <ul class="navbar-nav">
                     <li class="nav-item"><a class="nav-link text-danger fw-bold" href="/logout"><i class="bi bi-power"></i> Logout ({{ session.get('username') }})</a></li>
@@ -31,287 +38,198 @@
         </div>
     </nav>
 
-    <div class="container mt-4">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, msg in messages %}
-                    <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm">{{ msg }}<button class="btn-close" data-bs-dismiss="alert"></button></div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
+    <div class="container mt-4 mb-5">
+        <div class="d-flex justify-content-between align-items-center mb-4 no-print">
+            <h2 class="text-info fw-bold"><i class="bi bi-card-checklist"></i> Live Size Matrix Requirements</h2>
+            <button class="btn btn-secondary shadow-sm no-print" onclick="window.print()"><i class="bi bi-printer"></i> Print Full Matrix</button>
+        </div>
 
-        <div class="row">
-            <div class="col-md-5">
-                <div class="card border-0 shadow-sm">
-                    <div class="card-header bg-dark text-white fw-bold py-3"><i class="bi bi-file-earmark-plus"></i> Create Stock Release (SR) Request</div>
-                    <div class="card-body p-4 bg-white">
-                        {% if user_role in ['super1', 'super2', 'dataop1', 'dataop2'] %}
-                        <div class="alert alert-danger fw-bold">You are not authorized to create SRs.</div>
-                        {% else %}
-                        <form action="/sr_request" method="POST">
-                            <div class="mb-3">
-                                <label class="form-label fw-bold">PO Number</label>
-                                <input type="text" name="po_number" class="form-control" required placeholder="Enter PO reference...">
-                            </div>
-                            <div class="row mb-3">
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold">Required Size (cm)</label>
-                                    <input type="number" step="0.1" name="reel_size" class="form-control" required placeholder="e.g. 150">
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold">Required GSM</label>
-                                    <input type="number" id="gsm" name="gsm" class="form-control" required oninput="calculateSRWeight()">
-                                </div>
-                            </div>
-                            
-                            <div class="mb-3">
-                                <label class="form-label fw-bold">Material Name</label>
-                                <input type="text" name="material_name" class="form-control" required placeholder="Enter Material Name...">
-                            </div>
-
-                            <div class="row border rounded p-2 bg-light mb-3 mx-0">
-                                <div class="col-md-6 mb-2">
-                                    <label class="form-label fw-bold small">Board Width (meters)</label>
-                                    <input type="number" step="0.001" id="board_width" name="board_width" class="form-control form-control-sm" required oninput="calculateSRWeight()">
-                                </div>
-                                <div class="col-md-6 mb-2">
-                                    <label class="form-label fw-bold small">Board Length (meters)</label>
-                                    <input type="number" step="0.001" id="board_length" name="board_length" class="form-control form-control-sm" required oninput="calculateSRWeight()">
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label fw-bold">Amount of Cartoon</label>
-                                    <input type="number" id="cartoon_amount" name="cartoon_amount" class="form-control" value="1" required oninput="calculateSRWeight()">
-                                </div>
-                                <div class="col-12 mt-2 mb-1">
-                                    <label class="fw-bold small d-block mb-1">Component Type:</label>
-                                    <div class="form-check form-check-inline">
-                                        <input class="form-check-input" type="radio" name="component_type" id="comp_top" value="Top" required onchange="toggleFlute(); calculateSRWeight()" checked>
-                                        <label class="form-check-label fw-bold text-success" for="comp_top">Top</label>
-                                    </div>
-                                    <div class="form-check form-check-inline">
-                                        <input class="form-check-input" type="radio" name="component_type" id="comp_bottom" value="Bottom" required onchange="toggleFlute(); calculateSRWeight()">
-                                        <label class="form-check-label fw-bold text-primary" for="comp_bottom">Bottom</label>
-                                    </div>
-                                    <div class="form-check form-check-inline">
-                                        <input class="form-check-input" type="radio" name="component_type" id="comp_corru" value="Corru" required onchange="toggleFlute(); calculateSRWeight()">
-                                        <label class="form-check-label fw-bold text-warning" for="comp_corru">Corru</label>
-                                    </div>
-                                </div>
-
-                                <div class="col-12 mt-1 mb-2" id="fluteTypeDiv" style="display: none;">
-                                    <label class="fw-bold small d-block mb-1">Flute Type (Required for Bottom/Corru):</label>
-                                    <div class="form-check form-check-inline">
-                                        <input class="form-check-input" type="radio" name="flute_type" id="flute_b" value="B">
-                                        <label class="form-check-label fw-bold" for="flute_b">B Type</label>
-                                    </div>
-                                    <div class="form-check form-check-inline">
-                                        <input class="form-check-input" type="radio" name="flute_type" id="flute_c" value="C">
-                                        <label class="form-check-label fw-bold" for="flute_c">C Type</label>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="row mb-3">
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold">Quantity (Sheets)</label>
-                                    <input type="number" id="qty" name="qty" class="form-control" required oninput="calculateSRWeight()">
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold">Excess Weight (kg)</label>
-                                    <input type="number" step="0.1" id="excess_weight" name="excess_weight" class="form-control" value="0.0" oninput="calculateSRWeight()">
-                                </div>
-                            </div>
-
-                            <div class="alert bg-light border p-3 d-flex justify-content-between align-items-center">
-                                <div>
-                                    <div class="small text-muted">Formula Base: <span id="baseWeightLabel">0.00</span> kg</div>
-                                    <strong class="text-dark">Total Target Weight:</strong>
-                                </div>
-                                <h3 class="fw-black text-primary mb-0" id="totalWeightDisplay">0.00 kg</h3>
-                            </div>
-
-                            <button type="submit" class="btn btn-dark w-100 fw-bold py-2"><i class="bi bi-check-circle"></i> Submit SR Request</button>
-                        </form>
-                        {% endif %}
+        <div class="card shadow-sm border-0 mb-4 no-print">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold">Board Width (w)</label>
+                        <input type="number" step="0.01" id="board_width" class="form-control" value="100.0" oninput="calculateSRWeight()">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold">Board Length (l)</label>
+                        <input type="number" step="0.01" id="board_length" class="form-control" value="100.0" oninput="calculateSRWeight()">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label fw-bold">GSM</label>
+                        <input type="number" id="gsm" class="form-control" value="120" oninput="calculateSRWeight()">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label fw-bold">Quantity (Pcs)</label>
+                        <input type="number" id="qty" class="form-control" value="1000" oninput="calculateSRWeight()">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label fw-bold">Cartoon Amount</label>
+                        <input type="number" step="0.01" id="cartoon_amount" class="form-control" value="1.0" oninput="calculateSRWeight()">
                     </div>
                 </div>
-            </div>
-
-            <div class="col-md-7">
-                <h4 class="fw-bold mb-3"><i class="bi bi-folder2-open"></i> Live Size Matrix Requirements</h4>
-                
-                {% if not grouped_requests %}
-                <div class="card p-4 text-center text-muted border-0 shadow-sm">No pending/approved requests currently grouped.</div>
-                {% endif %}
-
-                {% for size, info in grouped_requests.items() %}
-                <div class="card border-0 shadow-sm mb-3">
-                    <div class="card-body bg-white p-3 rounded">
-                        <div class="mb-2"><strong>1. PO Numbers - </strong> <span class="badge bg-dark">{{ info.po_list|join(', ') }}</span></div>
-                        <div class="mb-2"><strong>2. Reel Size - </strong> <span class="badge bg-primary text-white">{{ size }} cm</span></div>
-                        <div class="mt-2"><strong>3. Table Matrix Details:</strong></div>
-                        
-                        <div class="table-responsive mt-1">
-                            <table class="table table-bordered table-sm align-middle mb-0 text-center">
-                                <thead class="table-light small">
-                                    <tr>
-                                        <th>Material Name</th>
-                                        <th>GSM</th>
-                                        <th>Board Specs</th>
-                                        <th>Total Target W.</th>
-                                        <th>Status</th>
-                                        <th>SR Number</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="small">
-                                    {% for group_key, group in info.groups.items() %}
-                                        {% set rowspan_count = group.srs|length %}
-                                        
-                                        {% for sr in group.srs %}
-                                        <tr>
-                                            {% if loop.first %}
-                                            <td class="fw-bold align-middle bg-light" rowspan="{{ rowspan_count }}">{{ group.material_name }}</td>
-                                            <td class="align-middle bg-light" rowspan="{{ rowspan_count }}">{{ group.gsm }}</td>
-                                            {% endif %}
-                                            
-                                            <td class="align-middle">
-                                                {{ sr.board_width }}x{{ sr.board_length }}m<br>
-                                                <span class="badge bg-secondary">
-                                                    {{ sr.component_type }} {% if sr.flute_type %} ({{ sr.flute_type }}){% endif %}
-                                                </span>
-                                            </td>
-                                            
-                                            {% if loop.first %}
-                                            <td class="fw-bold text-success fs-6 align-middle bg-light" rowspan="{{ rowspan_count }}">{{ group.total_weight | round(2) }} kg</td>
-                                            {% endif %}
-                                            
-                                            <td class="align-middle">
-                                                {% if sr.status == 'Pending' %}<span class="badge bg-warning text-dark">Pending</span>
-                                                {% else %}<span class="badge bg-info">Approved</span>{% endif %}
-                                            </td>
-                                            
-                                            <td class="fw-bold text-primary align-middle">{{ sr.sr_number or 'N/A' }}</td>
-                                            
-                                            <td class="align-middle">
-                                                <div class="d-flex gap-1 justify-content-center">
-                                                    {% if sr.status == 'Pending' %}
-                                                        {% if user_role not in ['programmer1', 'programmer2', 'dataop1', 'dataop2'] %}
-                                                        <form action="/approve_sr/{{ sr.id }}" method="POST"><button class="btn btn-xs btn-warning text-dark py-0 px-1 fw-bold">Approve</button></form>
-                                                        {% endif %}
-                                                        
-                                                        {% if user_role in ['programmer1', 'programmer2', 'admin'] %}
-                                                        <button class="btn btn-xs btn-primary py-0 px-1 fw-bold" data-bs-toggle="modal" data-bs-target="#editSrModal{{ sr.id }}">Edit</button>
-                                                        {% endif %}
-
-                                                    {% elif sr.status == 'Approved' and user_role not in ['programmer1', 'programmer2', 'super1', 'super2'] %}
-                                                        <form action="{{ url_for('proceed_sr_batch', sr_id=sr.id) }}" method="POST"><button class="btn btn-xs btn-success py-0 px-1 fw-bold"><i class="bi bi-cpu"></i> Proceed</button></form>
-                                                    {% else %}<span class="text-muted small">Locked</span>{% endif %}
-                                                </div>
-                                            </td>
-                                        </tr>
-
-                                        <div class="modal fade" id="editSrModal{{ sr.id }}" tabindex="-1" aria-hidden="true">
-                                            <div class="modal-dialog">
-                                                <form action="/edit_sr/{{ sr.id }}" method="POST" class="modal-content">
-                                                    <div class="modal-header bg-primary text-white">
-                                                        <h5 class="modal-title fw-bold"><i class="bi bi-pencil"></i> Edit SR Request: {{ sr.sr_number }}</h5>
-                                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                                                    </div>
-                                                    <div class="modal-body text-start">
-                                                        <div class="mb-2">
-                                                            <label class="form-label fw-bold">Board Width</label>
-                                                            <input type="number" step="0.001" name="board_width" class="form-control" value="{{ sr.board_width }}" required>
-                                                        </div>
-                                                        <div class="mb-2">
-                                                            <label class="form-label fw-bold">Board Length</label>
-                                                            <input type="number" step="0.001" name="board_length" class="form-control" value="{{ sr.board_length }}" required>
-                                                        </div>
-                                                        <div class="mb-2">
-                                                            <label class="form-label fw-bold">Amount of Cartoon</label>
-                                                            <input type="number" name="cartoon_amount" class="form-control" value="{{ sr.cartoon_amount }}" required>
-                                                        </div>
-                                                        <div class="mb-2">
-                                                            <label class="form-label fw-bold">GSM</label>
-                                                            <input type="number" name="gsm" class="form-control" value="{{ sr.gsm }}" required>
-                                                        </div>
-                                                        <div class="mb-2">
-                                                            <label class="form-label fw-bold">Quantity</label>
-                                                            <input type="number" name="qty" class="form-control" value="{{ sr.qty }}" required>
-                                                        </div>
-                                                        <div class="mb-2">
-                                                            <label class="form-label fw-bold">Component Type</label>
-                                                            <select name="component_type" class="form-select">
-                                                                <option value="Top" {% if sr.component_type == 'Top' %}selected{% endif %}>Top</option>
-                                                                <option value="Bottom" {% if sr.component_type == 'Bottom' %}selected{% endif %}>Bottom</option>
-                                                                <option value="Corru" {% if sr.component_type == 'Corru' %}selected{% endif %}>Corru</option>
-                                                            </select>
-                                                        </div>
-                                                        <div class="mb-2">
-                                                            <label class="form-label fw-bold">Excess Weight (kg)</label>
-                                                            <input type="number" step="0.1" name="excess_weight" class="form-control" value="{{ sr.excess_weight }}">
-                                                        </div>
-                                                    </div>
-                                                    <div class="modal-footer">
-                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                                        <button type="submit" class="btn btn-primary fw-bold">Save Changes</button>
-                                                    </div>
-                                                </form>
-                                            </div>
-                                        </div>
-                                        {% endfor %}
-                                    {% endfor %}
-                                </tbody>
-                            </table>
+                <div class="row mt-3 g-3">
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold">Component Type:</label>
+                        <div class="d-flex gap-3 mt-1">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="component_type" id="compLiner" value="Liner" checked onchange="toggleFlute(); calculateSRWeight()">
+                                <label class="form-check-label" for="compLiner">Liner</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="component_type" id="compCorru" value="Corru" onchange="toggleFlute(); calculateSRWeight()">
+                                <label class="form-check-label" for="compCorru">Corru (Flute)</label>
+                            </div>
                         </div>
                     </div>
+                    <div class="col-md-4" id="fluteTypeDiv">
+                        <label class="form-label fw-bold">Flute Type:</label>
+                        <div class="d-flex gap-3 mt-1">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="flute_type" id="fluteA" value="A" checked>
+                                <label class="form-check-label" for="fluteA">A Flute</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="flute_type" id="fluteB" value="B">
+                                <label class="form-check-label" for="fluteB">B Flute</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="flute_type" id="fluteC" value="C">
+                                <label class="form-check-label" for="fluteC">C Flute</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold">Excess Weight (kg)</label>
+                        <input type="number" step="0.01" id="excess_weight" class="form-control" value="0.0" oninput="calculateSRWeight()">
+                    </div>
                 </div>
-                {% endfor %}
+                <div class="bg-light p-3 rounded mt-3 border d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="text-muted">Base Weight: <span id="baseWeightLabel" class="fw-bold">0.00</span> kg</span><br>
+                        <span class="fs-5">Total Required Weight: <strong id="totalWeightDisplay" class="text-info">0.00 kg</strong></span>
+                    </div>
+                    <button class="btn btn-info fw-bold text-white shadow-sm no-print" onclick="window.print()"><i class="bi bi-printer"></i> Print Calculation</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow border-0 mb-5">
+            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 fw-bold"><i class="bi bi-rulers"></i> Active Reels Size Matrix Requirements</h5>
+                <span class="badge bg-info fs-6">Live System Matrix</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 fs-7">
+                        <thead class="table-light text-uppercase fs-8 text-secondary">
+                            <tr>
+                                <th>Reel Size (cm)</th>
+                                <th>GSM</th>
+                                <th>Available Reels</th>
+                                <th>Total Weight (kg)</th>
+                                <th>Avg GSM</th>
+                                <th>Suitable Locations</th>
+                                {% if user_role in ['programmer1', 'programmer2'] %}
+                                <th class="no-print text-center">Action</th>
+                                {% endif %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for size, data in size_matrix.items() %}
+                            <tr>
+                                <td class="fw-bold text-primary fs-5">{{ size }} cm</td>
+                                <td>
+                                    {% for gsm in data.gsms %}
+                                    <span class="badge bg-secondary me-1">{{ gsm }}</span>
+                                    {% endfor %}
+                                </td>
+                                <td><span class="badge bg-success fs-7">{{ data.count }} Reels</span></td>
+                                <td class="fw-bold">{{ "%.2f" | format(data.total_weight) }}</td>
+                                <td>{{ "%.0f" | format(data.avg_gsm) }}</td>
+                                <td>
+                                    {% for loc in data.locations %}
+                                    <span class="badge bg-dark me-1">{{ loc }}</span>
+                                    {% endfor %}
+                                </td>
+                                {% if user_role in ['programmer1', 'programmer2'] %}
+                                <td class="no-print text-center">
+                                    <button class="btn btn-sm btn-outline-dark fw-bold" onclick="printReelSizeRow('{{ size }}', '{{ data.gsms | join(', ') }}', '{{ data.count }}', '{{ \"%.2f\" | format(data.total_weight) }}', '{{ \"%.0f\" | format(data.avg_gsm) }}')">
+                                        <i class="bi bi-printer"></i> Print
+                                    </button>
+                                </td>
+                                {% endif %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
 
+    <div id="printArea" class="d-none d-print-block p-4">
+        <h2>Reel Size Details</h2>
+        <hr>
+        <p><strong>Size:</strong> <span id="printSize"></span></p>
+        <p><strong>GSMs:</strong> <span id="printGsms"></span></p>
+        <p><strong>Available Reels:</strong> <span id="printCount"></span></p>
+        <p><strong>Total Weight:</strong> <span id="printWeight"></span> kg</p>
+        <p><strong>Avg GSM:</strong> <span id="printAvgGsm"></span></p>
+    </div>
+
     <script>
-    function toggleFlute() {
-        let isTop = document.getElementById('comp_top').checked;
-        let fluteDiv = document.getElementById('fluteTypeDiv');
-        let fluteRadios = document.getElementsByName('flute_type');
-        
-        if(isTop) {
-            fluteDiv.style.display = 'none';
-            fluteRadios.forEach(r => { r.checked = false; r.required = false; });
-        } else {
-            fluteDiv.style.display = 'block';
-            fluteRadios.forEach(r => { r.required = true; });
-        }
-    }
-
-    function calculateSRWeight() {
-        let w = parseFloat(document.getElementById('board_width').value) || 0.0;
-        let l = parseFloat(document.getElementById('board_length').value) || 0.0;
-        let gsm = parseFloat(document.getElementById('gsm').value) || 0.0;
-        let qty = parseInt(document.getElementById('qty').value) || 0;
-        let cartoon_amt = parseFloat(document.getElementById('cartoon_amount').value) || 1.0;
-        let excess = parseFloat(document.getElementById('excess_weight').value) || 0.0;
-
-        let componentType = document.querySelector('input[name="component_type"]:checked').value;
-
-        let baseWeight = ((w * l) * (gsm / 1000.0) / cartoon_amt) * qty;
-
-        if (componentType === 'Corru') {
-            baseWeight = baseWeight * 1.5;
+        function toggleFlute() {
+            let compType = document.querySelector('input[name="component_type"]:checked').value;
+            let fluteDiv = document.getElementById('fluteTypeDiv');
+            let fluteRadios = document.querySelectorAll('input[name="flute_type"]');
+            
+            if (compType === 'Liner') {
+                fluteDiv.style.display = 'none';
+                fluteRadios.forEach(r => { r.checked = false; r.required = false; });
+            } else {
+                fluteDiv.style.display = 'block';
+                fluteRadios.forEach(r => { r.required = true; });
+            }
         }
 
-        let finalTotal = baseWeight + excess;
+        function calculateSRWeight() {
+            let w = parseFloat(document.getElementById('board_width').value) || 0.0;
+            let l = parseFloat(document.getElementById('board_length').value) || 0.0;
+            let gsm = parseFloat(document.getElementById('gsm').value) || 0.0;
+            let qty = parseInt(document.getElementById('qty').value) || 0;
+            let cartoon_amt = parseFloat(document.getElementById('cartoon_amount').value) || 1.0;
+            let excess = parseFloat(document.getElementById('excess_weight').value) || 0.0;
 
-        document.getElementById('baseWeightLabel').innerText = baseWeight.toFixed(2);
-        document.getElementById('totalWeightDisplay').innerText = finalTotal.toFixed(2) + " kg";
-    }
+            let componentType = document.querySelector('input[name="component_type"]:checked').value;
 
-    document.addEventListener("DOMContentLoaded", function() {
-        toggleFlute();
-        calculateSRWeight(); 
-    });
+            let baseWeight = ((w * l) * (gsm / 1000.0) / cartoon_amt) * qty;
+
+            if (componentType === 'Corru') {
+                baseWeight = baseWeight * 1.5;
+            }
+
+            let finalTotal = baseWeight + excess;
+
+            document.getElementById('baseWeightLabel').innerText = baseWeight.toFixed(2);
+            document.getElementById('totalWeightDisplay').innerText = finalTotal.toFixed(2) + " kg";
+        }
+
+        // තෝරාගත් Reel Size පේළිය පමණක් Print කිරීම සඳහා වන Function එක
+        function printReelSizeRow(size, gsms, count, weight, avgGsm) {
+            document.getElementById('printSize').innerText = size + " cm";
+            document.getElementById('printGsms').innerText = gsms;
+            document.getElementById('printCount').innerText = count + " Reels";
+            document.getElementById('printWeight').innerText = weight;
+            document.getElementById('printAvgGsm').innerText = avgGsm;
+            
+            window.print();
+        }
+
+        document.addEventListener("DOMContentLoaded", function() {
+            toggleFlute();
+            calculateSRWeight(); 
+        });
     </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
