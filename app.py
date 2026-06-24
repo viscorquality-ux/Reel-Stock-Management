@@ -229,7 +229,7 @@ def update_location(id):
         return redirect(url_for('active_stock'))
         
     reel = Reel.query.get_or_404(id)
-    new_location = request.form.get('store_location')
+    new_location = request.form.get('location')
     if new_location:
         reel.store_location = new_location
         db.session.commit()
@@ -377,7 +377,6 @@ def edit_sr(id):
     qty = int(request.form.get('qty', sr.qty))
     comp_type = request.form.get('component_type', sr.component_type)
     excess_w = float(request.form.get('excess_weight', sr.excess_weight))
-    
     cartoon_amt = float(request.form.get('cartoon_amount', sr.cartoon_amount))
     
     calc_weight = ((b_width * b_length) * (gsm / 1000.0)) / cartoon_amt * qty
@@ -500,7 +499,6 @@ def issue_reel(id):
     doc_num = request.form.get('doc_number', '').strip()
     remarks = request.form.get('remarks', '').strip()
     
-    # Checkbox checks
     send_to_viscor = request.form.get('send_to_viscor')
     return_to_packwell = request.form.get('return_to_packwell')
 
@@ -575,12 +573,10 @@ def viscor_issue():
     if 'role' not in session: return redirect(url_for('login'))
     user_role = get_user_role()
     
-    # Notice: Apply location filters removed for these queries so the SENDER can see pending items
     viscor_reels = Reel.query.filter_by(status='Pending_Verify', store_location='Viscor Lanka').all()
     packwell_reels = Reel.query.filter(Reel.status == 'Pending_Verify', Reel.store_location.like('Packwell%')).all()
     packwell_returns = Reel.query.filter_by(status='Pending_Return').all()
     
-    # Setup Data for Transfer History Tab
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
     
@@ -682,7 +678,7 @@ def partial_return(id):
         return redirect(url_for('issued_stock'))
     reel = Reel.query.get_or_404(id)
     try:
-        new_w = float(request.form.get('new_weight', 0.0))
+        new_w = float(request.form.get('returned_weight', 0.0))
         if new_w <= 0 or new_w > reel.weight_kg:
             flash("❌ Invalid remaining weight specified.", "danger")
             return redirect(url_for('issued_stock'))
