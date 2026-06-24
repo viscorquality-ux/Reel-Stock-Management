@@ -297,42 +297,68 @@ def sr_request():
             return redirect(url_for('sr_request'))
             
         try:
+            po_number = request.form.get('po_number')
+            reel_size = float(request.form.get('reel_size'))
             b_width = float(request.form.get('board_width', 0.0))
             b_length = float(request.form.get('board_length', 0.0))
             cartoon_amt = int(request.form.get('cartoon_amount', 1))
-            gsm = int(request.form.get('gsm', 0))
             qty = int(request.form.get('qty', 0))
-            comp_type = request.form.get('component_type')
-            
-            calc_weight = ((b_width * b_length) * (gsm / 1000.0)) / cartoon_amt * qty
-            if comp_type == 'Corru':
-                calc_weight = calc_weight * 1.5
-
             excess_w = float(request.form.get('excess_weight', 0.0))
-            tot_weight = calc_weight + excess_w
             
             prefix = get_sr_prefix(user_role)
-            new_sr_num = f"{prefix}-{datetime.now(colombo_tz).strftime('%Y%m%d%H%M')}-{random.randint(10,99)}"
+            timestamp_str = datetime.now(colombo_tz).strftime('%Y%m%d%H%M')
+            base_sr_num = f"{prefix}-{timestamp_str}-{random.randint(10,99)}"
             
-            new_sr = SRRequest(
-                sr_number=new_sr_num,
-                po_number=request.form.get('po_number'),
-                reel_size=float(request.form.get('reel_size')),
-                cartoon_amount=cartoon_amt,
-                gsm=gsm,
-                material_name=request.form.get('material_name'),
-                qty=qty,
-                calculated_weight=round(calc_weight, 2),
-                board_width=b_width,
-                board_length=b_length,
-                component_type=comp_type,
-                flute_type=request.form.get('flute_type'),
-                excess_weight=excess_w,
-                total_weight=round(tot_weight, 2)
-            )
-            db.session.add(new_sr)
-            db.session.commit()
-            flash(f"📊 SR Request Logged Successfully! Assigned SR Number: {new_sr_num}", "success")
+            inserted_any = False
+            
+            # Loop through 5 component rows
+            for i in range(1, 6):
+                mat_name = request.form.get(f'material_name_{i}', '').strip()
+                gsm_str = request.form.get(f'gsm_{i}', '').strip()
+                
+                if mat_name and gsm_str:
+                    gsm = int(gsm_str)
+                    comp_type = request.form.get(f'component_type_{i}')
+                    flute_type = request.form.get(f'flute_type_{i}', '').strip()
+                    if not flute_type or flute_type == "":
+                        flute_type = None
+                        
+                    calc_weight = ((b_width * b_length) * (gsm / 1000.0)) / cartoon_amt * qty
+                    if comp_type == 'Corru':
+                        calc_weight = calc_weight * 1.5
+
+                    # Excess Weight එක පළමු පේළියට (First component) පමණක් එකතු කරයි
+                    current_excess = excess_w if not inserted_any else 0.0
+                    tot_weight = calc_weight + current_excess
+                    
+                    # එක් එක් component එකට අද්විතීය (Unique) SR Number එකක් ලබා දීම
+                    component_sr_num = f"{base_sr_num}-{i}"
+                    
+                    new_sr = SRRequest(
+                        sr_number=component_sr_num,
+                        po_number=po_number,
+                        reel_size=reel_size,
+                        cartoon_amount=cartoon_amt,
+                        gsm=gsm,
+                        material_name=mat_name,
+                        qty=qty,
+                        calculated_weight=round(calc_weight, 2),
+                        board_width=b_width,
+                        board_length=b_length,
+                        component_type=comp_type,
+                        flute_type=flute_type,
+                        excess_weight=current_excess,
+                        total_weight=round(tot_weight, 2)
+                    )
+                    db.session.add(new_sr)
+                    inserted_any = True
+            
+            if inserted_any:
+                db.session.commit()
+                flash(f"📊 SR Request Combo Logged Successfully! Base SR Number: {base_sr_num}", "success")
+            else:
+                flash("❌ Error: No valid components filled.", "danger")
+                
         except Exception as e:
             db.session.rollback()
             flash(f"Error logging request: {str(e)}", "danger")
