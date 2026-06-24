@@ -11,10 +11,12 @@
         .nav-link.active { font-weight: bold; }
         .summary-badge { font-size: 1.05rem; }
 
+        /* Table Scroll කිරීම සහ Sticky Header සඳහා CSS */
         .table-scroll-container {
-            max-height: 600px; /* ඔබට අවශ්‍ය පරිදි Table එකේ උස (height) වෙනස් කරගන්න */
+            max-height: 550px; /* ඔබට අවශ්‍ය නම් මෙම උස වෙනස් කරගත හැක */
             overflow-y: auto;
             border-bottom: 1px solid #dee2e6;
+            border-radius: 5px;
         }
         
         /* පහළට Scroll කිරීමේදී Header එක රැඳී තිබීමට (Sticky Header) */
@@ -22,11 +24,14 @@
             position: sticky;
             top: 0;
             z-index: 10;
-            background-color: #212529; /* Dark අඳුරු වර්ණය */
-            color: #fff;
-            box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.4);
-        
+            background-color: #f8f9fa; /* Light වර්ණය */
+            border-bottom: 2px solid #dee2e6;
+            box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Print කිරීමේදී පමණක් යොදාගන්නා CSS */
         @media print {
+            .table-scroll-container { max-height: none !important; overflow: visible !important; }
             .no-print, .btn, .navbar, .alert, .nav-tabs { display: none !important; }
             body { background-color: white !important; color: black !important; }
             .card { border: none !important; box-shadow: none !important; }
@@ -65,9 +70,9 @@
                 <button onclick="window.print()" class="btn btn-primary fw-bold no-print shadow-sm">
                     <i class="bi bi-printer"></i> Print Stock Report
                 </button>
-                <div class="input-group text-dark no-print" style="max-width: 350px;">
+                <div class="input-group text-dark no-print" style="max-width: 400px;">
                     <span class="input-group-text bg-white border-end-0 shadow-sm"><i class="bi bi-search text-muted"></i></span>
-                    <input type="text" id="SearchInput" class="form-control border-start-0 shadow-sm" placeholder="Search by Size, GSM, Material, Location...">
+                    <input type="text" id="SearchInput" class="form-control border-start-0 shadow-sm" placeholder="Search Size first (e.g. 150), then GSM...">
                 </div>
             </div>
         </div>
@@ -124,9 +129,9 @@
             <div class="tab-pane fade show active" id="full-reels-pane" role="tabpanel" aria-labelledby="full-reels-tab">
                 <div class="card shadow-sm border-0 mb-4 bg-white">
                     <div class="card-header bg-dark text-white fw-bold py-3"><i class="bi bi-box"></i> Full Reels Inventory List</div>
-                    <div class="table-responsive">
+                    <div class="table-responsive table-scroll-container">
                         <table class="table table-hover align-middle mb-0 text-dark">
-                            <thead class="table-light text-secondary text-uppercase fs-7">
+                            <thead class="text-secondary text-uppercase fs-7">
                                 <tr>
                                     <th>ID</th><th>Reel Number</th><th>Size (cm)</th><th>Weight (kg)</th>
                                     <th>GSM</th><th>Type</th><th>Paper Name</th><th>Location</th><th>Supplier</th>
@@ -138,7 +143,7 @@
                                 <tr class="full-reel-row" data-weight="{{ stock.weight_kg }}">
                                     <td><strong>#{{ stock.id }}</strong></td>
                                     <td><span class="badge bg-secondary px-2 py-1 fs-6">{{ stock.reel_number }}</span></td>
-                                    <td>{{ stock.size_cm }} cm</td>
+                                    <td class="col-size fw-bold">{{ stock.size_cm }}</td>
                                     <td class="fw-bold text-primary">{{ stock.weight_kg }} kg</td>
                                     <td>{{ stock.gsm }}</td>
                                     <td>{{ stock.reel_type }}</td>
@@ -161,9 +166,9 @@
             <div class="tab-pane fade" id="used-reels-pane" role="tabpanel" aria-labelledby="used-reels-tab">
                 <div class="card shadow-sm border-0 bg-white">
                     <div class="card-header bg-secondary text-white fw-bold py-3"><i class="bi bi-scissors"></i> Used Reels / Balance Inventory List</div>
-                    <div class="table-responsive">
+                    <div class="table-responsive table-scroll-container">
                         <table class="table table-hover align-middle mb-0 text-dark">
-                            <thead class="table-light text-secondary text-uppercase fs-7">
+                            <thead class="text-secondary text-uppercase fs-7">
                                 <tr>
                                     <th>ID</th><th>Reel Number</th><th>Size (cm)</th><th>Remaining (kg)</th>
                                     <th>GSM</th><th>Type</th><th>Paper Name</th><th>Location</th><th>Supplier</th>
@@ -175,7 +180,7 @@
                                 <tr class="used-reel-row" data-weight="{{ stock.current_weight }}">
                                     <td><strong>#{{ stock.id }}</strong></td>
                                     <td><span class="badge bg-warning text-dark px-2 py-1 fs-6">{{ stock.reel_number }}</span></td>
-                                    <td>{{ stock.size_cm }} cm</td>
+                                    <td class="col-size fw-bold">{{ stock.size_cm }}</td>
                                     <td class="fw-bold text-danger">{{ stock.current_weight }} kg</td>
                                     <td>{{ stock.gsm }}</td>
                                     <td>{{ stock.reel_type }}</td>
@@ -293,15 +298,42 @@
         document.getElementById('usedReelWeight').innerText = usedWeight.toFixed(2);
     }
 
+    // Smart Multi-Search: First Step forces search on "Size (cm)" column
     document.getElementById('SearchInput').addEventListener('input', function() {
         let keywords = this.value.toLowerCase().split(/\s+/).filter(word => word.trim() !== '');
         let allRows = document.querySelectorAll('.full-reel-row, .used-reel-row');
         
         allRows.forEach(row => {
-            let textContent = row.innerText.toLowerCase();
-            let isMatch = keywords.every(keyword => textContent.includes(keyword));
-            row.style.display = isMatch ? '' : 'none';
+            let showRow = true;
+            
+            if (keywords.length > 0) {
+                // පළමු වචනය (keywords[0]) Size Column එකේ පමණක් සෙවීම
+                let firstTerm = keywords[0];
+                let sizeCell = row.querySelector('.col-size');
+                
+                if (sizeCell) {
+                    let sizeText = sizeCell.innerText.toLowerCase().trim();
+                    // පළමු පදය Size එකට නොගැලපේ නම්, row එක සඟවන්න
+                    if (!sizeText.includes(firstTerm)) {
+                        showRow = false;
+                    }
+                }
+
+                // ඉතිරි වචන (keywords[1], keywords[2] ...) සම්පූර්ණ row එකේම සෙවීම
+                if (showRow && keywords.length > 1) {
+                    let fullRowText = row.innerText.toLowerCase();
+                    for (let i = 1; i < keywords.length; i++) {
+                        if (!fullRowText.includes(keywords[i])) {
+                            showRow = false;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            row.style.display = showRow ? '' : 'none';
         });
+        
         calculateDynamicTotals();
     });
 
