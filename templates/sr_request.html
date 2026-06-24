@@ -44,7 +44,7 @@
             <div class="col-md-5">
                 <div class="card border-0 shadow-sm">
                     <div class="card-header bg-dark text-white fw-bold py-3"><i class="bi bi-file-earmark-plus"></i> Create Stock Release (SR) Request</div>
-                    <div class="card-body p-4 bg-white">
+                    <div class="card-body p-3 bg-white">
                         {% if user_role in ['super1', 'super2', 'dataop1', 'dataop2'] %}
                         <div class="alert alert-danger fw-bold">You are not authorized to create SRs.</div>
                         {% else %}
@@ -53,20 +53,9 @@
                                 <label class="form-label fw-bold">PO Number</label>
                                 <input type="text" name="po_number" class="form-control" required placeholder="Enter PO reference...">
                             </div>
-                            <div class="row mb-3">
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold">Required Size (cm)</label>
-                                    <input type="number" step="0.1" name="reel_size" class="form-control" required placeholder="e.g. 150">
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold">Required GSM</label>
-                                    <input type="number" id="gsm" name="gsm" class="form-control" required oninput="calculateSRWeight()">
-                                </div>
-                            </div>
-                            
                             <div class="mb-3">
-                                <label class="form-label fw-bold">Material Name</label>
-                                <input type="text" name="material_name" class="form-control" required placeholder="Enter Material Name...">
+                                <label class="form-label fw-bold">Required Size (cm)</label>
+                                <input type="number" step="0.1" name="reel_size" class="form-control" required placeholder="e.g. 150">
                             </div>
 
                             <div class="row border rounded p-2 bg-light mb-3 mx-0">
@@ -78,36 +67,123 @@
                                     <label class="form-label fw-bold small">Board Length (meters)</label>
                                     <input type="number" step="0.001" id="board_length" name="board_length" class="form-control form-control-sm" required oninput="calculateSRWeight()">
                                 </div>
-                                <div class="mb-3">
-                                    <label class="form-label fw-bold">Amount of Cartoon</label>
-                                    <input type="number" id="cartoon_amount" name="cartoon_amount" class="form-control" value="1" required oninput="calculateSRWeight()">
+                                <div class="col-12 mb-1">
+                                    <label class="form-label fw-bold small">Amount of Cartoon</label>
+                                    <input type="number" id="cartoon_amount" name="cartoon_amount" class="form-control form-control-sm" value="1" required oninput="calculateSRWeight()">
                                 </div>
-                                <div class="col-12 mt-2 mb-1">
-                                    <label class="fw-bold small d-block mb-1">Component Type:</label>
-                                    <div class="form-check form-check-inline">
-                                        <input class="form-check-input" type="radio" name="component_type" id="comp_top" value="Top" required onchange="toggleFlute(); calculateSRWeight()" checked>
-                                        <label class="form-check-label fw-bold text-success" for="comp_top">Top</label>
-                                    </div>
-                                    <div class="form-check form-check-inline">
-                                        <input class="form-check-input" type="radio" name="component_type" id="comp_bottom" value="Bottom" required onchange="toggleFlute(); calculateSRWeight()">
-                                        <label class="form-check-label fw-bold text-primary" for="comp_bottom">Bottom</label>
-                                    </div>
-                                    <div class="form-check form-check-inline">
-                                        <input class="form-check-input" type="radio" name="component_type" id="comp_corru" value="Corru" required onchange="toggleFlute(); calculateSRWeight()">
-                                        <label class="form-check-label fw-bold text-warning" for="comp_corru">Corru</label>
-                                    </div>
-                                </div>
+                            </div>
 
-                                <div class="col-12 mt-1 mb-2" id="fluteTypeDiv" style="display: none;">
-                                    <label class="fw-bold small d-block mb-1">Flute Type (Required for Bottom/Corru):</label>
-                                    <div class="form-check form-check-inline">
-                                        <input class="form-check-input" type="radio" name="flute_type" id="flute_b" value="B">
-                                        <label class="form-check-label fw-bold" for="flute_b">B Type</label>
-                                    </div>
-                                    <div class="form-check form-check-inline">
-                                        <input class="form-check-input" type="radio" name="flute_type" id="flute_c" value="C">
-                                        <label class="form-check-label fw-bold" for="flute_c">C Type</label>
-                                    </div>
+                            <div class="mb-3 border rounded p-2 bg-white shadow-sm">
+                                <label class="form-label fw-bold text-dark small mb-2"><i class="bi bi-layers-half"></i> Components Setup (Up to 5 Layers)</label>
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-borderless align-middle mb-0" style="font-size: 12px;">
+                                        <thead>
+                                            <tr class="text-muted text-center" style="border-bottom: 1px solid #dee2e6;">
+                                                <th style="width: 5%;">#</th>
+                                                <th style="width: 35%;">Material Name</th>
+                                                <th style="width: 20%;">GSM</th>
+                                                <th style="width: 25%;">Type</th>
+                                                <th style="width: 15%;">Flute</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td class="text-center fw-bold">1</td>
+                                                <td><input type="text" name="material_name_1" class="form-control form-control-sm" required placeholder="Material 1" oninput="calculateSRWeight()"></td>
+                                                <td><input type="number" id="gsm_1" name="gsm_1" class="form-control form-control-sm" required placeholder="GSM" oninput="calculateSRWeight()"></td>
+                                                <td>
+                                                    <select name="component_type_1" id="comp_type_1" class="form-select form-select-sm fw-bold text-success" required onchange="toggleFluteRow(1); calculateSRWeight()">
+                                                        <option value="Top">Top</option>
+                                                        <option value="Bottom">Bottom</option>
+                                                        <option value="Corru">Corru</option>
+                                                    </select>
+                                                </td>
+                                                <td>
+                                                    <select name="flute_type_1" id="flute_type_1" class="form-select form-select-sm" style="visibility: hidden;">
+                                                        <option value="">-</option>
+                                                        <option value="B">B</option>
+                                                        <option value="C">C</option>
+                                                    </select>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="text-center text-muted">2</td>
+                                                <td><input type="text" name="material_name_2" class="form-control form-control-sm" placeholder="Optional" oninput="calculateSRWeight()"></td>
+                                                <td><input type="number" id="gsm_2" name="gsm_2" class="form-control form-control-sm" placeholder="GSM" oninput="calculateSRWeight()"></td>
+                                                <td>
+                                                    <select name="component_type_2" id="comp_type_2" class="form-select form-select-sm fw-bold text-success" onchange="toggleFluteRow(2); calculateSRWeight()">
+                                                        <option value="Top">Top</option>
+                                                        <option value="Bottom">Bottom</option>
+                                                        <option value="Corru">Corru</option>
+                                                    </select>
+                                                </td>
+                                                <td>
+                                                    <select name="flute_type_2" id="flute_type_2" class="form-select form-select-sm" style="visibility: hidden;">
+                                                        <option value="">-</option>
+                                                        <option value="B">B</option>
+                                                        <option value="C">C</option>
+                                                    </select>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="text-center text-muted">3</td>
+                                                <td><input type="text" name="material_name_3" class="form-control form-control-sm" placeholder="Optional" oninput="calculateSRWeight()"></td>
+                                                <td><input type="number" id="gsm_3" name="gsm_3" class="form-control form-control-sm" placeholder="GSM" oninput="calculateSRWeight()"></td>
+                                                <td>
+                                                    <select name="component_type_3" id="comp_type_3" class="form-select form-select-sm fw-bold text-success" onchange="toggleFluteRow(3); calculateSRWeight()">
+                                                        <option value="Top">Top</option>
+                                                        <option value="Bottom">Bottom</option>
+                                                        <option value="Corru">Corru</option>
+                                                    </select>
+                                                </td>
+                                                <td>
+                                                    <select name="flute_type_3" id="flute_type_3" class="form-select form-select-sm" style="visibility: hidden;">
+                                                        <option value="">-</option>
+                                                        <option value="B">B</option>
+                                                        <option value="C">C</option>
+                                                    </select>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="text-center text-muted">4</td>
+                                                <td><input type="text" name="material_name_4" class="form-control form-control-sm" placeholder="Optional" oninput="calculateSRWeight()"></td>
+                                                <td><input type="number" id="gsm_4" name="gsm_4" class="form-control form-control-sm" placeholder="GSM" oninput="calculateSRWeight()"></td>
+                                                <td>
+                                                    <select name="component_type_4" id="comp_type_4" class="form-select form-select-sm fw-bold text-success" onchange="toggleFluteRow(4); calculateSRWeight()">
+                                                        <option value="Top">Top</option>
+                                                        <option value="Bottom">Bottom</option>
+                                                        <option value="Corru">Corru</option>
+                                                    </select>
+                                                </td>
+                                                <td>
+                                                    <select name="flute_type_4" id="flute_type_4" class="form-select form-select-sm" style="visibility: hidden;">
+                                                        <option value="">-</option>
+                                                        <option value="B">B</option>
+                                                        <option value="C">C</option>
+                                                    </select>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="text-center text-muted">5</td>
+                                                <td><input type="text" name="material_name_5" class="form-control form-control-sm" placeholder="Optional" oninput="calculateSRWeight()"></td>
+                                                <td><input type="number" id="gsm_5" name="gsm_5" class="form-control form-control-sm" placeholder="GSM" oninput="calculateSRWeight()"></td>
+                                                <td>
+                                                    <select name="component_type_5" id="comp_type_5" class="form-select form-select-sm fw-bold text-success" onchange="toggleFluteRow(5); calculateSRWeight()">
+                                                        <option value="Top">Top</option>
+                                                        <option value="Bottom">Bottom</option>
+                                                        <option value="Corru">Corru</option>
+                                                    </select>
+                                                </td>
+                                                <td>
+                                                    <select name="flute_type_5" id="flute_type_5" class="form-select form-select-sm" style="visibility: hidden;">
+                                                        <option value="">-</option>
+                                                        <option value="B">B</option>
+                                                        <option value="C">C</option>
+                                                    </select>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
 
@@ -115,7 +191,7 @@
                                 <div class="col-md-6">
                                     <label class="form-label fw-bold">Quantity (Sheets)</label>
                                     <input type="number" id="qty" name="qty" class="form-control" required oninput="calculateSRWeight()">
-                                </div>
+                                endවෙනි කොටස</div>
                                 <div class="col-md-6">
                                     <label class="form-label fw-bold">Excess Weight (kg)</label>
                                     <input type="number" step="0.1" id="excess_weight" name="excess_weight" class="form-control" value="0.0" oninput="calculateSRWeight()">
@@ -146,7 +222,6 @@
 
                 {% for size, info in grouped_requests.items() %}
                 
-                <!-- Programmer 1 & 2 ට Print Matrix පෙන්වීම සඳහා Status Check කිරීම -->
                 {% set ns = namespace(all_approved=true) %}
                 {% for group_key, group in info.groups.items() %}
                     {% for sr in group.srs %}
@@ -164,7 +239,6 @@
                                 <div class="mb-2"><strong>2. Reel Size - </strong> <span class="badge bg-primary text-white">{{ size }} cm</span></div>
                             </div>
                             
-                            <!-- Admin හට සැමවිටමද, Programmer 1 & 2 ට සියලුම status Approved නම් පමණක් Print Option එක දර්ශනය වේ -->
                             {% if user_role == 'admin' or (user_role in ['programmer1', 'programmer2'] and ns.all_approved) %}
                             <button class="btn btn-sm btn-outline-dark fw-bold px-2 py-1" onclick="printMatrixGroup('matrix-card-{{ loop.index }}', '{{ size }}')">
                                 <i class="bi bi-printer-fill"></i> Print Matrix
@@ -228,12 +302,10 @@
                                                         {% endif %}
 
                                                     {% elif sr.status == 'Approved' %}
-                                                        <!-- DataOps සඳහා Proceed Option එක -->
                                                         {% if user_role not in ['programmer1', 'programmer2', 'super1', 'super2'] %}
                                                         <form action="{{ url_for('proceed_sr_batch', sr_id=sr.id) }}" method="POST"><button class="btn btn-xs btn-success py-0 px-1 fw-bold"><i class="bi bi-cpu"></i> Proceed</button></form>
                                                         {% endif %}
 
-                                                        <!-- Admin සහ Programmer 1 & 2 සඳහා පමණක් Print Option එක -->
                                                         {% if user_role in ['admin', 'programmer1', 'programmer2'] %}
                                                         <button class="btn btn-xs btn-dark py-0 px-1 fw-bold" onclick="printSingleSR('{{ sr.sr_number }}', '{{ sr.po_number }}', '{{ size }}', '{{ group.material_name }}', '{{ group.gsm }}', '{{ sr.board_width }}', '{{ sr.board_length }}', '{{ sr.component_type }}', '{{ sr.flute_type }}', '{{ sr.total_weight | round(2) }}')">
                                                             <i class="bi bi-printer"></i> Print
@@ -304,9 +376,7 @@
         </div>
     </div>
 
-    <!-- JavaScript ක්‍රියාකාරීත්වයන් -->
     <script>
-    // තනි SR එකක් අනුමත වූ පසු මුද්‍රණය කිරීම සඳහා වන ශ්‍රිතය
     function printSingleSR(srNum, poNum, size, material, gsm, bWidth, bLength, compType, flute, weight) {
         var printWindow = window.open('', '_blank', 'height=600,width=800');
         printWindow.document.write('<html><head><title>Print SR Ticket - ' + srNum + '</title>');
@@ -342,19 +412,16 @@
         printWindow.document.close();
         printWindow.focus();
         
-        // Layout එක Load වීමට සුළු වෙලාවක් ලබා දී මුද්‍රණය කිරීම
         setTimeout(function() {
             printWindow.print();
             printWindow.close();
         }, 600);
     }
 
-    // Matrix Group එක (Screen එකේ පෙනෙන format එකෙන්ම) මුද්‍රණය කිරීමේ ශ්‍රිතය
     function printMatrixGroup(cardId, reelSize) {
         var originalCard = document.getElementById(cardId);
         var printContent = originalCard.cloneNode(true);
         
-        // Actions තීරුව සහ අදාළ බොත්තම් Print එකෙන් ඉවත් කිරීම
         var actions = printContent.querySelectorAll('.action-column, button, form');
         actions.forEach(function(el) {
             el.remove();
@@ -366,11 +433,9 @@
         printWindow.document.write('<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">');
         printWindow.document.write('<style>');
         printWindow.document.write('body { font-family: sans-serif; background-color: white !important; margin: 30px; }');
-        // Colors & backgrounds (Badges, Table Headers) Screen එකේ ආකාරයටම Print වීමට අදාළ CSS
         printWindow.document.write('@media print { * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } }');
         printWindow.document.write('</style></head><body>');
         
-        // UI එකේ පෙනෙන Content එක එලෙසම ලබා දීම
         printWindow.document.write(printContent.innerHTML);
         
         printWindow.document.write('<div class="mt-4 small text-muted text-end">Generated on: ' + new Date().toLocaleString() + '</div>');
@@ -385,44 +450,62 @@
         }, 800);
     }
 
-    function toggleFlute() {
-        let isTop = document.getElementById('comp_top').checked;
-        let fluteDiv = document.getElementById('fluteTypeDiv');
-        let fluteRadios = document.getElementsByName('flute_type');
+    function toggleFluteRow(rowNum) {
+        let compType = document.getElementById('comp_type_' + rowNum).value;
+        let fluteSelect = document.getElementById('flute_type_' + rowNum);
+        let compSelect = document.getElementById('comp_type_' + rowNum);
         
-        if(isTop) {
-            fluteDiv.style.display = 'none';
-            fluteRadios.forEach(r => { r.checked = false; r.required = false; });
-        } else {
-            fluteDiv.style.display = 'block';
-            fluteRadios.forEach(r => { r.required = true; });
+        if (compType === 'Top') {
+            compSelect.className = "form-select form-select-sm fw-bold text-success";
+            fluteSelect.style.visibility = 'hidden';
+            fluteSelect.value = '';
+        } else if (compType === 'Bottom') {
+            compSelect.className = "form-select form-select-sm fw-bold text-primary";
+            fluteSelect.style.visibility = 'visible';
+        } else if (compType === 'Corru') {
+            compSelect.className = "form-select form-select-sm fw-bold text-warning";
+            fluteSelect.style.visibility = 'visible';
         }
     }
 
     function calculateSRWeight() {
         let w = parseFloat(document.getElementById('board_width').value) || 0.0;
         let l = parseFloat(document.getElementById('board_length').value) || 0.0;
-        let gsm = parseFloat(document.getElementById('gsm').value) || 0.0;
         let qty = parseInt(document.getElementById('qty').value) || 0;
         let cartoon_amt = parseFloat(document.getElementById('cartoon_amount').value) || 1.0;
         let excess = parseFloat(document.getElementById('excess_weight').value) || 0.0;
 
-        let componentType = document.querySelector('input[name="component_type"]:checked').value;
+        let totalBaseWeight = 0.0;
 
-        let baseWeight = ((w * l) * (gsm / 1000.0) / cartoon_amt) * qty;
-
-        if (componentType === 'Corru') {
-            baseWeight = baseWeight * 1.5;
+        for (let i = 1; i <= 5; i++) {
+            let matInput = document.getElementsByName('material_name_' + i)[0];
+            let gsmInput = document.getElementById('gsm_' + i);
+            
+            if (matInput && gsmInput) {
+                let matName = matInput.value.trim();
+                let gsm = parseFloat(gsmInput.value) || 0.0;
+                
+                if (matName !== "" && gsm > 0) {
+                    let compType = document.getElementById('comp_type_' + i).value;
+                    let compWeight = ((w * l) * (gsm / 1000.0) / cartoon_amt) * qty;
+                    if (compType === 'Corru') {
+                        compWeight = compWeight * 1.5;
+                    }
+                    totalBaseWeight += compWeight;
+                }
+            }
         }
 
-        let finalTotal = baseWeight + excess;
+        let finalTotal = totalBaseWeight + excess;
 
-        document.getElementById('baseWeightLabel').innerText = baseWeight.toFixed(2);
+        document.getElementById('baseWeightLabel').innerText = totalBaseWeight.toFixed(2);
         document.getElementById('totalWeightDisplay').innerText = finalTotal.toFixed(2) + " kg";
     }
 
     document.addEventListener("DOMContentLoaded", function() {
-        toggleFlute();
+        for (let i = 1; i <= 5; i++) {
+            toggleFluteRow(i);
+        }
         calculateSRWeight(); 
     });
     </script>
