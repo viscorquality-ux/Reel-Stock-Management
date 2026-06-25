@@ -232,15 +232,11 @@ def edit_active_reel(id):
         if new_weight:
             reel.current_weight = float(new_weight)
             
-        db.session.commit()
-        flash(f"✅ Reel {reel.reel_number} Updated Successfully!", "success")
-        
+        db.session.commit() 
+        flash("Update successful!", "success")
     except Exception as e:
-        # Save nowenne mokakda kiyala meka magin hoyaganna puluwana
         db.session.rollback()
-        flash(f"❌ Error Saving: {str(e)}", "danger")
-        # Console eke balanna
-        print(f"Update Error: {e}") 
+        flash(f"Error: {e}", "danger")
         
     return redirect(url_for('active_stock'))
 
