@@ -255,7 +255,7 @@
                                         <th>Material Name</th>
                                         <th>GSM</th>
                                         <th>Board Specs</th>
-                                        <th>Total Target W.</th>
+                                        <th>Target Weight</th>
                                         <th>Status</th>
                                         <th>SR Number</th>
                                         <th class="action-column">Actions</th>
@@ -263,7 +263,8 @@
                                 </thead>
                                 <tbody class="small">
                                     {% for group_key, group in info.groups.items() %}
-                                        {% set rowspan_count = group.srs|length %}
+                                        
+                                        {% set rowspan_count = group.srs|length + 1 %}
                                         
                                         {% for sr in group.srs %}
                                         <tr>
@@ -279,9 +280,7 @@
                                                 </span>
                                             </td>
                                             
-                                            {% if loop.first %}
-                                            <td class="fw-bold text-success fs-6 align-middle bg-light" rowspan="{{ rowspan_count }}">{{ group.total_weight | round(2) }} kg</td>
-                                            {% endif %}
+                                            <td class="fw-bold text-dark align-middle">{{ sr.total_weight | round(2) }} kg</td>
                                             
                                             <td class="align-middle">
                                                 {% if sr.status == 'Pending' %}<span class="badge bg-warning text-dark">Pending</span>
@@ -316,6 +315,13 @@
                                             </td>
                                         </tr>
                                         {% endfor %}
+                                        
+                                        <tr class="bg-light">
+                                            <td class="text-end fw-bold fst-italic text-secondary" style="border-right: none;">Group Total:</td>
+                                            <td class="fw-bold text-success fs-6 align-middle" style="border-left: none;">{{ group.total_weight | round(2) }} kg</td>
+                                            <td colspan="3" class="action-column bg-light"></td>
+                                        </tr>
+
                                     {% endfor %}
                                 </tbody>
                             </table>
