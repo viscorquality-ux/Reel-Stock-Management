@@ -137,20 +137,26 @@ def dashboard():
     
     base_query = apply_location_filter(Reel.query, Reel)
     
-    total_active = base_query.filter(Reel.status.in_(['Full', 'Used', 'SR_Requested'])).count()
-    full_count = base_query.filter_by(status='Full').count()
-    used_count = base_query.filter_by(status='Used').count()
-    sr_req_count = base_query.filter_by(status='SR_Requested').count()
+    # Active Stock ගණනය කිරීම්
+    active_reels = base_query.filter(Reel.status.in_(['Full', 'Used', 'SR_Requested'])).all()
+    active_count = len(active_reels)
+    active_weight = sum([r.current_weight for r in active_reels])
     
-    finished = base_query.filter_by(status='Finished').count()
-    damage_sell = base_query.filter(Reel.status.in_(['Damaged', 'Sold'])).count()
-    active_weight = 0
+    # අනෙකුත් කාණ්ඩවල දත්ත ගණනය කිරීම
+    pending_viscor_count = base_query.filter(Reel.status.in_(['Pending_Verify', 'Pending_Return'])).count()
+    issued_count = base_query.filter_by(status='Issued').count()
+    finished_count = base_query.filter_by(status='Finished').count()
+    damage_sell_count = base_query.filter(Reel.status.in_(['Damaged', 'Sold'])).count()
     
+    # නිවැරදි විචල්‍ය නම් (Variables) HTML එක වෙත යැවීම
     return render_template('dashboard.html', 
-                           total_active=total_active, active_weight=active_weight,
-                           full_count=full_count, used_count=used_count,
-                           sr_req_count=sr_req_count, finished=finished,
-                           damage_sell_count=damage_sell, user_role=get_user_role())
+                           active_count=active_count, 
+                           active_weight=active_weight,
+                           pending_viscor_count=pending_viscor_count,
+                           issued=issued_count,
+                           finished=finished_count,
+                           damage_sell_count=damage_sell_count, 
+                           user_role=get_user_role())
 
 @app.route('/add_stock', methods=['GET', 'POST'])
 def add_stock():
