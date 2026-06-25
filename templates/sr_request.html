@@ -224,10 +224,12 @@
                 
                 {% set ns = namespace(all_approved=true) %}
                 {% for group_key, group in info.groups.items() %}
-                    {% for sr in group.srs %}
-                        {% if sr.status != 'Approved' %}
-                            {% set ns.all_approved = false %}
-                        {% endif %}
+                    {% for comp_key, comp_group in group.comp_groups.items() %}
+                        {% for sr in comp_group.srs %}
+                            {% if sr.status != 'Approved' %}
+                                {% set ns.all_approved = false %}
+                            {% endif %}
+                        {% endfor %}
                     {% endfor %}
                 {% endfor %}
 
@@ -252,10 +254,11 @@
                             <table class="table table-bordered table-sm align-middle mb-0 text-center">
                                 <thead class="table-light small">
                                     <tr>
-                                        <th>Material Name</th>
+                                        <th>Material</th>
                                         <th>GSM</th>
+                                        <th>Component</th>
+                                        <th>Comp. Total W.</th>
                                         <th>Board Specs</th>
-                                        <th>Target Weight</th>
                                         <th>Status</th>
                                         <th>SR Number</th>
                                         <th class="action-column">Actions</th>
@@ -264,121 +267,127 @@
                                 <tbody class="small">
                                     {% for group_key, group in info.groups.items() %}
                                         
-                                        {% set rowspan_count = group.srs|length + 1 %}
+                                        {% set mat_rowspan = group.total_mat_srs %}
+                                        {% set mat_loop = loop %}
                                         
-                                        {% for sr in group.srs %}
-                                        <tr>
-                                            {% if loop.first %}
-                                            <td class="fw-bold align-middle bg-light" rowspan="{{ rowspan_count }}">{{ group.material_name }}</td>
-                                            <td class="align-middle bg-light" rowspan="{{ rowspan_count }}">{{ group.gsm }}</td>
-                                            {% endif %}
+                                        {% for comp_key, comp_group in group.comp_groups.items() %}
+                                            {% set comp_rowspan = comp_group.srs|length %}
+                                            {% set comp_loop = loop %}
                                             
-                                            <td class="align-middle">
-                                                {{ sr.board_width }}x{{ sr.board_length }}m<br>
-                                                <span class="badge bg-secondary">
-                                                    {{ sr.component_type }} {% if sr.flute_type %} ({{ sr.flute_type }}){% endif %}
-                                                </span>
-                                            </td>
-                                            
-                                            <td class="fw-bold text-dark align-middle">{{ sr.total_weight | round(2) }} kg</td>
-                                            
-                                            <td class="align-middle">
-                                                {% if sr.status == 'Pending' %}<span class="badge bg-warning text-dark">Pending</span>
-                                                {% else %}<span class="badge bg-info">Approved</span>{% endif %}
-                                            </td>
-                                            
-                                            <td class="fw-bold text-primary align-middle">{{ sr.sr_number or 'N/A' }}</td>
-                                            
-                                            <td class="align-middle action-column">
-                                                <div class="d-flex gap-1 justify-content-center">
-                                                    {% if sr.status == 'Pending' %}
-                                                        {% if user_role not in ['programmer1', 'programmer2', 'dataop1', 'dataop2'] %}
-                                                        <form action="/approve_sr/{{ sr.id }}" method="POST"><button class="btn btn-xs btn-warning text-dark py-0 px-1 fw-bold">Approve</button></form>
-                                                        {% endif %}
-                                                        
-                                                        {% if user_role in ['programmer1', 'programmer2', 'admin'] %}
-                                                        <button class="btn btn-xs btn-primary py-0 px-1 fw-bold" data-bs-toggle="modal" data-bs-target="#editSrModal{{ sr.id }}">Edit</button>
-                                                        {% endif %}
+                                            {% for sr in comp_group.srs %}
+                                            <tr>
+                                                {% if comp_loop.first and loop.first %}
+                                                <td class="fw-bold align-middle bg-light" rowspan="{{ mat_rowspan }}">{{ group.material_name }}</td>
+                                                <td class="align-middle bg-light" rowspan="{{ mat_rowspan }}">{{ group.gsm }}</td>
+                                                {% endif %}
+                                                
+                                                {% if loop.first %}
+                                                <td class="align-middle fw-bold text-secondary bg-light" rowspan="{{ comp_rowspan }}">
+                                                    {{ comp_group.component_type }} {% if comp_group.flute_type and comp_group.flute_type != 'None' %}({{ comp_group.flute_type }}){% endif %}
+                                                </td>
+                                                <td class="fw-bold text-success fs-6 align-middle bg-light" rowspan="{{ comp_rowspan }}">
+                                                    {{ comp_group.total_weight | default(0) | round(2) }} kg
+                                                </td>
+                                                {% endif %}
+                                                
+                                                <td class="align-middle">
+                                                    {{ sr.board_width }}x{{ sr.board_length }}m<br>
+                                                    <small class="text-muted text-decoration-underline">Target: {{ sr.total_weight | round(2) }}kg</small>
+                                                </td>
+                                                
+                                                <td class="align-middle">
+                                                    {% if sr.status == 'Pending' %}<span class="badge bg-warning text-dark">Pending</span>
+                                                    {% else %}<span class="badge bg-info">Approved</span>{% endif %}
+                                                </td>
+                                                
+                                                <td class="fw-bold text-primary align-middle">{{ sr.sr_number or 'N/A' }}</td>
+                                                
+                                                <td class="align-middle action-column">
+                                                    <div class="d-flex gap-1 justify-content-center">
+                                                        {% if sr.status == 'Pending' %}
+                                                            {% if user_role not in ['programmer1', 'programmer2', 'dataop1', 'dataop2'] %}
+                                                            <form action="/approve_sr/{{ sr.id }}" method="POST"><button class="btn btn-xs btn-warning text-dark py-0 px-1 fw-bold">Approve</button></form>
+                                                            {% endif %}
+                                                            
+                                                            {% if user_role in ['programmer1', 'programmer2', 'admin'] %}
+                                                            <button class="btn btn-xs btn-primary py-0 px-1 fw-bold" data-bs-toggle="modal" data-bs-target="#editSrModal{{ sr.id }}">Edit</button>
+                                                            {% endif %}
 
-                                                    {% elif sr.status == 'Approved' %}
-                                                        {% if user_role not in ['programmer1', 'programmer2', 'super1', 'super2'] %}
-                                                        <form action="{{ url_for('proceed_sr_batch', sr_id=sr.id) }}" method="POST"><button class="btn btn-xs btn-success py-0 px-1 fw-bold"><i class="bi bi-cpu"></i> Proceed</button></form>
-                                                        {% endif %}
+                                                        {% elif sr.status == 'Approved' %}
+                                                            {% if user_role not in ['programmer1', 'programmer2', 'super1', 'super2'] %}
+                                                            <form action="{{ url_for('proceed_sr_batch', sr_id=sr.id) }}" method="POST"><button class="btn btn-xs btn-success py-0 px-1 fw-bold"><i class="bi bi-cpu"></i> Proceed</button></form>
+                                                            {% endif %}
 
-                                                        {% if user_role in ['admin', 'programmer1', 'programmer2'] %}
-                                                        <button class="btn btn-xs btn-dark py-0 px-1 fw-bold" onclick="printSingleSR('{{ sr.sr_number }}', '{{ sr.po_number }}', '{{ size }}', '{{ group.material_name }}', '{{ group.gsm }}', '{{ sr.board_width }}', '{{ sr.board_length }}', '{{ sr.component_type }}', '{{ sr.flute_type }}', '{{ sr.total_weight | round(2) }}')">
-                                                            <i class="bi bi-printer"></i> Print
-                                                        </button>
-                                                        {% endif %}
-                                                    {% else %}<span class="text-muted small">Locked</span>{% endif %}
-                                                </div>
-                                            </td>
-                                        </tr>
+                                                            {% if user_role in ['admin', 'programmer1', 'programmer2'] %}
+                                                            <button class="btn btn-xs btn-dark py-0 px-1 fw-bold" onclick="printSingleSR('{{ sr.sr_number }}', '{{ sr.po_number }}', '{{ size }}', '{{ group.material_name }}', '{{ group.gsm }}', '{{ sr.board_width }}', '{{ sr.board_length }}', '{{ sr.component_type }}', '{{ sr.flute_type }}', '{{ sr.total_weight | round(2) }}')">
+                                                                <i class="bi bi-printer"></i> Print
+                                                            </button>
+                                                            {% endif %}
+                                                        {% else %}<span class="text-muted small">Locked</span>{% endif %}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
                                         {% endfor %}
-                                        
-                                        <tr class="bg-light">
-                                            <td class="text-end fw-bold fst-italic text-secondary" style="border-right: none;">Group Total:</td>
-                                            <td class="fw-bold text-success fs-6 align-middle" style="border-left: none;">{{ group.total_weight or 0 | round(2) }} kg</td>
-                                            <td colspan="3" class="action-column bg-light"></td>
-                                        </tr>
-
                                     {% endfor %}
                                 </tbody>
                             </table>
                         </div>
 
                         {% for group_key, group in info.groups.items() %}
-                            {% for sr in group.srs %}
-                                {% if sr.status == 'Pending' %}
-                                <div class="modal fade" id="editSrModal{{ sr.id }}" tabindex="-1" aria-hidden="true">
-                                    <div class="modal-dialog">
-                                        <form action="/edit_sr/{{ sr.id }}" method="POST" class="modal-content">
-                                            <div class="modal-header bg-primary text-white">
-                                                <h5 class="modal-title fw-bold"><i class="bi bi-pencil"></i> Edit SR Request: {{ sr.sr_number }}</h5>
-                                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                                            </div>
-                                            <div class="modal-body text-start">
-                                                <div class="mb-2">
-                                                    <label class="form-label fw-bold">Board Width</label>
-                                                    <input type="number" step="0.001" name="board_width" class="form-control" value="{{ sr.board_width }}" required>
+                            {% for comp_key, comp_group in group.comp_groups.items() %}
+                                {% for sr in comp_group.srs %}
+                                    {% if sr.status == 'Pending' %}
+                                    <div class="modal fade" id="editSrModal{{ sr.id }}" tabindex="-1" aria-hidden="true">
+                                        <div class="modal-dialog">
+                                            <form action="/edit_sr/{{ sr.id }}" method="POST" class="modal-content">
+                                                <div class="modal-header bg-primary text-white">
+                                                    <h5 class="modal-title fw-bold"><i class="bi bi-pencil"></i> Edit SR Request: {{ sr.sr_number }}</h5>
+                                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                                                 </div>
-                                                <div class="mb-2">
-                                                    <label class="form-label fw-bold">Board Length</label>
-                                                    <input type="number" step="0.001" name="board_length" class="form-control" value="{{ sr.board_length }}" required>
+                                                <div class="modal-body text-start">
+                                                    <div class="mb-2">
+                                                        <label class="form-label fw-bold">Board Width</label>
+                                                        <input type="number" step="0.001" name="board_width" class="form-control" value="{{ sr.board_width }}" required>
+                                                    </div>
+                                                    <div class="mb-2">
+                                                        <label class="form-label fw-bold">Board Length</label>
+                                                        <input type="number" step="0.001" name="board_length" class="form-control" value="{{ sr.board_length }}" required>
+                                                    </div>
+                                                    <div class="mb-2">
+                                                        <label class="form-label fw-bold">Amount of Cartoon</label>
+                                                        <input type="number" name="cartoon_amount" class="form-control" value="{{ sr.cartoon_amount }}" required>
+                                                    </div>
+                                                    <div class="mb-2">
+                                                        <label class="form-label fw-bold">GSM</label>
+                                                        <input type="number" name="gsm" class="form-control" value="{{ sr.gsm }}" required>
+                                                    </div>
+                                                    <div class="mb-2">
+                                                        <label class="form-label fw-bold">Quantity</label>
+                                                        <input type="number" name="qty" class="form-control" value="{{ sr.qty }}" required>
+                                                    </div>
+                                                    <div class="mb-2">
+                                                        <label class="form-label fw-bold">Component Type</label>
+                                                        <select name="component_type" class="form-select">
+                                                            <option value="Top" {% if sr.component_type == 'Top' %}selected{% endif %}>Top</option>
+                                                            <option value="Bottom" {% if sr.component_type == 'Bottom' %}selected{% endif %}>Bottom</option>
+                                                            <option value="Corru" {% if sr.component_type == 'Corru' %}selected{% endif %}>Corru</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="mb-2">
+                                                        <label class="form-label fw-bold">Excess Weight (kg)</label>
+                                                        <input type="number" step="0.01" name="excess_weight" class="form-control" value="{{ sr.excess_weight }}">
+                                                    </div>
                                                 </div>
-                                                <div class="mb-2">
-                                                    <label class="form-label fw-bold">Amount of Cartoon</label>
-                                                    <input type="number" name="cartoon_amount" class="form-control" value="{{ sr.cartoon_amount }}" required>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                    <button type="submit" class="btn btn-primary fw-bold">Save Changes</button>
                                                 </div>
-                                                <div class="mb-2">
-                                                    <label class="form-label fw-bold">GSM</label>
-                                                    <input type="number" name="gsm" class="form-control" value="{{ sr.gsm }}" required>
-                                                </div>
-                                                <div class="mb-2">
-                                                    <label class="form-label fw-bold">Quantity</label>
-                                                    <input type="number" name="qty" class="form-control" value="{{ sr.qty }}" required>
-                                                </div>
-                                                <div class="mb-2">
-                                                    <label class="form-label fw-bold">Component Type</label>
-                                                    <select name="component_type" class="form-select">
-                                                        <option value="Top" {% if sr.component_type == 'Top' %}selected{% endif %}>Top</option>
-                                                        <option value="Bottom" {% if sr.component_type == 'Bottom' %}selected{% endif %}>Bottom</option>
-                                                        <option value="Corru" {% if sr.component_type == 'Corru' %}selected{% endif %}>Corru</option>
-                                                    </select>
-                                                </div>
-                                                <div class="mb-2">
-                                                    <label class="form-label fw-bold">Excess Weight (kg)</label>
-                                                    <input type="number" step="0.01" name="excess_weight" class="form-control" value="{{ sr.excess_weight }}">
-                                                </div>
-                                            </div>
-                                            <div class="modal-footer">
-                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                                <button type="submit" class="btn btn-primary fw-bold">Save Changes</button>
-                                            </div>
-                                        </form>
+                                            </form>
+                                        </div>
                                     </div>
-                                </div>
-                                {% endif %}
+                                    {% endif %}
+                                {% endfor %}
                             {% endfor %}
                         {% endfor %}
 
