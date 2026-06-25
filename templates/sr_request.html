@@ -318,7 +318,7 @@
                                         
                                         <tr class="bg-light">
                                             <td class="text-end fw-bold fst-italic text-secondary" style="border-right: none;">Group Total:</td>
-                                            <td class="fw-bold text-success fs-6 align-middle" style="border-left: none;">{{ group.total_weight | round(2) }} kg</td>
+                                            <td class="fw-bold text-success fs-6 align-middle" style="border-left: none;">{{ group.total_weight or 0 | round(2) }} kg</td>
                                             <td colspan="3" class="action-column bg-light"></td>
                                         </tr>
 
