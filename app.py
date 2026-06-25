@@ -211,33 +211,28 @@ def active_stock():
 
 @app.route('/edit_active_reel/<int:id>', methods=['POST'])
 def edit_active_reel(id):
-    # DataOp userslata access thibunath, save wenne nathnam mema code eka use karanna
-    if get_user_role() in ['super1', 'super2', 'viewer']:
-        flash("❌ Action Not Allowed.", "danger")
+    user_role = get_user_role()
+    
+    # 1. Edit කිරීමේ අවසරය DataOp 1 සහ 2 සඳහා පමණක් සීමා කිරීම
+    if user_role not in ['dataop1', 'dataop2']:
+        flash("❌ Action Not Allowed. Only Data Operators can edit stock.", "danger")
         return redirect(url_for('active_stock'))
         
-    try:
-        reel = Reel.query.get_or_404(id)
+    reel = Reel.query.get_or_404(id)
+    
+    # නව අගයන් ලබා ගැනීම
+    reel.size_cm = float(request.form.get('size_cm', reel.size_cm))
+    reel.gsm = int(request.form.get('gsm', reel.gsm))
+    new_weight = float(request.form.get('current_weight', reel.current_weight))
+    
+    reel.current_weight = new_weight
+    
+    # 2. Reel එක තවමත් Full තත්වයේ පවතී නම්, එහි මූලික බරද (weight_kg) යාවත්කාලීන කිරීම
+    if reel.status == 'Full':
+        reel.weight_kg = new_weight
         
-        # Form eken ena agayan ganime eke weraddak nathnam
-        new_size = request.form.get('size_cm')
-        new_gsm = request.form.get('gsm')
-        new_weight = request.form.get('current_weight')
-        
-        # Agayan thibena bawa sthirakara database eke update karanna
-        if new_size:
-            reel.size_cm = float(new_size)
-        if new_gsm:
-            reel.gsm = int(new_gsm)
-        if new_weight:
-            reel.current_weight = float(new_weight)
-            
-        db.session.commit() 
-        flash("Update successful!", "success")
-    except Exception as e:
-        db.session.rollback()
-        flash(f"Error: {e}", "danger")
-        
+    db.session.commit()
+    flash(f"✅ Reel {reel.reel_number} Updated Successfully!", "success")
     return redirect(url_for('active_stock'))
 
 @app.route('/update_location/<int:id>', methods=['POST'])
