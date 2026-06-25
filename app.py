@@ -211,16 +211,37 @@ def active_stock():
 
 @app.route('/edit_active_reel/<int:id>', methods=['POST'])
 def edit_active_reel(id):
+    # DataOp userslata access thibunath, save wenne nathnam mema code eka use karanna
     if get_user_role() in ['super1', 'super2', 'viewer']:
         flash("❌ Action Not Allowed.", "danger")
         return redirect(url_for('active_stock'))
         
-    reel = Reel.query.get_or_404(id)
-    reel.size_cm = float(request.form.get('size_cm', reel.size_cm))
-    reel.gsm = int(request.form.get('gsm', reel.gsm))
-    reel.current_weight = float(request.form.get('current_weight', reel.current_weight))
-    db.session.commit()
-    flash(f"✅ Reel {reel.reel_number} Updated Successfully!", "success")
+    try:
+        reel = Reel.query.get_or_404(id)
+        
+        # Form eken ena agayan ganime eke weraddak nathnam
+        new_size = request.form.get('size_cm')
+        new_gsm = request.form.get('gsm')
+        new_weight = request.form.get('current_weight')
+        
+        # Agayan thibena bawa sthirakara database eke update karanna
+        if new_size:
+            reel.size_cm = float(new_size)
+        if new_gsm:
+            reel.gsm = int(new_gsm)
+        if new_weight:
+            reel.current_weight = float(new_weight)
+            
+        db.session.commit()
+        flash(f"✅ Reel {reel.reel_number} Updated Successfully!", "success")
+        
+    except Exception as e:
+        # Save nowenne mokakda kiyala meka magin hoyaganna puluwana
+        db.session.rollback()
+        flash(f"❌ Error Saving: {str(e)}", "danger")
+        # Console eke balanna
+        print(f"Update Error: {e}") 
+        
     return redirect(url_for('active_stock'))
 
 @app.route('/update_location/<int:id>', methods=['POST'])
