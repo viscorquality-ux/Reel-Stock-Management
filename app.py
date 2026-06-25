@@ -97,6 +97,24 @@ def apply_location_filter(query, model):
         return query.filter(model.store_location == 'Viscor Lanka')
     return query
 
+# --- Safe Number Parsing Functions ---
+def safe_float(val, default=0.0):
+    try:
+        if val is None or str(val).strip() == '':
+            return float(default)
+        return float(val)
+    except (ValueError, TypeError):
+        return float(default)
+
+def safe_int(val, default=0):
+    try:
+        if val is None or str(val).strip() == '':
+            return int(default)
+        return int(float(val))
+    except (ValueError, TypeError):
+        return int(default)
+# -------------------------------------
+
 @app.route('/', methods=['GET', 'POST'])
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -112,7 +130,7 @@ def login():
             "super2": ("packwell@7531", "super2"),
             "programmer1": ("viscor@1235", "programmer1"),
             "programmer2": ("packwell@3457", "programmer2"),
-            "viewer": ("view@123", "viewer") # View Only User
+            "viewer": ("view@123", "viewer")
         }
         
         if username in users and users[username][0] == password:
@@ -137,18 +155,15 @@ def dashboard():
     
     base_query = apply_location_filter(Reel.query, Reel)
     
-    # Active Stock ගණනය කිරීම්
     active_reels = base_query.filter(Reel.status.in_(['Full', 'Used', 'SR_Requested'])).all()
     active_count = len(active_reels)
     active_weight = sum([r.current_weight for r in active_reels])
     
-    # අනෙකුත් කාණ්ඩවල දත්ත ගණනය කිරීම
     pending_viscor_count = base_query.filter(Reel.status.in_(['Pending_Verify', 'Pending_Return'])).count()
     issued_count = base_query.filter_by(status='Issued').count()
     finished_count = base_query.filter_by(status='Finished').count()
     damage_sell_count = base_query.filter(Reel.status.in_(['Damaged', 'Sold'])).count()
     
-    # නිවැරදි විචල්‍ය නම් (Variables) HTML එක වෙත යැවීම
     return render_template('dashboard.html', 
                            active_count=active_count, 
                            active_weight=active_weight,
@@ -167,7 +182,7 @@ def add_stock():
         
     if request.method == 'POST':
         try:
-            reel_num = request.form.get('reel_number').strip()
+            reel_num = request.form.get('reel_number', '').strip()
             if Reel.query.filter_by(reel_number=reel_num).first():
                 flash(f"❌ Reel Number '{reel_num}' already exists!", "danger")
                 return redirect(url_for('add_stock'))
@@ -183,15 +198,15 @@ def add_stock():
 
             new_reel = Reel(
                 reel_number=reel_num,
-                size_cm=float(request.form.get('size_cm')),
-                gsm=int(request.form.get('gsm')),
-                material_name=request.form.get('material_name'),
-                reel_type=request.form.get('reel_type'),
-                weight_kg=float(request.form.get('weight_kg')),
-                current_weight=float(request.form.get('weight_kg')),
+                size_cm=safe_float(request.form.get('size_cm')),
+                gsm=safe_int(request.form.get('gsm')),
+                material_name=request.form.get('material_name', ''),
+                reel_type=request.form.get('reel_type', ''),
+                weight_kg=safe_float(request.form.get('weight_kg')),
+                current_weight=safe_float(request.form.get('weight_kg')),
                 status=reel_status, 
-                store_location=request.form.get('store_location'),
-                supplier_name=request.form.get('supplier_name'),
+                store_location=request.form.get('store_location', ''),
+                supplier_name=request.form.get('supplier_name', ''),
                 received_date=rcv_date
             )
             db.session.add(new_reel)
@@ -218,27 +233,27 @@ def active_stock():
 @app.route('/edit_active_reel/<int:id>', methods=['POST'])
 def edit_active_reel(id):
     user_role = get_user_role()
-    
-    # 1. Edit කිරීමේ අවසරය DataOp 1 සහ 2 සඳහා පමණක් සීමා කිරීම
     if user_role not in ['dataop1', 'dataop2']:
         flash("❌ Action Not Allowed. Only Data Operators can edit stock.", "danger")
         return redirect(url_for('active_stock'))
         
-    reel = Reel.query.get_or_404(id)
-    
-    # නව අගයන් ලබා ගැනීම
-    reel.size_cm = float(request.form.get('size_cm', reel.size_cm))
-    reel.gsm = int(request.form.get('gsm', reel.gsm))
-    new_weight = float(request.form.get('current_weight', reel.current_weight))
-    
-    reel.current_weight = new_weight
-    
-    # 2. Reel එක තවමත් Full තත්වයේ පවතී නම්, එහි මූලික බරද (weight_kg) යාවත්කාලීන කිරීම
-    if reel.status == 'Full':
-        reel.weight_kg = new_weight
+    try:
+        reel = Reel.query.get_or_404(id)
         
-    db.session.commit()
-    flash(f"✅ Reel {reel.reel_number} Updated Successfully!", "success")
+        reel.size_cm = safe_float(request.form.get('size_cm'), reel.size_cm)
+        reel.gsm = safe_int(request.form.get('gsm'), reel.gsm)
+        new_weight = safe_float(request.form.get('current_weight'), reel.current_weight)
+        
+        reel.current_weight = new_weight
+        if reel.status == 'Full':
+            reel.weight_kg = new_weight
+            
+        db.session.commit()
+        flash(f"✅ Reel {reel.reel_number} Updated Successfully!", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"❌ Update Error: {str(e)}", "danger")
+        
     return redirect(url_for('active_stock'))
 
 @app.route('/update_location/<int:id>', methods=['POST'])
@@ -320,42 +335,65 @@ def sr_request():
             return redirect(url_for('sr_request'))
             
         try:
-            b_width = float(request.form.get('board_width', 0.0))
-            b_length = float(request.form.get('board_length', 0.0))
-            cartoon_amt = int(request.form.get('cartoon_amount', 1))
-            gsm = int(request.form.get('gsm', 0))
-            qty = int(request.form.get('qty', 0))
-            comp_type = request.form.get('component_type')
+            po_number = request.form.get('po_number', '').strip()
+            r_size = safe_float(request.form.get('reel_size'))
+            b_width = safe_float(request.form.get('board_width'))
+            b_length = safe_float(request.form.get('board_length'))
+            cartoon_amt = safe_float(request.form.get('cartoon_amount'), 1.0)
+            if cartoon_amt <= 0: cartoon_amt = 1.0
+            qty = safe_int(request.form.get('qty'))
+            excess_w_total = safe_float(request.form.get('excess_weight'))
             
-            calc_weight = ((b_width * b_length) * (gsm / 1000.0)) / cartoon_amt * qty
-            if comp_type == 'Corru':
-                calc_weight = calc_weight * 1.5
+            valid_materials = []
+            for i in range(1, 6):
+                m_name = request.form.get(f'material_name_{i}', '').strip()
+                m_gsm_str = request.form.get(f'gsm_{i}', '').strip()
+                
+                if m_name and m_gsm_str:
+                    valid_materials.append({
+                        'name': m_name,
+                        'gsm': safe_int(m_gsm_str),
+                        'comp_type': request.form.get(f'component_type_{i}', ''),
+                        'flute': request.form.get(f'flute_type_{i}', '')
+                    })
 
-            excess_w = float(request.form.get('excess_weight', 0.0))
-            tot_weight = calc_weight + excess_w
-            
+            if not valid_materials:
+                flash("❌ Please enter at least one valid material component.", "danger")
+                return redirect(url_for('sr_request'))
+
             prefix = get_sr_prefix(user_role)
-            new_sr_num = f"{prefix}-{datetime.now(colombo_tz).strftime('%Y%m%d%H%M')}-{random.randint(10,99)}"
-            
-            new_sr = SRRequest(
-                sr_number=new_sr_num,
-                po_number=request.form.get('po_number'),
-                reel_size=float(request.form.get('reel_size')),
-                cartoon_amount=cartoon_amt,
-                gsm=gsm,
-                material_name=request.form.get('material_name'),
-                qty=qty,
-                calculated_weight=round(calc_weight, 2),
-                board_width=b_width,
-                board_length=b_length,
-                component_type=comp_type,
-                flute_type=request.form.get('flute_type'),
-                excess_weight=excess_w,
-                total_weight=round(tot_weight, 2)
-            )
-            db.session.add(new_sr)
+            base_sr_num = f"{prefix}-{datetime.now(colombo_tz).strftime('%Y%m%d%H%M')}-{random.randint(10,99)}"
+
+            excess_per_comp = excess_w_total / len(valid_materials)
+
+            for idx, mat in enumerate(valid_materials):
+                calc_weight = ((b_width * b_length) * (mat['gsm'] / 1000.0)) / cartoon_amt * qty
+                if mat['comp_type'] == 'Corru':
+                    calc_weight = calc_weight * 1.5
+
+                tot_weight = calc_weight + excess_per_comp
+                comp_sr_num = base_sr_num if len(valid_materials) == 1 else f"{base_sr_num}-L{idx+1}"
+
+                new_sr = SRRequest(
+                    sr_number=comp_sr_num,
+                    po_number=po_number,
+                    reel_size=r_size,
+                    cartoon_amount=cartoon_amt,
+                    gsm=mat['gsm'],
+                    material_name=mat['name'],
+                    qty=qty,
+                    calculated_weight=round(calc_weight, 2),
+                    board_width=b_width,
+                    board_length=b_length,
+                    component_type=mat['comp_type'],
+                    flute_type=mat['flute'],
+                    excess_weight=round(excess_per_comp, 2),
+                    total_weight=round(tot_weight, 2)
+                )
+                db.session.add(new_sr)
+
             db.session.commit()
-            flash(f"📊 SR Request Logged Successfully! Assigned SR Number: {new_sr_num}", "success")
+            flash(f"📊 SR Request Logged Successfully! Base SR Number: {base_sr_num}", "success")
         except Exception as e:
             db.session.rollback()
             flash(f"Error logging request: {str(e)}", "danger")
@@ -396,35 +434,40 @@ def edit_sr(id):
         flash("❌ Unauthorized Action.", "danger")
         return redirect(url_for('sr_request'))
         
-    sr = SRRequest.query.get_or_404(id)
-    
-    b_width = float(request.form.get('board_width', sr.board_width))
-    b_length = float(request.form.get('board_length', sr.board_length))
-    gsm = int(request.form.get('gsm', sr.gsm))
-    qty = int(request.form.get('qty', sr.qty))
-    comp_type = request.form.get('component_type', sr.component_type)
-    excess_w = float(request.form.get('excess_weight', sr.excess_weight))
-    
-    cartoon_amt = float(request.form.get('cartoon_amount', sr.cartoon_amount))
-    if cartoon_amt <= 0:
-        cartoon_amt = 1.0
+    try:
+        sr = SRRequest.query.get_or_404(id)
         
-    calc_weight = ((b_width * b_length) * (gsm / 1000.0)) / cartoon_amt * qty
-    if comp_type == 'Corru':
-        calc_weight = calc_weight * 1.5
+        b_width = safe_float(request.form.get('board_width'), sr.board_width)
+        b_length = safe_float(request.form.get('board_length'), sr.board_length)
+        gsm = safe_int(request.form.get('gsm'), sr.gsm)
+        qty = safe_int(request.form.get('qty'), sr.qty)
+        comp_type = request.form.get('component_type', sr.component_type)
+        excess_w = safe_float(request.form.get('excess_weight'), sr.excess_weight)
         
-    sr.board_width = b_width
-    sr.board_length = b_length
-    sr.gsm = gsm
-    sr.qty = qty
-    sr.cartoon_amount = cartoon_amt
-    sr.component_type = comp_type
-    sr.excess_weight = excess_w
-    sr.calculated_weight = round(calc_weight, 2)
-    sr.total_weight = round(calc_weight + excess_w, 2)
-    
-    db.session.commit()
-    flash(f"✅ SR Request {sr.sr_number} Edited Successfully!", "success")
+        cartoon_amt = safe_float(request.form.get('cartoon_amount'), sr.cartoon_amount)
+        if cartoon_amt <= 0:
+            cartoon_amt = 1.0
+            
+        calc_weight = ((b_width * b_length) * (gsm / 1000.0)) / cartoon_amt * qty
+        if comp_type == 'Corru':
+            calc_weight = calc_weight * 1.5
+            
+        sr.board_width = b_width
+        sr.board_length = b_length
+        sr.gsm = gsm
+        sr.qty = qty
+        sr.cartoon_amount = cartoon_amt
+        sr.component_type = comp_type
+        sr.excess_weight = excess_w
+        sr.calculated_weight = round(calc_weight, 2)
+        sr.total_weight = round(calc_weight + excess_w, 2)
+        
+        db.session.commit()
+        flash(f"✅ SR Request {sr.sr_number} Edited Successfully!", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"❌ Error Editing SR: {str(e)}", "danger")
+        
     return redirect(url_for('sr_request'))
 
 @app.route('/approve_sr/<int:id>', methods=['POST'])
@@ -712,7 +755,7 @@ def partial_return(id):
         return redirect(url_for('issued_stock'))
     reel = Reel.query.get_or_404(id)
     try:
-        new_w = float(request.form.get('returned_weight', 0.0))
+        new_w = safe_float(request.form.get('returned_weight'))
         if new_w <= 0 or new_w > reel.weight_kg:
             flash("❌ Invalid remaining weight specified.", "danger")
             return redirect(url_for('issued_stock'))
