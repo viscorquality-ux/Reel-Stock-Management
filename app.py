@@ -97,6 +97,7 @@ def apply_location_filter(query, model):
         return query.filter(model.store_location == 'Viscor Lanka')
     return query
 
+# --- Safe Number Parsing Functions ---
 def safe_float(val, default=0.0):
     try:
         if val is None or str(val).strip() == '':
@@ -112,6 +113,7 @@ def safe_int(val, default=0):
         return int(float(val))
     except (ValueError, TypeError):
         return int(default)
+# -------------------------------------
 
 @app.route('/', methods=['GET', 'POST'])
 @app.route('/login', methods=['GET', 'POST'])
@@ -401,7 +403,7 @@ def sr_request():
     else:
         all_requests = SRRequest.query.order_by(SRRequest.created_at.desc()).all()
         
-    # යාවත්කාලීන කරන ලද Grouping Logic (Component Type මගින් Group කිරීම)
+    # --- Matrix Grouping Logic Updated ---
     grouped_requests = {}
     
     for r in all_requests:
@@ -412,23 +414,32 @@ def sr_request():
                 
             grouped_requests[size]['po_list'].add(r.po_number)
             
+            # Level 1: Material Name + GSM
             group_key = f"{r.material_name}_{r.gsm}"
             if group_key not in grouped_requests[size]['groups']:
                 grouped_requests[size]['groups'][group_key] = {
                     'material_name': r.material_name,
                     'gsm': r.gsm,
-                    'comp_groups': {} # Component Type මගින් වෙන් කිරීම
+                    'total_mat_srs': 0, # To track rowspan for Material and GSM columns
+                    'comp_groups': {}   # Level 2: Component Types
                 }
                 
-            comp_key = r.component_type
+            # Level 2: Component Type (plus Flute if exists, to separate properly)
+            flute_str = str(r.flute_type).strip() if r.flute_type else ""
+            comp_type_str = str(r.component_type).strip() if r.component_type else "Unknown"
+            comp_key = f"{comp_type_str}_{flute_str}"
+
             if comp_key not in grouped_requests[size]['groups'][group_key]['comp_groups']:
                 grouped_requests[size]['groups'][group_key]['comp_groups'][comp_key] = {
+                    'component_type': r.component_type,
+                    'flute_type': r.flute_type,
                     'total_weight': 0.0,
                     'srs': []
                 }
                 
             grouped_requests[size]['groups'][group_key]['comp_groups'][comp_key]['total_weight'] += r.total_weight
             grouped_requests[size]['groups'][group_key]['comp_groups'][comp_key]['srs'].append(r)
+            grouped_requests[size]['groups'][group_key]['total_mat_srs'] += 1
 
     return render_template('sr_request.html', all_requests=all_requests, grouped_requests=grouped_requests, user_role=user_role)
 
