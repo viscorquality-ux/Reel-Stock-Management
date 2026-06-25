@@ -782,7 +782,7 @@ def partial_return(id):
         return redirect(url_for('issued_stock'))
     reel = Reel.query.get_or_404(id)
     try:
-        new_w = safe_float(request.form.get('returned_weight'))
+        new_w = safe_float(request.form.get('new_weight'))
         if new_w <= 0 or new_w > reel.weight_kg:
             flash("❌ Invalid remaining weight specified.", "danger")
             return redirect(url_for('issued_stock'))
