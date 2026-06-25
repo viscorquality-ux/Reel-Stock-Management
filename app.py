@@ -403,7 +403,6 @@ def sr_request():
     else:
         all_requests = SRRequest.query.order_by(SRRequest.created_at.desc()).all()
         
-    # --- Matrix Grouping Logic Updated ---
     grouped_requests = {}
     
     for r in all_requests:
@@ -414,17 +413,15 @@ def sr_request():
                 
             grouped_requests[size]['po_list'].add(r.po_number)
             
-            # Level 1: Material Name + GSM
             group_key = f"{r.material_name}_{r.gsm}"
             if group_key not in grouped_requests[size]['groups']:
                 grouped_requests[size]['groups'][group_key] = {
                     'material_name': r.material_name,
                     'gsm': r.gsm,
-                    'total_mat_srs': 0, # To track rowspan for Material and GSM columns
-                    'comp_groups': {}   # Level 2: Component Types
+                    'total_mat_srs': 0, 
+                    'comp_groups': {}   
                 }
                 
-            # Level 2: Component Type (plus Flute if exists, to separate properly)
             flute_str = str(r.flute_type).strip() if r.flute_type else ""
             comp_type_str = str(r.component_type).strip() if r.component_type else "Unknown"
             comp_key = f"{comp_type_str}_{flute_str}"
@@ -542,11 +539,25 @@ def proceed_sr_batch(sr_id):
                 
     if current_allocated >= total_needed:
         for reel in allocated_reels:
-            reel.status = 'SR_Requested'
+            old_weight = reel.current_weight
+            
+            # --- යාවත්කාලීනය: මෙහිදී Status එක කෙලින්ම 'Issued' ලෙස මාරු වේ ---
+            reel.status = 'Issued'
             reel.sr_request_id = sr.id
+            
+            # History log එක නිර්මාණය කිරීම
+            db.session.add(ReelHistory(
+                reel_id=reel.id,
+                usage_type='Issued to Production',
+                weight_before=old_weight,
+                weight_after=0.0,
+                doc_number=sr.sr_number,
+                remarks='Auto-Dispatched via SR Matrix Proceed'
+            ))
+            
         sr.status = 'Processed'
         db.session.commit()
-        flash("🚀 Batch Processing Completed Successfully using optimal Full & Used stocks!", "success")
+        flash("🚀 Batch Processing Completed! Reels successfully Issued to the factory floor.", "success")
     else:
         db.session.rollback()
         flash(f"❌ Not enough stock to satisfy this request. (Required: {total_needed} kg | Available: {current_allocated} kg)", "danger")
@@ -799,7 +810,8 @@ def partial_return(id):
 def issued_stock():
     if 'role' not in session: return redirect(url_for('login'))
     
-    reels = apply_location_filter(Reel.query, Reel).filter_by(status='Issued').order_by(Reel.id.desc()).all()
+    # --- යාවත්කාලීනය: මීට පෙර 'SR_Requested' ලෙස හිර වී ඇති Reels ද පෙන්නුම් කිරීමට වෙනස් කර ඇත ---
+    reels = apply_location_filter(Reel.query, Reel).filter(Reel.status.in_(['Issued', 'SR_Requested'])).order_by(Reel.id.desc()).all()
     
     logs_query = ReelHistory.query.join(Reel).filter(ReelHistory.usage_type == 'Issued to Production')
     logs_query = apply_location_filter(logs_query, Reel)
