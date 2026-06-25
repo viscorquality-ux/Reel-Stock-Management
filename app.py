@@ -111,7 +111,8 @@ def login():
             "super1": ("viscor@1357", "super1"),
             "super2": ("packwell@7531", "super2"),
             "programmer1": ("viscor@1235", "programmer1"),
-            "programmer2": ("packwell@3457", "programmer2")
+            "programmer2": ("packwell@3457", "programmer2"),
+            "viewer": ("view@123", "viewer") # View Only User
         }
         
         if username in users and users[username][0] == password:
@@ -154,7 +155,7 @@ def dashboard():
 @app.route('/add_stock', methods=['GET', 'POST'])
 def add_stock():
     user_role = get_user_role()
-    if user_role in ['programmer1', 'programmer2', 'super1', 'super2']:
+    if user_role in ['programmer1', 'programmer2', 'super1', 'super2', 'viewer']:
         flash("❌ Access Denied: Unauthorized tab.", "danger")
         return redirect(url_for('dashboard'))
         
@@ -210,7 +211,7 @@ def active_stock():
 
 @app.route('/edit_active_reel/<int:id>', methods=['POST'])
 def edit_active_reel(id):
-    if get_user_role() in ['super1', 'super2']:
+    if get_user_role() in ['super1', 'super2', 'viewer']:
         flash("❌ Action Not Allowed.", "danger")
         return redirect(url_for('active_stock'))
         
@@ -224,7 +225,7 @@ def edit_active_reel(id):
 
 @app.route('/update_location/<int:id>', methods=['POST'])
 def update_location(id):
-    if get_user_role() in ['super1', 'super2']:
+    if get_user_role() in ['super1', 'super2', 'viewer']:
         flash("❌ Action Not Allowed.", "danger")
         return redirect(url_for('active_stock'))
         
@@ -240,7 +241,7 @@ def update_location(id):
 
 @app.route('/mark_damage_sell/<int:id>', methods=['POST'])
 def mark_damage_sell(id):
-    if get_user_role() in ['super1', 'super2']:
+    if get_user_role() in ['super1', 'super2', 'viewer']:
         flash("❌ Action Not Allowed.", "danger")
         return redirect(url_for('active_stock'))
         
@@ -269,6 +270,10 @@ def mark_damage_sell(id):
 
 @app.route('/mark_finished/<int:id>', methods=['POST'])
 def mark_finished(id):
+    if get_user_role() == 'viewer':
+        flash("❌ Action Not Allowed.", "danger")
+        return redirect(url_for('finished_usage_stock'))
+        
     reel = Reel.query.get_or_404(id)
     old_weight = reel.current_weight
     
@@ -292,7 +297,7 @@ def sr_request():
     if 'role' not in session: return redirect(url_for('login'))
     
     if request.method == 'POST':
-        if user_role in ['super1', 'super2', 'dataop1', 'dataop2']:
+        if user_role in ['super1', 'super2', 'dataop1', 'dataop2', 'viewer']:
             flash("❌ Action Not Allowed for your role.", "danger")
             return redirect(url_for('sr_request'))
             
@@ -337,7 +342,6 @@ def sr_request():
             db.session.rollback()
             flash(f"Error logging request: {str(e)}", "danger")
             
-    # Viscor SRs (SRVL) ඉවත් කිරීම සඳහා Dataop2/Super2/Programmer2 හට සීමා කිරීම
     if user_role in ['dataop2', 'super2', 'programmer2']:
         all_requests = SRRequest.query.filter(SRRequest.sr_number.like('SRPL%')).order_by(SRRequest.created_at.desc()).all()
     else:
@@ -408,7 +412,7 @@ def edit_sr(id):
 @app.route('/approve_sr/<int:id>', methods=['POST'])
 def approve_sr(id):
     user_role = get_user_role()
-    if user_role in ['programmer1', 'programmer2', 'dataop1', 'dataop2']:
+    if user_role in ['programmer1', 'programmer2', 'dataop1', 'dataop2', 'viewer']:
         flash("❌ Unauthorized Action.", "danger")
         return redirect(url_for('sr_request'))
     sr = SRRequest.query.get_or_404(id)
@@ -420,6 +424,10 @@ def approve_sr(id):
 
 @app.route('/proceed_sr_batch/<int:sr_id>', methods=['POST'])
 def proceed_sr_batch(sr_id):
+    if get_user_role() == 'viewer':
+        flash("❌ Action Not Allowed.", "danger")
+        return redirect(url_for('sr_request'))
+        
     sr = SRRequest.query.get_or_404(sr_id)
     
     total_needed = sr.total_weight
@@ -471,7 +479,7 @@ def proceed_sr_batch(sr_id):
 @app.route('/issue_reel_direct/<int:id>', methods=['POST'])
 def issue_reel_direct(id):
     user_role = get_user_role()
-    if user_role in ['super1', 'super2']:
+    if user_role in ['super1', 'super2', 'viewer']:
         flash("❌ Access Denied.", "danger")
         return redirect(url_for('active_stock'))
         
@@ -498,7 +506,7 @@ def issue_reel_direct(id):
 @app.route('/issue_reel/<int:id>', methods=['POST'])
 def issue_reel(id):
     user_role = get_user_role()
-    if user_role in ['programmer1', 'programmer2', 'super1', 'super2']:
+    if user_role in ['programmer1', 'programmer2', 'super1', 'super2', 'viewer']:
         flash("❌ Access Denied.", "danger")
         return redirect(url_for('active_stock'))
         
@@ -681,7 +689,7 @@ def accept_packwell(id):
 @app.route('/partial_return/<int:id>', methods=['POST'])
 def partial_return(id):
     user_role = get_user_role()
-    if user_role in ['programmer1', 'programmer2', 'super1', 'super2']:
+    if user_role in ['programmer1', 'programmer2', 'super1', 'super2', 'viewer']:
         flash("❌ Access Denied.", "danger")
         return redirect(url_for('issued_stock'))
     reel = Reel.query.get_or_404(id)
@@ -793,7 +801,6 @@ def damage_sell_stock():
 
 @app.route('/reset_db_now')
 def reset_db_now():
-    # Production හීදී මෙය අහම්බෙන් ක්‍රියාත්මක වීම වැළැක්වීමට Admin කෙනෙකුට පමණක් සීමා කරන්න
     if 'role' in session and session.get('role') == 'admin':
         try:
             db.session.execute(text('SET FOREIGN_KEY_CHECKS = 0;'))
