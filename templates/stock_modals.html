@@ -26,7 +26,9 @@
           </div>
           <div class="modal-footer">
               <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+              {% if session.get('role') != 'viewer' %}
               <button type="submit" class="btn btn-info fw-bold text-white">Save Changes</button>
+              {% endif %}
           </div>
       </form>
     </div>
@@ -75,7 +77,9 @@
           </div>
           <div class="modal-footer">
               <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+              {% if session.get('role') != 'viewer' %}
               <button type="submit" class="btn btn-success fw-bold">Execute Dispatch</button>
+              {% endif %}
           </div>
       </form>
     </div>
@@ -107,7 +111,9 @@
           </div>
           <div class="modal-footer">
               <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+              {% if session.get('role') != 'viewer' %}
               <button type="submit" class="btn btn-warning fw-bold text-dark">Update Location</button>
+              {% endif %}
           </div>
       </form>
     </div>
@@ -134,7 +140,9 @@
           </div>
           <div class="modal-footer">
               <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+              {% if session.get('role') != 'viewer' %}
               <button type="submit" class="btn btn-primary fw-bold">Execute Commit to Active Stock</button>
+              {% endif %}
           </div>
       </form>
     </div>
@@ -164,7 +172,9 @@
           </div>
           <div class="modal-footer">
               <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+              {% if session.get('role') != 'viewer' %}
               <button type="submit" class="btn btn-info text-white fw-bold">Submit Return Entry</button>
+              {% endif %}
           </div>
       </form>
     </div>
@@ -195,7 +205,9 @@
           </div>
           <div class="modal-footer">
               <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+              {% if session.get('role') != 'viewer' %}
               <button type="submit" class="btn btn-danger fw-bold">Confirm Status Action</button>
+              {% endif %}
           </div>
       </form>
     </div>
