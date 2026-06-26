@@ -780,29 +780,40 @@ def partial_return(id):
     if user_role in ['programmer1', 'programmer2', 'super1', 'super2', 'viewer']:
         flash("❌ Access Denied.", "danger")
         return redirect(url_for('issued_stock'))
+        
     reel = Reel.query.get_or_404(id)
+    
     try:
         new_w = safe_float(request.form.get('new_weight'))
         if new_w <= 0 or new_w > reel.weight_kg:
             flash("❌ Invalid remaining weight specified.", "danger")
             return redirect(url_for('issued_stock'))
             
+        # 1. පරණ බර මතක තබා ගැනීම (මෙම පේළිය අලුතින් එකතු කර ඇත)
+        old_w = reel.current_weight
+        
+        # 2. අලුත් බර හා තත්ත්වය යාවත්කාලීන කිරීම
         reel.current_weight = new_w
         reel.status = 'Used'
         reel.sr_request_id = None
         
+        # 3. ඉතිහාසය (History Log) එකතු කිරීම
         db.session.add(ReelHistory(
             reel_id=reel.id,
             usage_type='Partial Return',
-            weight_before=old_w,
+            weight_before=old_w,  # දැන් old_w අර්ථ දක්වා ඇති බැවින් ගැටලුවක් නැත
             weight_after=new_w,
             remarks="Returned from production floor"
         ))
+        
         db.session.commit()
         flash(f"↩️ Reel {reel.reel_number} is back in Active Stock as a Used Reel.", "success")
+        
     except Exception as e:
         db.session.rollback()
-        flash(f"Error handling return: {str(e)}", "danger")
+        flash(f"❌ Error handling return: {str(e)}", "danger")
+        
+    # Return එක සාර්ථක වූ පසු Active Stock එකට යාම වඩාත් සුදුසුය
     return redirect(url_for('active_stock'))
 
 @app.route('/issued_stock')
