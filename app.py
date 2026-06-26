@@ -787,7 +787,6 @@ def partial_return(id):
             flash("❌ Invalid remaining weight specified.", "danger")
             return redirect(url_for('issued_stock'))
             
-        old_w = reel.weight
         reel.current_weight = new_w
         reel.status = 'Used'
         reel.sr_request_id = None
