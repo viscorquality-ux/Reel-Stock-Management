@@ -956,8 +956,6 @@ def calculate_reel_size(width, height, position, ply):
             base_1_ups = ((width + 4) / 2) + (height + 3) + 2
         elif ply == 5:
             base_1_ups = ((width + 8) / 2) + (height + 3) + 2
-        else:
-            base_1_ups = (width / 2) + height + 2 # Fallback
     else: # External
         base_1_ups = (width / 2) + height + 2
 
