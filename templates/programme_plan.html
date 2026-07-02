@@ -164,6 +164,26 @@
         // මෙහිදී අදාළ Data ටික එකතු කරලා DB එකට යවන function එක ලියන්න
         alert('Plan saved successfully!');
     }
+
+    document.getElementById('btnRequestReel').addEventListener('click', function() {
+    let reelSize = document.getElementById('selected_reel_display').innerText;
+    let poNo = document.getElementById('po_no').value;
+
+    fetch('/api/request_reel', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({size: reelSize, po_no: poNo})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if(data.success) {
+            alert('Request sent to Packwell (DataOp1/Super1) in Real-time!');
+            this.disabled = true; // Button එක නැවත click කිරීම වැලැක්වීමට
+            this.innerText = "Request Pending...";
+        }
+    });
+});
+    
 </script>
 </body>
 </html>
