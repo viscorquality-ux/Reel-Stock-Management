@@ -926,9 +926,7 @@ def add_product():
         c_size = request.form['cartoon_size'].strip()
         
         existing = CustomerProduct.query.filter_by(
-            customer_name=c_name, 
-            product_name=p_name, 
-            cartoon_size=c_size
+            customer_name=c_name, product_name=p_name, cartoon_size=c_size
         ).first()
         
         if existing:
@@ -952,7 +950,6 @@ def add_product():
         return redirect(url_for('add_product'))
     return render_template('add_product.html', user_role=get_user_role())
 
-# Programme Plan Functions
 def calculate_reel_size(length, width, height, position, ply):
     if position.lower() == 'internal':
         if ply == 3: base_1_ups = (width + 4) + (height + 3) + 2
@@ -984,7 +981,6 @@ def programme_plan():
 
 @app.route('/api/get_product_info', methods=['GET', 'POST'])
 def get_product_info():
-    # Supports both GET (URL query string) and POST (JSON object)
     if request.method == 'POST':
         data = request.get_json() or {}
         customer_id = data.get('customer_id')
@@ -993,7 +989,7 @@ def get_product_info():
         customer_id = request.args.get('customer_id')
         product_code = request.args.get('product_code')
 
-    product = CustomerProduct.query.filter_by(customer_id=customer_id, product_code=product_code).first() # Fix: Variable Logic
+    product = CustomerProduct.query.filter_by(customer_id=customer_id, product_code=product_code).first() 
     if product:
         try:
             dims = [float(x) for x in re.findall(r'\d+\.?\d*', product.cartoon_size)]
@@ -1027,30 +1023,36 @@ def api_check_stock():
         'papers': papers_list
     })
 
+# ** FIX: Updated save_programme_plan with Exception Handling & Validation **
 @app.route('/api/save_programme_plan', methods=['POST'])
 def save_programme_plan():
-    data = request.json
-    plan_id = data.get('plan_id')
-    
-    if plan_id: 
-        plan = ProgrammePlan.query.get(plan_id)
-        if plan:
-            plan.materials_json = json.dumps(data.get('materials'))
-            db.session.commit()
-            return jsonify({'success': True})
-            
-    new_plan = ProgrammePlan(
-        po_no=data.get('po_no'),
-        customer_id=data.get('customer_id'),
-        product_code=data.get('product_code'),
-        selected_reel_size=float(data.get('selected_reel_size')),
-        selected_ups=int(data.get('selected_ups')),
-        materials_json=json.dumps(data.get('materials')),
-        created_by=session.get('username', 'System')
-    )
-    db.session.add(new_plan)
-    db.session.commit()
-    return jsonify({'success': True})
+    try:
+        data = request.json
+        plan_id = data.get('plan_id')
+        
+        if plan_id: 
+            plan = ProgrammePlan.query.get(plan_id)
+            if plan:
+                plan.materials_json = json.dumps(data.get('materials', []))
+                db.session.commit()
+                return jsonify({'success': True})
+                
+        new_plan = ProgrammePlan(
+            po_no=data.get('po_no', 'N/A'),
+            customer_id=data.get('customer_id', 'N/A'),
+            product_code=data.get('product_code', 'N/A'),
+            selected_reel_size=safe_float(data.get('selected_reel_size')),
+            selected_ups=safe_int(data.get('selected_ups')),
+            materials_json=json.dumps(data.get('materials', [])),
+            created_by=session.get('username', 'System')
+        )
+        db.session.add(new_plan)
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error saving programme plan: {e}")
+        return jsonify({'success': False, 'message': str(e)})
 
 @app.route('/api/get_saved_plans')
 def get_saved_plans():
@@ -1090,4 +1092,5 @@ def handle_reel_approve(data):
     }, broadcast=True)
     
 if __name__ == '__main__':
+    socketio.run(app, debug=True, host='0.0.0.0', port=5000)
     socketio.run(app, debug=True, host='0.0.0.0', port=5000)
