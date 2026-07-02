@@ -1069,6 +1069,7 @@ def handle_approve_reel(data):
     })
 
 @app.route('/upload_products', methods=['GET', 'POST'])
+@app.route('/upload', methods=['POST'])
 def upload_products():
     if request.method == 'GET':
         return render_template('upload_products.html')
