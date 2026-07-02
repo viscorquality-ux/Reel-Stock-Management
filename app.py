@@ -1076,11 +1076,22 @@ def upload_products():
                 next(csv_input)  # Header මගහැරීමට
                 
                 for row in csv_input:
-                    if not row or len(row) < 9: continue # తීරු 9ක් නැත්නම් හෝ හිස් නම් මගහරියි
+                    if not row or len(row) < 9: continue
                     
-                    # 'ply' තීරුව පරීක්ෂා කිරීම (හිස් නම් 0 ලෙස සලකයි)
-                    ply_val = row[8].strip()
-                    ply = int(ply_val) if ply_val.isdigit() else 0
+                    # ply අගය හැසිරවීම
+                    try:
+                        ply = int(float(row[8].strip()))
+                    except:
+                        ply = 0
+                    
+                    # cartoon_size පරීක්ෂා කිරීම (L x W x H ආකෘතිය)
+                    # උදාහරණ: 50x40x30 හෝ 50X40X30 පිළිගනී
+                    size = row[5].strip()
+                    
+                    # අවම වශයෙන් 'x' දෙකක් හෝ තිබේදැයි පරීක්ෂා කරයි (L x W x H සඳහා)
+                    if size.lower().count('x') < 2:
+                        # ආකෘතිය වැරදි නම් දත්ත ඇතුළත් නොකර මගහැරිය හැක හෝ පෙරනිමි අගයක් දිය හැක
+                        size = "0x0x0" 
                     
                     new_prod = CustomerProduct(
                         customer_id=row[0].strip(), 
@@ -1088,7 +1099,7 @@ def upload_products():
                         customer_address=row[2].strip(),
                         product_code=row[3].strip(), 
                         product_name=row[4].strip(), 
-                        cartoon_size=row[5].strip(),
+                        cartoon_size=size,
                         position=row[6].strip(), 
                         flute=row[7].strip(), 
                         ply=ply
@@ -1098,7 +1109,7 @@ def upload_products():
                 return "සියලුම දත්ත සාර්ථකව ඇතුළත් කරන ලදී! <a href='/dashboard'>පසුපසට යන්න</a>"
             except Exception as e:
                 db.session.rollback()
-                return f"❌ දත්ත ඇතුළත් කිරීමේදී දෝෂයක් ඇති විය: {str(e)} <br> <a href='/upload_products'>නැවත උත්සාහ කරන්න</a>"
+                return f"❌ දත්ත ඇතුළත් කිරීමේදී දෝෂයක් ඇති විය: {str(e)}"
     return render_template('upload.html')
     
 if __name__ == '__main__':
