@@ -1067,21 +1067,28 @@ def handle_approve_reel(data):
 @app.route('/upload_products', methods=['GET', 'POST'])
 def upload_products():
     if request.method == 'POST':
-        file = request.files['file']
-        if file:
+        file = request.files.get('file')
+        if file and file.filename.endswith('.csv'):
             stream = io.StringIO(file.stream.read().decode("UTF8"), newline=None)
             csv_input = csv.reader(stream)
-            next(csv_input)  # Header එක මගහැරීමට
+            next(csv_input)  # CSV ගොනුවේ පළමු පේළිය (Header) මගහැරීමට
+            
             for row in csv_input:
-                # CSV Format: customer_id, customer_name, customer_address, product_code, product_name, cartoon_size, position, flute, ply
+                # දත්ත CSV පේළියෙන් ලබා ගනී
                 new_prod = CustomerProduct(
-                    customer_id=row[0], customer_name=row[1], customer_address=row[2],
-                    product_code=row[3], product_name=row[4], cartoon_size=row[5],
-                    position=row[6], flute=row[7], ply=int(row[8])
+                    customer_id=row[0], 
+                    customer_name=row[1], 
+                    customer_address=row[2],
+                    product_code=row[3], 
+                    product_name=row[4], 
+                    cartoon_size=row[5],
+                    position=row[6], 
+                    flute=row[7], 
+                    ply=int(row[8])
                 )
                 db.session.add(new_prod)
             db.session.commit()
-            return "All products uploaded successfully! <a href='/dashboard'>Go Back</a>"
+            return "සියලුම දත්ත සාර්ථකව ඇතුළත් කරන ලදී! <a href='/dashboard'>පසුපසට යන්න</a>"
     return render_template('upload.html')
     
 if __name__ == '__main__':
