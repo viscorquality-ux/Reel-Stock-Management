@@ -20,7 +20,7 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     "pool_size": 10,
     "max_overflow": 20,
     "pool_timeout": 30
-
+}
 db = SQLAlchemy(app)
 colombo_tz = pytz.timezone('Asia/Colombo')
 
