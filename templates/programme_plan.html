@@ -4,129 +4,251 @@
     <meta charset="UTF-8">
     <title>Programme Plan</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <style>
+        /* Print Styles */
+        @media print {
+            body * { visibility: hidden; }
+            .print-area, .print-area * { visibility: visible; }
+            .print-area { position: absolute; left: 0; top: 0; width: 100%; }
+            .no-print { display: none !important; }
+        }
+    </style>
 </head>
 <body class="bg-light">
-    <!-- Navbar (Base html එකෙහි ඇති පරිදි) -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
+    <audio id="notifySound" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
+
+    <nav class="navbar navbar-dark bg-dark mb-4 no-print">
         <div class="container-fluid">
-            <a class="navbar-brand fw-bold" href="/dashboard">Stock Management</a>
-            <a class="nav-link text-white" href="/dashboard">Back to Dashboard</a>
+            <span class="navbar-brand mb-0 h1">Programme Planning</span>
+            <div>
+                <span class="text-warning me-3">Role: <span id="currentRole">{{ user_role }}</span></span>
+                <a href="/dashboard" class="btn btn-outline-light btn-sm">Dashboard</a>
+            </div>
         </div>
     </nav>
 
-    <div class="container mt-5">
-        <div class="card shadow">
-            <div class="card-header bg-primary text-white">
-                <h4 class="mb-0">Programme Plan - Calculation</h4>
+    <div class="container no-print">
+        <div class="card shadow mb-4">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3"><input type="text" id="po_no" class="form-control" placeholder="PO No"></div>
+                    <div class="col-md-3"><input type="text" id="customer_id" class="form-control" placeholder="Customer ID"></div>
+                    <div class="col-md-3"><input type="text" id="product_code" class="form-control" placeholder="Product Code"></div>
+                    <div class="col-md-3"><button class="btn btn-success w-100" onclick="fetchProduct()">Search</button></div>
+                </div>
+                <div id="productDetails" class="mt-3 text-primary fw-bold" style="display:none;"></div>
+                <table class="table table-bordered mt-3" id="optionsTable" style="display:none;">
+                    <thead class="table-dark"><tr><th>Ups</th><th>Required</th><th>Suggested Reel</th><th>Wastage</th><th>Action</th></tr></thead>
+                    <tbody id="optionsBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card shadow mb-4" id="comboSection" style="display:none;">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Paper Combination (<span id="plyCount"></span> Ply) - Reel: <span id="selectedReelTxt"></span>cm</h5>
             </div>
             <div class="card-body">
-                <!-- Data Entry Form -->
-                <form id="calcForm">
-                    <div class="row">
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label fw-bold">PO No</label>
-                            <input type="text" id="po_no" class="form-control" required>
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label fw-bold">Customer ID</label>
-                            <input type="text" id="customer_id" class="form-control" required>
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label fw-bold">Product Code</label>
-                            <input type="text" id="product_code" class="form-control" required>
-                        </div>
-                    </div>
-                    <button type="submit" class="btn btn-success w-100">Calculate Reel Size</button>
-                </form>
-
-                <hr class="my-4">
-
-                <!-- Display Customer & Product Details -->
-                <div id="detailsSection" style="display: none;">
-                    <h5>Product Details:</h5>
-                    <div class="row mb-3 text-primary fw-bold">
-                        <div class="col-md-6"><span id="disp_cust_name"></span></div>
-                        <div class="col-md-6"><span id="disp_prod_name"></span></div>
-                        <div class="col-md-4">Cartoon Size: <span id="disp_size"></span></div>
-                        <div class="col-md-4">Position: <span id="disp_position"></span></div>
-                        <div class="col-md-4">Ply: <span id="disp_ply"></span></div>
-                    </div>
-
-                    <!-- Display Calculation Options -->
-                    <h5 class="mt-4">Best Reel Size Options:</h5>
-                    <table class="table table-bordered table-striped text-center mt-2">
-                        <thead class="table-dark">
-                            <tr>
-                                <th>Ups Count</th>
-                                <th>Required Size (cm)</th>
-                                <th>Suggested Reel Size (cm)</th>
-                                <th>Wastage (cm)</th>
-                            </tr>
-                        </thead>
-                        <tbody id="optionsTableBody">
-                            <!-- Data will be populated here via JavaScript -->
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- Error Message -->
-                <div id="errorMessage" class="alert alert-danger mt-3" style="display: none;"></div>
+                <div id="combinationRows"></div>
+                <button class="btn btn-primary mt-3 w-100" onclick="savePlan()">Save Programme Plan</button>
             </div>
+        </div>
+
+        <div class="alert alert-warning" id="waitingAlert" style="display:none;">
+            ⏳ Waiting for DataOp1 / Super1 to approve the Reel Request...
         </div>
     </div>
 
+    <div class="container mt-5" id="savedPlansContainer"></div>
+
     <script>
-        document.getElementById('calcForm').addEventListener('submit', function(e) {
-            e.preventDefault();
+        const socket = io();
+        let currentPly = 0;
+        let selectedSize = 0;
+        let activePapers = [];
+        const userRole = document.getElementById('currentRole').innerText.trim().toLowerCase();
+
+        // Listen for Notifications
+        socket.on('receive_reel_notification', function(data) {
+            document.getElementById('notifySound').play().catch(()=>{});
             
-            const custId = document.getElementById('customer_id').value;
-            const prodCode = document.getElementById('product_code').value;
+            if(data.type === 'request' && (userRole === 'dataop1' || userRole === 'super1' || userRole === 'admin')) {
+                if(confirm(data.message + "\nClick OK to Approve this request.")){
+                    socket.emit('approve_reel_request', {size: data.size});
+                }
+            } else if (data.type === 'approve') {
+                alert(data.message);
+                if(parseFloat(data.size) === selectedSize) {
+                    document.getElementById('waitingAlert').style.display = 'none';
+                    buildCombinationRows();
+                }
+            }
+        });
 
-            // API Call (app.py හි ඇති API එක වෙත)
+        function fetchProduct() {
+            const cid = document.getElementById('customer_id').value;
+            const pcode = document.getElementById('product_code').value;
             fetch('/api/get_product_info', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    customer_id: custId,
-                    product_code: prodCode
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({customer_id: cid, product_code: pcode})
+            }).then(r=>r.json()).then(data => {
                 if(data.success) {
-                    document.getElementById('errorMessage').style.display = 'none';
-                    document.getElementById('detailsSection').style.display = 'block';
+                    currentPly = data.ply;
+                    document.getElementById('productDetails').style.display = 'block';
+                    document.getElementById('productDetails').innerHTML = `${data.customer_name} | ${data.product_name} | Size: ${data.cartoon_size} | Ply: ${data.ply}`;
                     
-                    // විස්තර පෙන්වීම
-                    document.getElementById('disp_cust_name').innerText = "Customer: " + data.customer_name;
-                    document.getElementById('disp_prod_name').innerText = "Product: " + data.product_name;
-                    document.getElementById('disp_size').innerText = data.cartoon_size;
-                    document.getElementById('disp_position').innerText = data.position;
-                    document.getElementById('disp_ply').innerText = data.ply;
-
-                    // Table එකට Options එකතු කිරීම
-                    const tbody = document.getElementById('optionsTableBody');
+                    const tbody = document.getElementById('optionsBody');
                     tbody.innerHTML = '';
                     data.options.forEach(opt => {
-                        tbody.innerHTML += `
+                        tbody.innerHTML += `<tr>
+                            <td>${opt.ups}</td><td>${opt.required_size}</td><td>${opt.suggested_reel}</td><td>${opt.wastage}</td>
+                            <td><button class="btn btn-sm btn-primary" onclick="selectOption(${opt.suggested_reel}, ${opt.ups})">Select</button></td>
+                        </tr>`;
+                    });
+                    document.getElementById('optionsTable').style.display = 'table';
+                } else { alert(data.message); }
+            });
+        }
+
+        function selectOption(size, ups) {
+            selectedSize = size;
+            document.getElementById('selectedReelTxt').innerText = size;
+            document.getElementById('plyCount').innerText = currentPly;
+            window.selectedUps = ups;
+
+            fetch('/api/check_stock', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({size: size})
+            }).then(r=>r.json()).then(data => {
+                activePapers = data.papers; 
+                if(data.in_stock) {
+                    buildCombinationRows();
+                } else {
+                    if(confirm(`Reel Size ${size}cm is OUT OF STOCK. Send request to DataOp1/Super1?`)) {
+                        document.getElementById('comboSection').style.display = 'none';
+                        document.getElementById('waitingAlert').style.display = 'block';
+                        socket.emit('request_reel_approval', {size: size});
+                    }
+                }
+            });
+        }
+
+        function buildCombinationRows() {
+            document.getElementById('comboSection').style.display = 'block';
+            let html = '';
+            
+            // Get unique Types for dropdown
+            const uniqueTypes = [...new Set(activePapers.map(p => p.type))];
+            let typeOptions = `<option value="">Select Type</option>` + uniqueTypes.map(t => `<option value="${t}">${t}</option>`).join('');
+
+            for(let i=1; i<=currentPly; i++) {
+                html += `
+                <div class="row mb-2 mat-row">
+                    <div class="col-md-2 fw-bold pt-2">Layer ${i}</div>
+                    <div class="col-md-3">
+                        <input type="number" class="form-control gsm-input" placeholder="GSM">
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select type-select" onchange="filterNames(this)">${typeOptions}</select>
+                    </div>
+                    <div class="col-md-4">
+                        <select class="form-select name-select"><option value="">Select Name</option></select>
+                    </div>
+                </div>`;
+            }
+            document.getElementById('combinationRows').innerHTML = html;
+        }
+
+        function filterNames(selectElement) {
+            const selectedType = selectElement.value;
+            const nameSelect = selectElement.closest('.mat-row').querySelector('.name-select');
+            nameSelect.innerHTML = '<option value="">Select Name</option>';
+            
+            activePapers.filter(p => p.type === selectedType).forEach(p => {
+                nameSelect.innerHTML += `<option value="${p.name}">${p.name}</option>`;
+            });
+        }
+
+        function savePlan(editId = null) {
+            const rows = document.querySelectorAll('.mat-row');
+            let materials = [];
+            rows.forEach(r => {
+                materials.push({
+                    gsm: r.querySelector('.gsm-input').value,
+                    type: r.querySelector('.type-select').value,
+                    name: r.querySelector('.name-select').value
+                });
+            });
+
+            const payload = {
+                plan_id: editId,
+                po_no: document.getElementById('po_no').value,
+                customer_id: document.getElementById('customer_id').value,
+                product_code: document.getElementById('product_code').value,
+                selected_reel_size: selectedSize,
+                selected_ups: window.selectedUps,
+                materials: materials
+            };
+
+            fetch('/api/save_programme_plan', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            }).then(r=>r.json()).then(data => {
+                if(data.success) {
+                    alert('Saved Successfully!');
+                    document.getElementById('comboSection').style.display = 'none';
+                    loadSavedPlans();
+                }
+            });
+        }
+
+        function loadSavedPlans() {
+            fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
+                let html = '';
+                for (const [size, plans] of Object.entries(data)) {
+                    html += `
+                    <div class="card mb-4 print-area-wrapper">
+                        <div class="card-header bg-secondary text-white d-flex justify-content-between">
+                            <h5 class="mb-0">Reel Size: ${size} cm</h5>
+                            <button class="btn btn-light btn-sm no-print" onclick="printTable(this)">Print this Table</button>
+                        </div>
+                        <div class="card-body table-responsive">
+                            <table class="table table-bordered table-sm text-center align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>PO No</th><th>Customer ID</th><th>Item Code</th><th>Ups</th>
+                                        <th>Combinations (Layer: GSM - Type - Name)</th>
+                                        <th class="no-print">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                    `;
+                    plans.forEach(p => {
+                        let matHtml = p.materials.map((m, idx) => `L${idx+1}: ${m.gsm} - ${m.type} - ${m.name}`).join('<br>');
+                        html += `
                             <tr>
-                                <td>${opt.ups}</td>
-                                <td>${opt.required_size} cm</td>
-                                <td class="fw-bold text-success">${opt.suggested_reel} cm</td>
-                                <td class="text-danger">${opt.wastage} cm</td>
+                                <td>${p.po_no}</td><td>${p.customer_id}</td><td>${p.product_code}</td><td>${p.ups}</td>
+                                <td class="text-start" style="font-size:0.9rem;">${matHtml}</td>
+                                <td class="no-print"><button class="btn btn-sm btn-warning">Edit</button></td>
                             </tr>
                         `;
                     });
-                } else {
-                    document.getElementById('detailsSection').style.display = 'none';
-                    document.getElementById('errorMessage').style.display = 'block';
-                    document.getElementById('errorMessage').innerText = data.message;
+                    html += `</tbody></table></div></div>`;
                 }
-            })
-            .catch(error => {
-                console.error('Error:', error);
+                document.getElementById('savedPlansContainer').innerHTML = html;
             });
-        });
+        }
+
+        function printTable(btn) {
+            // Add a class specifically for printing just this card
+            document.querySelectorAll('.print-area').forEach(el => el.classList.remove('print-area'));
+            btn.closest('.print-area-wrapper').classList.add('print-area');
+            window.print();
+        }
+
+        // Load plans on page load
+        loadSavedPlans();
     </script>
 </body>
 </html>
