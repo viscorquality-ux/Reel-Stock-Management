@@ -70,6 +70,32 @@ class ReelHistory(db.Model):
     timestamp = db.Column(db.DateTime, default=lambda: datetime.now(colombo_tz))
     reel = db.relationship('Reel', backref=db.backref('history', lazy=True))
 
+class CustomerProduct(db.Model):
+    __tablename__ = 'customer_product'
+    id = db.Column(db.Integer, primary_key=True)
+    customer_id = db.Column(db.String(50), nullable=False)
+    customer_name = db.Column(db.String(150), nullable=False)
+    customer_address = db.Column(db.Text, nullable=True)
+    product_code = db.Column(db.String(50), nullable=False)
+    product_name = db.Column(db.String(150), nullable=False)
+    # Size එක "Width x Height" (cm වලින්) ලෙස ලබා දෙන බව උපකල්පනය කර ඇත
+    cartoon_size = db.Column(db.String(50), nullable=False) 
+    position = db.Column(db.String(20), nullable=False) # Internal / External
+    flute = db.Column(db.String(20), nullable=False)
+    ply = db.Column(db.Integer, nullable=False) # 3 or 5
+
+class ProgrammePlan(db.Model):
+    __tablename__ = 'programme_plan'
+    id = db.Column(db.Integer, primary_key=True)
+    po_no = db.Column(db.String(50), nullable=False)
+    customer_id = db.Column(db.String(50), nullable=False)
+    product_code = db.Column(db.String(50), nullable=False)
+    selected_reel_size = db.Column(db.Float, nullable=False)
+    selected_ups = db.Column(db.Integer, nullable=False)
+    status = db.Column(db.String(50), default='Draft') # Draft, Requested, Approved
+    created_by = db.Column(db.String(50), nullable=False)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(colombo_tz))
+
 @app.template_filter('datetimeformat')
 def datetimeformat(value, format='%Y-%m-%d %I:%M %p'):
     if value is None: return ""
