@@ -84,7 +84,6 @@ class CustomerProduct(db.Model):
     customer_address = db.Column(db.Text, nullable=True)
     product_code = db.Column(db.String(50), nullable=False)
     product_name = db.Column(db.String(150), nullable=False)
-    # Size එක "Width x Height" (cm වලින්) ලෙස ලබා දෙන බව උපකල්පනය කර ඇත
     cartoon_size = db.Column(db.String(50), nullable=False) 
     position = db.Column(db.String(20), nullable=False) # Internal / External
     flute = db.Column(db.String(20), nullable=False)
@@ -949,18 +948,11 @@ def reset_db_now():
     else:
         return "❌ Access Denied: Unauthorized Reset Attempt.", 403
 
-def calculate_reel_size(cartoon_size, position, ply):
-    try:
-        parts = cartoon_size.lower().split('x')
-        if len(parts) == 3:
-            length = float(parts[0])
-            width = float(parts[1])
-            height = float(parts[2])
-            pass
-        except Exception as e:
-            # මෙහි වැරදි පාලනය කිරීම සඳහා අවශ්‍ය දේ ලියන්න
-            print(f"Error occurred: {e}")
-            
+def calculate_reel_size(width, height, position, ply):
+    """
+    මෙම function එක සඳහා width සහ height කෙලින්ම ලබාදෙන නිසා 
+    මීට පෙර තිබුණු cartoon_size split කිරීමේ කොටස ඉවත් කර ඇත.
+    """
     if position.lower() == 'internal':
         if ply == 3:
             base_1_ups = ((width + 4) / 2) + (height + 3) + 2
@@ -1075,10 +1067,6 @@ def handle_approve_reel(data):
     socketio.emit('reel_approved_notify', {
         'message': f"Your request for {data['size']}cm Reel (PO: {data['po_no']}) was APPROVED by {approved_by}.",
     })
-    
-import csv
-import io
-from flask import request, render_template, flash, redirect, url_for
 
 @app.route('/upload_products', methods=['GET', 'POST'])
 def upload_products():
@@ -1108,7 +1096,7 @@ def upload_products():
                 
                 if existing_product:
                     existing_product.customer_name = row['CustomerName']
-                    existing_product.address = row['Address']
+                    existing_product.customer_address = row['Address'] # <-- Fix: address -> customer_address
                     existing_product.product_name = row['ProductName']
                     existing_product.cartoon_size = row['CartoonSize'] # අගය 50x40 ලෙස තිබිය යුතුය
                     existing_product.position = row['Position']
@@ -1118,7 +1106,7 @@ def upload_products():
                     new_product = CustomerProduct(
                         customer_id = row['CustomerID'],
                         customer_name = row['CustomerName'],
-                        address = row['Address'],
+                        customer_address = row['Address'], # <-- Fix: address -> customer_address
                         product_code = row['ProductCode'],
                         product_name = row['ProductName'],
                         cartoon_size = row['CartoonSize'],
