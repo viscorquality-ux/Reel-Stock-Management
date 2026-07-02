@@ -6,6 +6,8 @@ from flask import jsonify
 from datetime import datetime, timedelta
 import pytz
 import random
+import csv
+import io
 
 app = Flask(__name__)
 app.secret_key = 'viscor_packwell_ultimate_secure_key'
@@ -18,7 +20,9 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = { "connect_args": { "ssl": {} } }
 
 db = SQLAlchemy(app)
 colombo_tz = pytz.timezone('Asia/Colombo')
-
+with app.app_context():
+    db.create_all()
+    
 class SmartRole(str):
     def __eq__(self, other):
         if not isinstance(other, str): return False
@@ -1059,7 +1063,26 @@ def handle_approve_reel(data):
     socketio.emit('reel_approved_notify', {
         'message': f"Your request for {data['size']}cm Reel (PO: {data['po_no']}) was APPROVED by {approved_by}.",
     })
-
+@app.route('/upload_products', methods=['GET', 'POST'])
+def upload_products():
+    if request.method == 'POST':
+        file = request.files['file']
+        if file:
+            stream = io.StringIO(file.stream.read().decode("UTF8"), newline=None)
+            csv_input = csv.reader(stream)
+            next(csv_input)  # Header එක මගහැරීමට
+            for row in csv_input:
+                # CSV Format: customer_id, customer_name, customer_address, product_code, product_name, cartoon_size, position, flute, ply
+                new_prod = CustomerProduct(
+                    customer_id=row[0], customer_name=row[1], customer_address=row[2],
+                    product_code=row[3], product_name=row[4], cartoon_size=row[5],
+                    position=row[6], flute=row[7], ply=int(row[8])
+                )
+                db.session.add(new_prod)
+            db.session.commit()
+            return "All products uploaded successfully! <a href='/dashboard'>Go Back</a>"
+    return render_template('upload.html')
+    
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
