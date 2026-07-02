@@ -1,0 +1,169 @@
+<!-- programme_plan.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Programme Plan - Stock System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <!-- ඔබගේ පවතින Navbar එක මෙතනින් යොදන්න -->
+
+    <div class="container mt-4">
+        <h2 class="fw-bold mb-4"><i class="bi bi-diagram-3"></i> Programme Plan Creation</h2>
+        
+        <div class="card shadow-sm mb-4">
+            <div class="card-body bg-white">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold">PO No</label>
+                        <input type="text" id="po_no" class="form-control" placeholder="Enter PO">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold">Customer ID</label>
+                        <input type="text" id="customer_id" class="form-control" placeholder="Enter ID">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold">Product Code</label>
+                        <input type="text" id="product_code" class="form-control" placeholder="Enter Code">
+                    </div>
+                    <div class="col-md-3">
+                        <button class="btn btn-primary w-100 fw-bold" onclick="fetchProductData()">Fetch Details</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Product Details & Calculation Options පෙන්නුම් කරන කොටස -->
+        <div id="results_section" style="display: none;">
+            <div class="alert alert-info shadow-sm">
+                <h5 class="fw-bold m-0" id="display_names"></h5>
+                <small id="display_specs"></small>
+            </div>
+
+            <h5 class="fw-bold mt-4">Calculated Reel Size Options</h5>
+            <div class="table-responsive">
+                <table class="table table-bordered bg-white shadow-sm">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Ups Layout</th>
+                            <th>Required Exact Size (cm)</th>
+                            <th>Suggested Standard Reel (cm)</th>
+                            <th>Wastage (cm)</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="options_table_body">
+                        <!-- Options dynamically load here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Paper Combination කොටස -->
+        <div class="card shadow-sm mt-4 border-success" id="combination_section" style="display: none;">
+            <div class="card-header bg-success text-white fw-bold">
+                Configure Paper Combination for <span id="selected_reel_display"></span>cm Reel
+            </div>
+            <div class="card-body" id="combinations_body">
+                <!-- Dropdowns load dynamically based on Ply (3 or 5) -->
+            </div>
+            <div class="card-footer text-end">
+                <button class="btn btn-warning fw-bold me-2" id="btnRequestReel" style="display:none;">Request Reel from Packwell</button>
+                <button class="btn btn-success fw-bold" onclick="saveProgrammePlan()">Save Programme Plan</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+    let currentPly = 0;
+    
+    function fetchProductData() {
+        let custId = document.getElementById('customer_id').value;
+        let prodCode = document.getElementById('product_code').value;
+
+        fetch('/api/get_product_info', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({customer_id: custId, product_code: prodCode})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if(data.success) {
+                document.getElementById('results_section').style.display = 'block';
+                document.getElementById('combination_section').style.display = 'none';
+                
+                document.getElementById('display_names').innerText = `Customer: ${data.customer_name} | Product: ${data.product_name}`;
+                document.getElementById('display_specs').innerText = `Size: ${data.cartoon_size} cm | Ply: ${data.ply} | Position: ${data.position}`;
+                currentPly = data.ply;
+
+                let tbody = document.getElementById('options_table_body');
+                tbody.innerHTML = '';
+                data.options.forEach(opt => {
+                    tbody.innerHTML += `
+                        <tr>
+                            <td class="fw-bold">${opt.ups}</td>
+                            <td>${opt.required_size}</td>
+                            <td class="fw-bold text-primary fs-5">${opt.suggested_reel}</td>
+                            <td class="text-danger">${opt.wastage}</td>
+                            <td><button class="btn btn-sm btn-outline-primary fw-bold" onclick="selectReelOption(${opt.suggested_reel})">Select Option</button></td>
+                        </tr>
+                    `;
+                });
+            } else {
+                alert(data.message);
+            }
+        });
+    }
+
+    function selectReelOption(reelSize) {
+        document.getElementById('selected_reel_display').innerText = reelSize;
+        document.getElementById('combination_section').style.display = 'block';
+        
+        // Active Stock එකේ තියෙනවද බලන්න
+        fetch('/api/check_stock', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({size: reelSize})
+        })
+        .then(response => response.json())
+        .then(data => {
+            let reqBtn = document.getElementById('btnRequestReel');
+            if(!data.in_stock) {
+                alert(`Warning: ${reelSize}cm Reel is OUT OF STOCK. You will need to request it.`);
+                reqBtn.style.display = 'inline-block';
+            } else {
+                reqBtn.style.display = 'none';
+            }
+            generateCombinationInputs(data.papers);
+        });
+    }
+
+    function generateCombinationInputs(papers) {
+        let container = document.getElementById('combinations_body');
+        container.innerHTML = '';
+        
+        for(let i=1; i<=currentPly; i++) {
+            let options = papers.map(p => `<option value="${p.name}">${p.type} - ${p.name}</option>`).join('');
+            container.innerHTML += `
+                <div class="row mb-3">
+                    <div class="col-md-2 fw-bold text-end mt-2">Ply Layer ${i}:</div>
+                    <div class="col-md-3"><input type="number" class="form-control" placeholder="GSM (Type)"></div>
+                    <div class="col-md-7">
+                        <select class="form-select">
+                            <option value="">Select Paper Type & Name</option>
+                            ${options}
+                        </select>
+                    </div>
+                </div>
+            `;
+        }
+    }
+
+    function saveProgrammePlan() {
+        // මෙහිදී අදාළ Data ටික එකතු කරලා DB එකට යවන function එක ලියන්න
+        alert('Plan saved successfully!');
+    }
+</script>
+</body>
+</html>
