@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text
+from flask_socketio import SocketIO, emit
 from flask import jsonify
 from datetime import datetime, timedelta
 import pytz
@@ -8,6 +9,7 @@ import random
 
 app = Flask(__name__)
 app.secret_key = 'viscor_packwell_ultimate_secure_key'
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 # DATABASE CONFIGURATION
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://avnadmin:AVNS_gHRTw4Hzio_XlhXcm7d@mysql-3e9936af-viscorquality-0270.g.aivencloud.com:28643/defaultdb'
@@ -1028,7 +1030,37 @@ def api_check_stock():
         'papers': papers
     })
 
+@app.route('/api/request_reel', methods=['POST'])
+def api_request_reel():
+    """ Viscor පැත්තෙන් Packwell වෙත Reel එකක් ඉල්ලුම් කිරීම """
+    data = request.json
+    reel_size = data.get('size')
+    requested_by = session.get('username', 'Viscor User')
+    po_no = data.get('po_no', 'N/A')
+
+    # මෙහිදී DataOp1 සහ Super1 ට පෙනෙන ලෙස Socket Emit කිරීම
+    # 'new_reel_request' යනු අපි හදාගත් Event නමයි
+    socketio.emit('new_reel_request', {
+        'title': 'New Reel Request!',
+        'message': f"Viscor requires an Out-of-Stock {reel_size}cm Reel for PO: {po_no}. Requested by {requested_by}.",
+        'size': reel_size,
+        'po_no': po_no
+    })
+    
+    return jsonify({'success': True})
+
+@socketio.on('approve_reel')
+def handle_approve_reel(data):
+    """ Packwell (DataOp1/Super1) විසින් Approve කළ පසු Viscor ට දැනුම් දීම """
+    approved_by = session.get('username', 'Packwell Admin')
+    
+    # මෙහිදී DB එකේ අදාල Status එක 'Approved' ලෙස Update කරන කේතය ලියන්න
+    # පසුව Viscor වෙත එය අනුමත වූ බවට Emit කරන්න
+    socketio.emit('reel_approved_notify', {
+        'message': f"Your request for {data['size']}cm Reel (PO: {data['po_no']}) was APPROVED by {approved_by}.",
+    })
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-    app.run(debug=True)
+    socketio.run(app, debug=True, host='0.0.0.0', port=5000)
