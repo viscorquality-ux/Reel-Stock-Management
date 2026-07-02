@@ -941,47 +941,6 @@ def reset_db_now():
     else:
         return "❌ Access Denied: Unauthorized Reset Attempt.", 403
 
-def calculate_reel_size(length, width, height, position, ply):
-    """
-    මෙම function එක සඳහා length, width, සහ height අගයන් අනුපිළිවෙලින් ලබා දෙයි.
-    ගණනය කිරීම් අවශ්‍යතාවය පරිදි පහතින් සිදු කර ඇත.
-    """
-    if position.lower() == 'internal':
-        if ply == 3:
-            base_1_ups = (width + 4) + (height + 3) + 2
-        elif ply == 5:
-            base_1_ups = (width + 8) + (height + 3) + 2
-
-    else: # External
-        base_1_ups = (width) + height + 2
-
-    # Available Reel Sizes (75cm සිට 150cm දක්වා 5න් 5ට)
-    standard_sizes = list(range(75, 155, 5))
-    options = []
-
-    # 1 Ups සිට 5 Ups දක්වා හොදම Option සෙවීම
-    for ups in range(1, 6):
-        req_size = base_1_ups * ups
-        for std in standard_sizes:
-            if std >= req_size:
-                wastage = std - req_size
-                options.append({
-                    'ups': f"{ups} Ups",
-                    'required_size': round(req_size, 2),
-                    'suggested_reel': std,
-                    'wastage': round(wastage, 2)
-                })
-                break
-    
-    # Wastage එක අඩුම පිළිවෙලට සැකසීම
-    options.sort(key=lambda x: x['wastage'])
-    return options
-
-@app.route('/programme_plan')
-def programme_plan():
-    if 'role' not in session: return redirect(url_for('login'))
-    return render_template('programme_plan.html', user_role=get_user_role())
-
 @app.route('/add_product', methods=['GET', 'POST'])
 def add_product():
     if 'role' not in session: return redirect(url_for('login'))
@@ -1021,11 +980,10 @@ def add_product():
 # --- Programme Plan API ---
 def calculate_reel_size(length, width, height, position, ply):
     if position.lower() == 'internal':
-        if ply == 3: base_1_ups = ((width + 4) / 2) + (height + 3) + 2
-        elif ply == 5: base_1_ups = ((width + 8) / 2) + (height + 3) + 2
-        else: base_1_ups = (width / 2) + height + 2
+        if ply == 3: base_1_ups = (width + 4) + (height + 3) + 2
+        elif ply == 5: base_1_ups = (width + 8) + (height + 3) + 2
     else:
-        base_1_ups = (width / 2) + height + 2
+        base_1_ups = (width) + height + 2
 
     standard_sizes = list(range(75, 155, 5))
     options = []
