@@ -1011,36 +1011,13 @@ def programme_plan():
     return render_template('programme_plan.html', user_role=get_user_role())
 
 @app.route('/api/get_product_info', methods=['POST'])
-def api_get_product_info():
-    data = request.json
-    product = CustomerProduct.query.filter_by(
-        customer_id=data.get('customer_id'), 
-        product_code=data.get('product_code')
-    ).first()
-    
+def get_product_info():
+    po_no = request.json.get('po_no')
+    # Query eka wenama function ekaka thiyanna
+    product = CustomerProduct.query.filter_by(po_no=po_no).first() 
     if product:
-        try:
-            size_str = product.cartoon_size.lower().replace(" ", "")
-            parts = re.split(r'[x*X]', size_str)
-            if len(parts) != 3:
-                return jsonify({'success': False, 'message': 'Invalid Format. Use Length * Width * Height (eg: 100*50*20)'})
-            
-            length, width, height = float(parts[0]), float(parts[1]), float(parts[2])
-            calc_options = calculate_reel_size(length, width, height, product.position, product.ply)
-            
-            return jsonify({
-                'success': True,
-                'customer_name': product.customer_name,
-                'product_name': product.product_name,
-                'position': product.position,
-                'ply': product.ply,
-                'cartoon_size': product.cartoon_size,
-                'options': calc_options
-            })
-        except Exception:
-            return jsonify({'success': False, 'message': 'Size values must be numeric.'})
-    return jsonify({'success': False, 'message': 'Product or Customer not found.'})
-
+        return jsonify({"success": True, "product_name": product.product_name})
+    return jsonify({"success": False, "message": "Product not found"})
 @app.route('/api/check_stock', methods=['POST'])
 def api_check_stock():
     req_size = float(request.json.get('size'))
