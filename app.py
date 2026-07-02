@@ -1014,7 +1014,8 @@ def programme_plan():
 def get_product_info():
     po_no = request.json.get('po_no')
     # Query eka wenama function ekaka thiyanna
-    product = CustomerProduct.query.filter_by(po_no=po_no).first() 
+   # උදාහරණයක් ලෙස:
+products = CustomerProduct.query.order_by(CustomerProduct.id.desc()).limit(20).all() 
     if product:
         return jsonify({"success": True, "product_name": product.product_name})
     return jsonify({"success": False, "message": "Product not found"})
