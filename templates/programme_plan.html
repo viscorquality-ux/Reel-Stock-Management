@@ -258,14 +258,15 @@ window.addEventListener('beforeunload', function() {
         socket.disconnect();
     }
     let debounceTimer;
-const poInput = document.getElementById('po_no');
+const calcForm = document.getElementById('calcForm');
 
-poInput.addEventListener('input', function() {
+// PO No input eka type karaddi loku load ekak nogiya yuthui
+document.getElementById('po_no').addEventListener('input', function() {
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
-        // මෙතැනට ඔබේ API call එක (fetch) යොදන්න
-        fetchProductInfo(this.value); 
-    }, 800); // 800ms පමා වී පමණක් API call එක සිදු වේ
+        // mehe fetch karanna
+        console.log("Searching for:", this.value);
+    }, 1000); // 1 secondak pama karanawa
 });
     </script>
 </body>
