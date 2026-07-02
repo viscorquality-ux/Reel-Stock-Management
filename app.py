@@ -1085,7 +1085,7 @@ def add_product():
         db.session.commit()
         flash('නව නිෂ්පාදනයක් සාර්ථකව එකතු කරන ලදී!', 'success')
         return redirect(url_for('dashboard'))
-        
+        pass
     return render_template('add_product.html')
     
 if __name__ == '__main__':
