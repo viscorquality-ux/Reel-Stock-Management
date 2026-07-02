@@ -1067,63 +1067,6 @@ def handle_approve_reel(data):
     socketio.emit('reel_approved_notify', {
         'message': f"Your request for {data['size']}cm Reel (PO: {data['po_no']}) was APPROVED by {approved_by}.",
     })
-
-@app.route('/upload_products', methods=['GET', 'POST'])
-def upload_products():
-    if request.method == 'GET':
-        return render_template('upload_products.html')
-
-    if request.method == 'POST':
-        file = request.files.get('csv_file')
-        
-        if not file or file.filename == '':
-            flash('No file selected!', 'danger')
-            return redirect(request.url)
-            
-        if not file.filename.endswith('.csv'):
-            flash('Please upload a valid CSV file.', 'danger')
-            return redirect(request.url)
-
-        try:
-            stream = io.StringIO(file.stream.read().decode("UTF8"), newline=None)
-            csv_reader = csv.DictReader(stream)
-            
-            for row in csv_reader:
-                existing_product = CustomerProduct.query.filter_by(
-                    customer_id = row['CustomerID'],
-                    product_code = row['ProductCode']
-                ).first()
-                
-                if existing_product:
-                    existing_product.customer_name = row['CustomerName']
-                    existing_product.customer_address = row['Address']  # <-- නිවැරදි කලා (customer_address)
-                    existing_product.product_name = row['ProductName']
-                    existing_product.cartoon_size = row['CartoonSize']
-                    existing_product.position = row['Position']
-                    existing_product.flute = row['Flute']
-                    existing_product.ply = int(row['Ply'])
-                else:
-                    new_product = CustomerProduct(
-                        customer_id = row['CustomerID'],
-                        customer_name = row['CustomerName'],
-                        customer_address = row['Address'],  # <-- නිවැරදි කලා (customer_address)
-                        product_code = row['ProductCode'],
-                        product_name = row['ProductName'],
-                        cartoon_size = row['CartoonSize'],
-                        position = row['Position'],
-                        flute = row['Flute'],
-                        ply = int(row['Ply'])
-                    )
-                    db.session.add(new_product)
-                
-            db.session.commit() 
-            flash('Products processed and updated successfully!', 'success')
-            return redirect(url_for('upload_products')) # <-- හිස්තැන් (Indentation) නිවැරදි කරන ලදී
-
-        except Exception as e:
-            db.session.rollback() 
-            flash(f'An error occurred: {str(e)}', 'danger')
-            return redirect(request.url)
             
 @app.route('/add_product', methods=['GET', 'POST'])
 def add_product():
