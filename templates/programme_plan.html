@@ -89,11 +89,10 @@
         function fetchProduct() {
             const cid = document.getElementById('customer_id').value;
             const pcode = document.getElementById('product_code').value;
-            fetch('/api/get_product_info', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({customer_id: cid, product_code: pcode})
-            }).then(r=>r.json()).then(data => {
-                if(data.success) {
+            fetch('/get_product_info?po_no=' + poNo)
+    .then(response => response.json())
+    .then(data => {
+        if(data.success) {
                     currentPly = data.ply;
                     document.getElementById('productDetails').style.display = 'block';
                     document.getElementById('productDetails').innerHTML = `${data.customer_name} | ${data.product_name} | Size: ${data.cartoon_size} | Ply: ${data.ply}`;
