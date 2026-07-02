@@ -821,19 +821,16 @@ def partial_return(id):
             flash("❌ Invalid remaining weight specified.", "danger")
             return redirect(url_for('issued_stock'))
             
-        # 1. පරණ බර මතක තබා ගැනීම (මෙම පේළිය අලුතින් එකතු කර ඇත)
         old_w = reel.current_weight
         
-        # 2. අලුත් බර හා තත්ත්වය යාවත්කාලීන කිරීම
         reel.current_weight = new_w
         reel.status = 'Used'
         reel.sr_request_id = None
         
-        # 3. ඉතිහාසය (History Log) එකතු කිරීම
         db.session.add(ReelHistory(
             reel_id=reel.id,
             usage_type='Partial Return',
-            weight_before=old_w,  # දැන් old_w අර්ථ දක්වා ඇති බැවින් ගැටලුවක් නැත
+            weight_before=old_w,  
             weight_after=new_w,
             remarks="Returned from production floor"
         ))
@@ -845,14 +842,12 @@ def partial_return(id):
         db.session.rollback()
         flash(f"❌ Error handling return: {str(e)}", "danger")
         
-    # Return එක සාර්ථක වූ පසු Active Stock එකට යාම වඩාත් සුදුසුය
     return redirect(url_for('active_stock'))
 
 @app.route('/issued_stock')
 def issued_stock():
     if 'role' not in session: return redirect(url_for('login'))
     
-    # --- යාවත්කාලීනය: මීට පෙර 'SR_Requested' ලෙස හිර වී ඇති Reels ද පෙන්නුම් කිරීමට වෙනස් කර ඇත ---
     reels = apply_location_filter(Reel.query, Reel).filter(Reel.status.in_(['Issued', 'SR_Requested'])).order_by(Reel.id.desc()).all()
     
     logs_query = ReelHistory.query.join(Reel).filter(ReelHistory.usage_type == 'Issued to Production')
@@ -946,18 +941,20 @@ def reset_db_now():
     else:
         return "❌ Access Denied: Unauthorized Reset Attempt.", 403
 
-def calculate_reel_size(width, height, position, ply):
+def calculate_reel_size(length, width, height, position, ply):
     """
-    මෙම function එක සඳහා width සහ height කෙලින්ම ලබාදෙන නිසා 
-    මීට පෙර තිබුණු cartoon_size split කිරීමේ කොටස ඉවත් කර ඇත.
+    මෙම function එක සඳහා length, width, සහ height අගයන් අනුපිළිවෙලින් ලබා දෙයි.
+    ගණනය කිරීම් අවශ්‍යතාවය පරිදි පහතින් සිදු කර ඇත.
     """
     if position.lower() == 'internal':
         if ply == 3:
-            base_1_ups = (width + 4) + (height + 3) + 2
+            base_1_ups = ((width + 4) / 2) + (height + 3) + 2
         elif ply == 5:
-            base_1_ups = (width + 8) + (height + 3) + 2
+            base_1_ups = ((width + 8) / 2) + (height + 3) + 2
+        else:
+            base_1_ups = (width / 2) + height + 2 # Fallback
     else: # External
-        base_1_ups = (width) + height + 2
+        base_1_ups = (width / 2) + height + 2
 
     # Available Reel Sizes (75cm සිට 150cm දක්වා 5න් 5ට)
     standard_sizes = list(range(75, 155, 5))
@@ -1002,15 +999,15 @@ def api_get_product_info():
             parts = re.split(r'[x*]', size_str)
             
             if len(parts) != 3:
-                return jsonify({'success': False, 'message': 'Invalid Size Format. Use Length * Width * Height (eg: 50*40*30)'})
+                return jsonify({'success': False, 'message': 'Invalid Size Format. Use Length * Width * Height (eg: 100*50*20)'})
             
-            # parts[0] = Length, parts[1] = Width, parts[2] = Height
+            # 1. Length, 2. Width, 3. Height ලබා ගැනීම
             length = float(parts[0])
             width = float(parts[1])
             height = float(parts[2])
             
-            # ගණනය කිරීම් සඳහා Width සහ Height ලබාදීම (කලින් තිබූ ක්‍රමයම භාවිතා කර ඇත)
-            calc_options = calculate_reel_size(width, height, product.position, product.ply)
+            # ගණනය කිරීම් සඳහා Length, Width සහ Height ලබාදීම
+            calc_options = calculate_reel_size(length, width, height, product.position, product.ply)
             
             return jsonify({
                 'success': True,
@@ -1022,7 +1019,7 @@ def api_get_product_info():
                 'options': calc_options
             })
         except Exception as e:
-            return jsonify({'success': False, 'message': 'Invalid Size Numbers. Size values must be numeric (eg: 50*40*30)'})
+            return jsonify({'success': False, 'message': 'Invalid Size Numbers. Size values must be numeric (eg: 100*50*20)'})
     
     return jsonify({'success': False, 'message': 'Product or Customer not found.'})
 
