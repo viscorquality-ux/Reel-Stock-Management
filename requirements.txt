@@ -8,3 +8,5 @@ gunicorn==21.2.0
 qrcode==7.4.2
 Flask-SocketIO
 eventlet
+gevent
+greenlet
