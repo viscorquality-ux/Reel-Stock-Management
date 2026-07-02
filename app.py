@@ -1076,17 +1076,22 @@ def upload_products():
                 next(csv_input)  # Header මගහැරීමට
                 
                 for row in csv_input:
-                    if not row: continue # හිස් පේළි මගහැරීමට
+                    if not row or len(row) < 9: continue # తීරු 9ක් නැත්නම් හෝ හිස් නම් මගහරියි
+                    
+                    # 'ply' තීරුව පරීක්ෂා කිරීම (හිස් නම් 0 ලෙස සලකයි)
+                    ply_val = row[8].strip()
+                    ply = int(ply_val) if ply_val.isdigit() else 0
+                    
                     new_prod = CustomerProduct(
-                        customer_id=row[0], 
-                        customer_name=row[1], 
-                        customer_address=row[2],
-                        product_code=row[3], 
-                        product_name=row[4], 
-                        cartoon_size=row[5],
-                        position=row[6], 
-                        flute=row[7], 
-                        ply=int(row[8]) # මෙතැනදී දෝෂයක් ආවොත් except block එකට යයි
+                        customer_id=row[0].strip(), 
+                        customer_name=row[1].strip(), 
+                        customer_address=row[2].strip(),
+                        product_code=row[3].strip(), 
+                        product_name=row[4].strip(), 
+                        cartoon_size=row[5].strip(),
+                        position=row[6].strip(), 
+                        flute=row[7].strip(), 
+                        ply=ply
                     )
                     db.session.add(new_prod)
                 db.session.commit()
