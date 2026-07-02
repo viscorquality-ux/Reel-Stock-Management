@@ -32,9 +32,9 @@
         <div class="card shadow mb-4">
             <div class="card-body">
                 <div class="row">
-                    <div class="col-md-3"><input type="text" id="po_no" class="form-control" placeholder="PO No"></div>
-                    <div class="col-md-3"><input type="text" id="customer_id" class="form-control" placeholder="Customer ID"></div>
-                    <div class="col-md-3"><input type="text" id="product_code" class="form-control" placeholder="Product Code"></div>
+                    <div class="col-md-3"><input type="text" id="po_no" class="form-control" placeholder="PO No *"></div>
+                    <div class="col-md-3"><input type="text" id="customer_id" class="form-control" placeholder="Customer ID *"></div>
+                    <div class="col-md-3"><input type="text" id="product_code" class="form-control" placeholder="Product Code *"></div>
                     <div class="col-md-3"><button class="btn btn-success w-100" onclick="fetchProduct()">Search</button></div>
                 </div>
                 <div id="productDetails" class="mt-3 text-primary fw-bold" style="display:none;"></div>
@@ -51,6 +51,7 @@
             </div>
             <div class="card-body">
                 <div id="combinationRows"></div>
+                <!-- Fix: Save Button -->
                 <button class="btn btn-primary mt-3 w-100" onclick="savePlan()">Save Programme Plan</button>
             </div>
         </div>
@@ -69,7 +70,6 @@
         let activePapers = [];
         const userRole = document.getElementById('currentRole').innerText.trim().toLowerCase();
 
-        // Listen for Notifications
         socket.on('receive_reel_notification', function(data) {
             document.getElementById('notifySound').play().catch(()=>{});
             
@@ -87,11 +87,10 @@
         });
 
         function fetchProduct() {
-            const poNo = document.getElementById('po_no').value;
-            const cid = document.getElementById('customer_id').value;
-            const pcode = document.getElementById('product_code').value;
+            const poNo = document.getElementById('po_no').value.trim();
+            const cid = document.getElementById('customer_id').value.trim();
+            const pcode = document.getElementById('product_code').value.trim();
             
-            // Fix: Pointing to correct URL and parsing arguments properly
             fetch(`/api/get_product_info?customer_id=${cid}&product_code=${pcode}`)
             .then(response => response.json())
             .then(data => {
@@ -174,22 +173,32 @@
             });
         }
 
+        // ** FIX: Added Validation and Error Catching for Save Plan **
         function savePlan(editId = null) {
+            const po_no = document.getElementById('po_no').value.trim();
+            const customer_id = document.getElementById('customer_id').value.trim();
+            const product_code = document.getElementById('product_code').value.trim();
+
+            if (!po_no || !customer_id || !product_code) {
+                alert("❌ කරුණාකර PO No, Customer ID සහ Product Code අනිවාර්යයෙන්ම ඇතුලත් කරන්න!");
+                return;
+            }
+
             const rows = document.querySelectorAll('.mat-row');
             let materials = [];
             rows.forEach(r => {
                 materials.push({
-                    gsm: r.querySelector('.gsm-input').value,
-                    type: r.querySelector('.type-select').value,
-                    name: r.querySelector('.name-select').value
+                    gsm: r.querySelector('.gsm-input').value || 0,
+                    type: r.querySelector('.type-select').value || "",
+                    name: r.querySelector('.name-select').value || ""
                 });
             });
 
             const payload = {
-                plan_id: editId,
-                po_no: document.getElementById('po_no').value,
-                customer_id: document.getElementById('customer_id').value,
-                product_code: document.getElementById('product_code').value,
+                plan_id: typeof editId === 'number' ? editId : null,
+                po_no: po_no,
+                customer_id: customer_id,
+                product_code: product_code,
                 selected_reel_size: selectedSize,
                 selected_ups: window.selectedUps,
                 materials: materials
@@ -199,12 +208,17 @@
                 method: 'POST', 
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(payload)
-            }).then(r=>r.json()).then(data => {
+            }).then(r => r.json()).then(data => {
                 if(data.success) {
-                    alert('Saved Successfully!');
+                    alert('✅ Programme Plan Saved Successfully!');
                     document.getElementById('comboSection').style.display = 'none';
                     loadSavedPlans();
+                } else {
+                    alert('❌ Error saving plan: ' + data.message);
                 }
+            }).catch(err => {
+                console.error("Save Error:", err);
+                alert('❌ Server Error! කරුණාකර ටිකකින් නැවත උත්සහ කරන්න.');
             });
         }
 
@@ -230,7 +244,10 @@
                                 <tbody>
                     `;
                     plans.forEach(p => {
-                        let matHtml = p.materials.map((m, idx) => `L${idx+1}: ${m.gsm} - ${m.type} - ${m.name}`).join('<br>');
+                        let matHtml = "No materials specified";
+                        if (p.materials && p.materials.length > 0) {
+                            matHtml = p.materials.map((m, idx) => `L${idx+1}: ${m.gsm} - ${m.type} - ${m.name}`).join('<br>');
+                        }
                         html += `
                             <tr>
                                 <td>${p.po_no}</td><td>${p.customer_id}</td><td>${p.product_code}</td><td>${p.ups}</td>
@@ -251,17 +268,14 @@
             window.print();
         }
 
-        // Load plans on page load
         loadSavedPlans();
 
-        // Fix: Properly formatting the page unload event
         window.addEventListener('beforeunload', function() {
             if (socket) {
                 socket.disconnect();
             }
         });
 
-        // Optimization: Debouncing PO Number text search input to eliminate server lag
         let debounceTimer;
         document.getElementById('po_no').addEventListener('input', function() {
             clearTimeout(debounceTimer);
