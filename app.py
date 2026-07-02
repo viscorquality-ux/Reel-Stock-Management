@@ -1066,47 +1066,70 @@ def handle_approve_reel(data):
         'message': f"Your request for {data['size']}cm Reel (PO: {data['po_no']}) was APPROVED by {approved_by}.",
     })
     
+import csv
+import io
+from flask import request, render_template, flash, redirect, url_for
+
 @app.route('/upload_products', methods=['GET', 'POST'])
 def upload_products():
+    if request.method == 'GET':
+        return render_template('upload_products.html')
+
     if request.method == 'POST':
-        file = request.files.get('file')
-        if file and file.filename.endswith('.csv'):
-            try:
-                stream = io.StringIO(file.stream.read().decode("UTF8"), newline=None)
-                csv_input = csv.reader(stream)
-                next(csv_input)
+        file = request.files.get('csv_file')
+        
+        if not file or file.filename == '':
+            flash('No file selected!', 'danger')
+            return redirect(request.url)
+            
+        if not file.filename.endswith('.csv'):
+            flash('Please upload a valid CSV file.', 'danger')
+            return redirect(request.url)
+
+        try:
+            stream = io.StringIO(file.stream.read().decode("UTF8"), newline=None)
+            csv_reader = csv.DictReader(stream)
+            
+            for row in csv_reader:
+                # 1. පද්ධතියේ දැනටමත් මෙම Customer ID සහ Product Code එක සමාන Record එකක් තිබේදැයි පරීක්ෂා කිරීම
+                existing_product = CustomerProduct.query.filter_by(
+                    customer_id = row['CustomerID'],
+                    product_code = row['ProductCode']
+                ).first()
                 
-                for row in csv_input:
-                    if not row or len(row) < 9: continue
-                    
-                    try:
-                        ply = int(float(row[8].strip()))
-                    except:
-                        ply = 0
-                    
-                    size = row[5].strip()
-                    # දශම අගයන් ද ඇතුළුව නිවැරදි ආකෘතිය පරීක්ෂා කිරීම
-                    if not re.match(r'^\d+(\.\d+)?[xX]\d+(\.\d+)?([xX]\d+(\.\d+)?)?$', size):
-                        size = "0x0x0"
-                    
-                    new_prod = CustomerProduct(
-                        customer_id=row[0].strip(), 
-                        customer_name=row[1].strip(), 
-                        customer_address=row[2].strip(),
-                        product_code=row[3].strip(), 
-                        product_name=row[4].strip(), 
-                        cartoon_size=size, # මෙහි නිවැරදි නම යොදා ඇත
-                        position=row[6].strip(), 
-                        flute=row[7].strip(), 
-                        ply=ply
+                if existing_product:
+                    # 2. පවතින දත්ත නම්, ඒවා අලුත් දත්ත වලින් Update කිරීම
+                    existing_product.customer_name = row['CustomerName']
+                    existing_product.address = row['Address']
+                    existing_product.product_name = row['ProductName']
+                    existing_product.cartoon_size = row['CartoonSize']
+                    existing_product.position = row['Position']
+                    existing_product.flute = row['Flute']
+                    existing_product.ply = int(row['Ply'])
+                else:
+                    # 3. අලුත්ම දත්තයක් නම්, අලුත් Record එකක් ලෙස Database එකට එකතු කිරීම
+                    new_product = CustomerProduct(
+                        customer_id = row['CustomerID'],
+                        customer_name = row['CustomerName'],
+                        address = row['Address'],
+                        product_code = row['ProductCode'],
+                        product_name = row['ProductName'],
+                        cartoon_size = row['CartoonSize'],
+                        position = row['Position'],
+                        flute = row['Flute'],
+                        ply = int(row['Ply'])
                     )
-                    db.session.add(new_prod)
-                db.session.commit()
-                return "සියලුම දත්ත සාර්ථකව ඇතුළත් කරන ලදී! <a href='/dashboard'>පසුපසට යන්න</a>"
-            except Exception as e:
-                db.session.rollback()
-                return f"❌ දත්ත ඇතුළත් කිරීමේදී දෝෂයක් ඇති විය: {str(e)}"
-    return render_template('upload.html')
+                    db.session.add(new_product)
+                
+            # වෙනස්කම් සියල්ල Database එකේ Save කිරීම
+            db.session.commit() 
+            flash('Products processed and updated successfully!', 'success')
+            return redirect(url_for('dashboard'))
+
+        except Exception as e:
+            db.session.rollback() # දෝෂයක් වුවහොත් දත්ත වෙනස් නොවේ
+            flash(f'An error occurred: {str(e)}', 'danger')
+            return redirect(request.url)
     
 if __name__ == '__main__':
     with app.app_context():
