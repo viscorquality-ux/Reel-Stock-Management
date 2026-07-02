@@ -252,6 +252,12 @@
         window.onbeforeunload = function() {
     socket.disconnect();
 };
+        // programme_plan.html තුළ
+window.addEventListener('beforeunload', function() {
+    if (socket) {
+        socket.disconnect();
+    }
+});
     </script>
 </body>
 </html>
