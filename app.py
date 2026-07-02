@@ -20,13 +20,7 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = { "connect_args": { "ssl": {} } }
 
 db = SQLAlchemy(app)
 colombo_tz = pytz.timezone('Asia/Colombo')
-with app.app_context():
-    try:
-        db.create_all()
-        print("Database tables created successfully.")
-    except Exception as e:
-        print(f"Error creating tables: {e}")
-    
+
 class SmartRole(str):
     def __eq__(self, other):
         if not isinstance(other, str): return False
@@ -107,6 +101,9 @@ class ProgrammePlan(db.Model):
     created_by = db.Column(db.String(50), nullable=False)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(colombo_tz))
 
+with app.app_context():
+    db.create_all()
+    
 @app.template_filter('datetimeformat')
 def datetimeformat(value, format='%Y-%m-%d %I:%M %p'):
     if value is None: return ""
