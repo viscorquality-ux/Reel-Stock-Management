@@ -982,30 +982,88 @@ def programme_plan():
     if 'role' not in session: return redirect(url_for('login'))
     return render_template('programme_plan.html', user_role=get_user_role())
 
+@app.route('/add_product', methods=['GET', 'POST'])
+def add_product():
+    if 'role' not in session: return redirect(url_for('login'))
+    if request.method == 'POST':
+        c_name = request.form['customer_name'].strip()
+        p_name = request.form['product_name'].strip()
+        c_size = request.form['cartoon_size'].strip()
+        
+        # Duplicate Check
+        existing = CustomerProduct.query.filter_by(
+            customer_name=c_name, 
+            product_name=p_name, 
+            cartoon_size=c_size
+        ).first()
+        
+        if existing:
+            flash(f"⚠️ This Product ({p_name}) with Size ({c_size}) already exists for {c_name}!", "warning")
+            return redirect(url_for('add_product'))
+            
+        new_prod = CustomerProduct(
+            customer_id = request.form['customer_id'],
+            customer_name = c_name,
+            customer_address = request.form['address'],
+            product_code = request.form['product_code'],
+            product_name = p_name,
+            cartoon_size = c_size,
+            position = request.form['position'],
+            flute = request.form['flute'],
+            ply = int(request.form['ply'])
+        )
+        db.session.add(new_prod)
+        db.session.commit()
+        flash('✅ New Product Added Successfully!', 'success')
+        return redirect(url_for('add_product'))
+    return render_template('add_product.html', user_role=get_user_role())
+
+# --- Programme Plan API ---
+def calculate_reel_size(length, width, height, position, ply):
+    if position.lower() == 'internal':
+        if ply == 3: base_1_ups = ((width + 4) / 2) + (height + 3) + 2
+        elif ply == 5: base_1_ups = ((width + 8) / 2) + (height + 3) + 2
+        else: base_1_ups = (width / 2) + height + 2
+    else:
+        base_1_ups = (width / 2) + height + 2
+
+    standard_sizes = list(range(75, 155, 5))
+    options = []
+    for ups in range(1, 6):
+        req_size = base_1_ups * ups
+        for std in standard_sizes:
+            if std >= req_size:
+                options.append({
+                    'ups': ups,
+                    'required_size': round(req_size, 2),
+                    'suggested_reel': std,
+                    'wastage': round(std - req_size, 2)
+                })
+                break
+    options.sort(key=lambda x: x['wastage'])
+    return options
+
+@app.route('/programme_plan')
+def programme_plan():
+    if 'role' not in session: return redirect(url_for('login'))
+    return render_template('programme_plan.html', user_role=get_user_role())
+
 @app.route('/api/get_product_info', methods=['POST'])
 def api_get_product_info():
-    """ Customer ID සහ Product Code එකට අදාළ විස්තර Database එකෙන් ගැනීම """
     data = request.json
-    cust_id = data.get('customer_id')
-    prod_code = data.get('product_code')
-
-    product = CustomerProduct.query.filter_by(customer_id=cust_id, product_code=prod_code).first()
+    product = CustomerProduct.query.filter_by(
+        customer_id=data.get('customer_id'), 
+        product_code=data.get('product_code')
+    ).first()
     
     if product:
         try:
-            # Length * Width * Height ලෙස කොටස් 3කට වෙන් කිරීම ('x' හෝ '*' මගින්)
             size_str = product.cartoon_size.lower().replace(" ", "")
-            parts = re.split(r'[x*]', size_str)
-            
+            parts = re.split(r'[x*X]', size_str)
             if len(parts) != 3:
-                return jsonify({'success': False, 'message': 'Invalid Size Format. Use Length * Width * Height (eg: 100*50*20)'})
+                return jsonify({'success': False, 'message': 'Invalid Format. Use Length * Width * Height (eg: 100*50*20)'})
             
-            # 1. Length, 2. Width, 3. Height ලබා ගැනීම
-            length = float(parts[0])
-            width = float(parts[1])
-            height = float(parts[2])
-            
-            # ගණනය කිරීම් සඳහා Length, Width සහ Height ලබාදීම
+            length, width, height = float(parts[0]), float(parts[1]), float(parts[2])
             calc_options = calculate_reel_size(length, width, height, product.position, product.ply)
             
             return jsonify({
@@ -1017,78 +1075,86 @@ def api_get_product_info():
                 'cartoon_size': product.cartoon_size,
                 'options': calc_options
             })
-        except Exception as e:
-            return jsonify({'success': False, 'message': 'Invalid Size Numbers. Size values must be numeric (eg: 100*50*20)'})
-    
+        except Exception:
+            return jsonify({'success': False, 'message': 'Size values must be numeric.'})
     return jsonify({'success': False, 'message': 'Product or Customer not found.'})
 
 @app.route('/api/check_stock', methods=['POST'])
 def api_check_stock():
-    """ තෝරාගත් Reel Size එක Active Stock හි තිබේදැයි පරීක්ෂා කිරීම """
     req_size = float(request.json.get('size'))
-    # Full හෝ Used Reels අදාල සයිස් එකෙන් ඇත්දැයි බැලීම
     in_stock = Reel.query.filter(Reel.size_cm == req_size, Reel.status.in_(['Full', 'Used'])).count()
     
-    # Paper types සහ Names dropdown වලට යැවීම
-    available_papers = db.session.query(Reel.material_name, Reel.reel_type).filter(Reel.status.in_(['Full', 'Used'])).distinct().all()
-    papers = [{'name': p.material_name, 'type': p.reel_type} for p in available_papers]
+    # Get unique types and names from active stock for dropdowns
+    papers_data = db.session.query(Reel.reel_type, Reel.material_name).filter(Reel.status.in_(['Full', 'Used'])).distinct().all()
+    papers_list = [{'type': p.reel_type or 'General', 'name': p.material_name} for p in papers_data]
 
     return jsonify({
         'in_stock': in_stock > 0,
-        'stock_count': in_stock,
-        'papers': papers
+        'papers': papers_list
     })
 
-@app.route('/api/request_reel', methods=['POST'])
-def api_request_reel():
-    """ Viscor පැත්තෙන් Packwell වෙත Reel එකක් ඉල්ලුම් කිරීම """
+@app.route('/api/save_programme_plan', methods=['POST'])
+def save_programme_plan():
     data = request.json
-    reel_size = data.get('size')
-    requested_by = session.get('username', 'Viscor User')
-    po_no = data.get('po_no', 'N/A')
-
-    # මෙහිදී DataOp1 සහ Super1 ට පෙනෙන ලෙස Socket Emit කිරීම
-    # 'new_reel_request' යනු අපි හදාගත් Event නමයි
-    socketio.emit('new_reel_request', {
-        'title': 'New Reel Request!',
-        'message': f"Viscor requires an Out-of-Stock {reel_size}cm Reel for PO: {po_no}. Requested by {requested_by}.",
-        'size': reel_size,
-        'po_no': po_no
-    })
+    plan_id = data.get('plan_id')
     
+    if plan_id: # Edit Mode
+        plan = ProgrammePlan.query.get(plan_id)
+        if plan:
+            plan.materials_json = json.dumps(data.get('materials'))
+            db.session.commit()
+            return jsonify({'success': True})
+            
+    # New Plan
+    new_plan = ProgrammePlan(
+        po_no=data.get('po_no'),
+        customer_id=data.get('customer_id'),
+        product_code=data.get('product_code'),
+        selected_reel_size=float(data.get('selected_reel_size')),
+        selected_ups=int(data.get('selected_ups')),
+        materials_json=json.dumps(data.get('materials')),
+        created_by=session.get('username')
+    )
+    db.session.add(new_plan)
+    db.session.commit()
     return jsonify({'success': True})
 
-@socketio.on('approve_reel')
-def handle_approve_reel(data):
-    """ Packwell (DataOp1/Super1) විසින් Approve කළ පසු Viscor ට දැනුම් දීම """
-    approved_by = session.get('username', 'Packwell Admin')
-    
-    # මෙහිදී DB එකේ අදාල Status එක 'Approved' ලෙස Update කරන කේතය ලියන්න
-    # පසුව Viscor වෙත එය අනුමත වූ බවට Emit කරන්න
-    socketio.emit('reel_approved_notify', {
-        'message': f"Your request for {data['size']}cm Reel (PO: {data['po_no']}) was APPROVED by {approved_by}.",
-    })
-            
-@app.route('/add_product', methods=['GET', 'POST'])
-def add_product():
-    if request.method == 'POST':
-        # Form එකෙන් එන දත්ත ලබා ගැනීම
-        new_prod = CustomerProduct(
-            customer_id = request.form['customer_id'],
-            customer_name = request.form['customer_name'],
-            customer_address = request.form['address'],
-            product_code = request.form['product_code'],
-            product_name = request.form['product_name'],
-            cartoon_size = request.form['cartoon_size'],
-            position = request.form['position'],
-            flute = request.form['flute'],
-            ply = int(request.form['ply'])
-        )
-        db.session.add(new_prod)
-        db.session.commit()
-        flash('Add New Product Successfully', 'success')
-        return redirect(url_for('dashboard'))
-    return render_template('add_product.html')
+@app.route('/api/get_saved_plans')
+def get_saved_plans():
+    plans = ProgrammePlan.query.order_by(ProgrammePlan.created_at.desc()).all()
+    result = {}
+    for p in plans:
+        size = str(p.selected_reel_size)
+        if size not in result:
+            result[size] = []
+        result[size].append({
+            'id': p.id,
+            'po_no': p.po_no,
+            'customer_id': p.customer_id,
+            'product_code': p.product_code,
+            'ups': p.selected_ups,
+            'materials': json.loads(p.materials_json) if p.materials_json else []
+        })
+    return jsonify(result)
+
+# --- WebSocket Events for Notification ---
+@socketio.on('request_reel_approval')
+def handle_reel_request(data):
+    req_by = session.get('username')
+    emit('receive_reel_notification', {
+        'type': 'request',
+        'message': f"New Reel Request: {data['size']}cm requested by {req_by}.",
+        'size': data['size']
+    }, broadcast=True)
+
+@socketio.on('approve_reel_request')
+def handle_reel_approve(data):
+    app_by = session.get('username')
+    emit('receive_reel_notification', {
+        'type': 'approve',
+        'message': f"Reel Request for {data['size']}cm APPROVED by {app_by}.",
+        'size': data['size']
+    }, broadcast=True)
     
 if __name__ == '__main__':
     with app.app_context():
