@@ -15,10 +15,11 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 # DATABASE CONFIGURATION
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://avnadmin:AVNS_gHRTw4Hzio_XlhXcm7d@mysql-3e9936af-viscorquality-0270.g.aivencloud.com:28643/defaultdb'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_ENGINE_OPTIONS'] = { "connect_args": { "ssl": {} } 
-                                            "pool_size": 10,
-                                            "max_overflow": 20,
-                                            "pool_timeout": 30 }}
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    "connect_args": {"ssl": {}},
+    "pool_size": 10,
+    "max_overflow": 20,
+    "pool_timeout": 30
 
 db = SQLAlchemy(app)
 colombo_tz = pytz.timezone('Asia/Colombo')
