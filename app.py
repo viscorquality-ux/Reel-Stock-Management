@@ -8,6 +8,7 @@ import pytz
 import random
 import csv
 import io
+import re
 
 app = Flask(__name__)
 app.secret_key = 'viscor_packwell_ultimate_secure_key'
@@ -1099,7 +1100,10 @@ def upload_products():
                         customer_address=row[2].strip(),
                         product_code=row[3].strip(), 
                         product_name=row[4].strip(), 
-                        cartoon_size=size,
+                        size = row[5].strip()
+                        # මෙම Regex මගින් සංඛ්‍යා සහ දශම තිත් (.) පවා පිළිගනී
+                        if not re.match(r'^\d+(\.\d+)?[xX]\d+(\.\d+)?([xX]\d+(\.\d+)?)?$', size):
+                        size = "0x0x0"
                         position=row[6].strip(), 
                         flute=row[7].strip(), 
                         ply=ply
