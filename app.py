@@ -1074,25 +1074,20 @@ def upload_products():
             try:
                 stream = io.StringIO(file.stream.read().decode("UTF8"), newline=None)
                 csv_input = csv.reader(stream)
-                next(csv_input)  # Header මගහැරීමට
+                next(csv_input)
                 
                 for row in csv_input:
                     if not row or len(row) < 9: continue
                     
-                    # ply අගය හැසිරවීම
                     try:
                         ply = int(float(row[8].strip()))
                     except:
                         ply = 0
                     
-                    # cartoon_size පරීක්ෂා කිරීම (L x W x H ආකෘතිය)
-                    # උදාහරණ: 50x40x30 හෝ 50X40X30 පිළිගනී
                     size = row[5].strip()
-                    
-                    # අවම වශයෙන් 'x' දෙකක් හෝ තිබේදැයි පරීක්ෂා කරයි (L x W x H සඳහා)
-                    if size.lower().count('x') < 2:
-                        # ආකෘතිය වැරදි නම් දත්ත ඇතුළත් නොකර මගහැරිය හැක හෝ පෙරනිමි අගයක් දිය හැක
-                        size = "0x0x0" 
+                    # දශම අගයන් ද ඇතුළුව නිවැරදි ආකෘතිය පරීක්ෂා කිරීම
+                    if not re.match(r'^\d+(\.\d+)?[xX]\d+(\.\d+)?([xX]\d+(\.\d+)?)?$', size):
+                        size = "0x0x0"
                     
                     new_prod = CustomerProduct(
                         customer_id=row[0].strip(), 
@@ -1100,10 +1095,7 @@ def upload_products():
                         customer_address=row[2].strip(),
                         product_code=row[3].strip(), 
                         product_name=row[4].strip(), 
-                        size = row[5].strip()
-                        # මෙම Regex මගින් සංඛ්‍යා සහ දශම තිත් (.) පවා පිළිගනී
-                        if not re.match(r'^\d+(\.\d+)?[xX]\d+(\.\d+)?([xX]\d+(\.\d+)?)?$', size):
-                        size = "0x0x0"
+                        cartoon_size=size, # මෙහි නිවැරදි නම යොදා ඇත
                         position=row[6].strip(), 
                         flute=row[7].strip(), 
                         ply=ply
