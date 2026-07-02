@@ -1069,7 +1069,7 @@ def handle_approve_reel(data):
     })
 
 @app.route('/upload_products', methods=['GET', 'POST'])
-@app.route('/upload', methods=['POST'])
+@app.route('/upload', methods=['GET', 'POST'])
 def upload_products():
     if request.method == 'GET':
         return render_template('upload_products.html')
@@ -1124,7 +1124,7 @@ def upload_products():
         except Exception as e:
             db.session.rollback() 
             flash(f'An error occurred: {str(e)}', 'danger')
-            return redirect(request.url)
+           return redirect('/upload_products')
     
 if __name__ == '__main__':
     with app.app_context():
