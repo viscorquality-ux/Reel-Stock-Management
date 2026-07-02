@@ -950,10 +950,10 @@ def calculate_reel_size(length, width, height, position, ply):
         if ply == 3:
             base_1_ups = (width + 4) + (height + 3) + 2
         elif ply == 5:
-            base_1_ups = (width + 82) + (height + 3) + 2
+            base_1_ups = (width + 8) + (height + 3) + 2
 
     else: # External
-        base_1_ups = (width 2) + height + 2
+        base_1_ups = (width) + height + 2
 
     # Available Reel Sizes (75cm සිට 150cm දක්වා 5න් 5ට)
     standard_sizes = list(range(75, 155, 5))
