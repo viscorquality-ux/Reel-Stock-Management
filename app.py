@@ -1045,7 +1045,15 @@ def api_check_stock():
     # Get unique types and names from active stock for dropdowns
     papers_data = db.session.query(Reel.reel_type, Reel.material_name).filter(Reel.status.in_(['Full', 'Used'])).distinct().all()
     papers_list = [{'type': p.reel_type or 'General', 'name': p.material_name} for p in papers_data]
-
+    
+      // උදාහරණයක් ලෙස Debounce යෙදීම
+    let timeout = null;
+    function checkStockDebounced() {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => {
+            // ඔබේ fetch logic එක මෙතනට දාන්න
+        }, 500); // මිලි තත්පර 500ක් පමා කරයි
+    }
     return jsonify({
         'in_stock': in_stock > 0,
         'papers': papers_list
