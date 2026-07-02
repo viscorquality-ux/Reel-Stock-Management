@@ -1070,7 +1070,7 @@ import csv
 import io
 from flask import request, render_template, flash, redirect, url_for
 
-@app.route('/upload_products', methods=['GET', 'POST'])
+@app.route('/upload', methods=['GET', 'POST'])
 def upload_products():
     if request.method == 'GET':
         return render_template('upload_products.html')
