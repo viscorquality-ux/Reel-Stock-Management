@@ -257,6 +257,15 @@ window.addEventListener('beforeunload', function() {
     if (socket) {
         socket.disconnect();
     }
+    let debounceTimer;
+const poInput = document.getElementById('po_no');
+
+poInput.addEventListener('input', function() {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+        // මෙතැනට ඔබේ API call එක (fetch) යොදන්න
+        fetchProductInfo(this.value); 
+    }, 800); // 800ms පමා වී පමණක් API call එක සිදු වේ
 });
     </script>
 </body>
