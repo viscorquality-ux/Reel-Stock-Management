@@ -6,8 +6,6 @@ from flask import jsonify
 from datetime import datetime, timedelta
 import pytz
 import random
-import csv
-import io
 import re
 
 app = Flask(__name__)
