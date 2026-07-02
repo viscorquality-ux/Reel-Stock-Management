@@ -949,7 +949,13 @@ def reset_db_now():
     else:
         return "❌ Access Denied: Unauthorized Reset Attempt.", 403
 
-def calculate_reel_size(width, height, position, ply):
+def calculate_reel_size(cartoon_size, position, ply):
+    try:
+        parts = cartoon_size.lower().split('x')
+        if len(parts) == 3:
+            length = float(parts[0])
+            width = float(parts[1])
+            height = float(parts[2])
     """ සමීකරණ මගින් 1 Ups අගය සෙවීම """
     if position.lower() == 'internal':
         if ply == 3:
