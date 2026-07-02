@@ -1018,7 +1018,7 @@ def get_product_info():
     products = CustomerProduct.query.order_by(CustomerProduct.id.desc()).limit(20).all() 
     if product:
         return jsonify({"success": True, "product_name": product.product_name})
-        return jsonify({"success": False, "message": "Product not found"})
+    return jsonify({"success": False, "message": "Product not found"})
 @app.route('/api/check_stock', methods=['POST'])
 def api_check_stock():
     req_size = float(request.json.get('size'))
