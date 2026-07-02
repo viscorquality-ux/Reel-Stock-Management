@@ -999,10 +999,19 @@ def api_get_product_info():
     
     if product:
         try:
-            # cartoon_size එක "50x40" වැනි format එකක් ලෙස සලකා වෙන් කිරීම
-            width_str, height_str = product.cartoon_size.lower().split('x')
-            width, height = float(width_str.strip()), float(height_str.strip())
+            # Length * Width * Height ලෙස කොටස් 3කට වෙන් කිරීම ('x' හෝ '*' මගින්)
+            size_str = product.cartoon_size.lower().replace(" ", "")
+            parts = re.split(r'[x*]', size_str)
             
+            if len(parts) != 3:
+                return jsonify({'success': False, 'message': 'Invalid Size Format. Use Length * Width * Height (eg: 50*40*30)'})
+            
+            # parts[0] = Length, parts[1] = Width, parts[2] = Height
+            length = float(parts[0])
+            width = float(parts[1])
+            height = float(parts[2])
+            
+            # ගණනය කිරීම් සඳහා Width සහ Height ලබාදීම (කලින් තිබූ ක්‍රමයම භාවිතා කර ඇත)
             calc_options = calculate_reel_size(width, height, product.position, product.ply)
             
             return jsonify({
@@ -1015,7 +1024,7 @@ def api_get_product_info():
                 'options': calc_options
             })
         except Exception as e:
-            return jsonify({'success': False, 'message': 'Invalid Size Format. Use WxH (eg: 50x40)'})
+            return jsonify({'success': False, 'message': 'Invalid Size Numbers. Size values must be numeric (eg: 50*40*30)'})
     
     return jsonify({'success': False, 'message': 'Product or Customer not found.'})
 
