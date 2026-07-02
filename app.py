@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text
+from flask import jsonify
 from datetime import datetime, timedelta
 import pytz
 import random
@@ -939,6 +940,93 @@ def reset_db_now():
             return f"❌ Error: {str(e)}"
     else:
         return "❌ Access Denied: Unauthorized Reset Attempt.", 403
+
+def calculate_reel_size(width, height, position, ply):
+    """ සමීකරණ මගින් 1 Ups අගය සෙවීම """
+    if position.lower() == 'internal':
+        if ply == 3:
+            base_1_ups = ((width + 4) / 2) + (height + 3) + 2
+        elif ply == 5:
+            base_1_ups = ((width + 8) / 2) + (height + 3) + 2
+        else:
+            base_1_ups = (width / 2) + height + 2 # Fallback
+    else: # External
+        base_1_ups = (width / 2) + height + 2
+
+    # Available Reel Sizes (75cm සිට 150cm දක්වා 5න් 5ට)
+    standard_sizes = list(range(75, 155, 5))
+    options = []
+
+    # 1 Ups සිට 5 Ups දක්වා හොදම Option සෙවීම
+    for ups in range(1, 6):
+        req_size = base_1_ups * ups
+        for std in standard_sizes:
+            if std >= req_size:
+                wastage = std - req_size
+                options.append({
+                    'ups': f"{ups} Ups",
+                    'required_size': round(req_size, 2),
+                    'suggested_reel': std,
+                    'wastage': round(wastage, 2)
+                })
+                break
+    
+    # Wastage එක අඩුම පිළිවෙලට සැකසීම
+    options.sort(key=lambda x: x['wastage'])
+    return options
+
+@app.route('/programme_plan')
+def programme_plan():
+    if 'role' not in session: return redirect(url_for('login'))
+    return render_template('programme_plan.html', user_role=get_user_role())
+
+@app.route('/api/get_product_info', methods=['POST'])
+def api_get_product_info():
+    """ Customer ID සහ Product Code එකට අදාළ විස්තර Database එකෙන් ගැනීම """
+    data = request.json
+    cust_id = data.get('customer_id')
+    prod_code = data.get('product_code')
+
+    product = CustomerProduct.query.filter_by(customer_id=cust_id, product_code=prod_code).first()
+    
+    if product:
+        try:
+            # cartoon_size එක "50x40" වැනි format එකක් ලෙස සලකා වෙන් කිරීම
+            width_str, height_str = product.cartoon_size.lower().split('x')
+            width, height = float(width_str.strip()), float(height_str.strip())
+            
+            calc_options = calculate_reel_size(width, height, product.position, product.ply)
+            
+            return jsonify({
+                'success': True,
+                'customer_name': product.customer_name,
+                'product_name': product.product_name,
+                'position': product.position,
+                'ply': product.ply,
+                'cartoon_size': product.cartoon_size,
+                'options': calc_options
+            })
+        except Exception as e:
+            return jsonify({'success': False, 'message': 'Invalid Size Format. Use WxH (eg: 50x40)'})
+    
+    return jsonify({'success': False, 'message': 'Product or Customer not found.'})
+
+@app.route('/api/check_stock', methods=['POST'])
+def api_check_stock():
+    """ තෝරාගත් Reel Size එක Active Stock හි තිබේදැයි පරීක්ෂා කිරීම """
+    req_size = float(request.json.get('size'))
+    # Full හෝ Used Reels අදාල සයිස් එකෙන් ඇත්දැයි බැලීම
+    in_stock = Reel.query.filter(Reel.size_cm == req_size, Reel.status.in_(['Full', 'Used'])).count()
+    
+    # Paper types සහ Names dropdown වලට යැවීම
+    available_papers = db.session.query(Reel.material_name, Reel.reel_type).filter(Reel.status.in_(['Full', 'Used'])).distinct().all()
+    papers = [{'name': p.material_name, 'type': p.reel_type} for p in available_papers]
+
+    return jsonify({
+        'in_stock': in_stock > 0,
+        'stock_count': in_stock,
+        'papers': papers
+    })
 
 if __name__ == '__main__':
     with app.app_context():
