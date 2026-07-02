@@ -20,6 +20,7 @@
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
+                    <li class="nav-item"><a class="nav-link" href="/programme_plan">Programme Plan</a></li>
                     <li class="nav-item"><a class="nav-link active" href="/dashboard">Dashboard</a></li>
                     {% if session.get('role') not in ['super1', 'super2', 'viewer'] %}
                     <li class="nav-item"><a class="nav-link" href="/add_stock">Add Stock</a></li>
