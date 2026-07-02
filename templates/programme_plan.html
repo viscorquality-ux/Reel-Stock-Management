@@ -249,6 +249,9 @@
 
         // Load plans on page load
         loadSavedPlans();
+        window.onbeforeunload = function() {
+    socket.disconnect();
+};
     </script>
 </body>
 </html>
