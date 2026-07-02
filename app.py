@@ -1064,31 +1064,36 @@ def handle_approve_reel(data):
     socketio.emit('reel_approved_notify', {
         'message': f"Your request for {data['size']}cm Reel (PO: {data['po_no']}) was APPROVED by {approved_by}.",
     })
+    
 @app.route('/upload_products', methods=['GET', 'POST'])
 def upload_products():
     if request.method == 'POST':
         file = request.files.get('file')
         if file and file.filename.endswith('.csv'):
-            stream = io.StringIO(file.stream.read().decode("UTF8"), newline=None)
-            csv_input = csv.reader(stream)
-            next(csv_input)  # CSV ගොනුවේ පළමු පේළිය (Header) මගහැරීමට
-            
-            for row in csv_input:
-                # දත්ත CSV පේළියෙන් ලබා ගනී
-                new_prod = CustomerProduct(
-                    customer_id=row[0], 
-                    customer_name=row[1], 
-                    customer_address=row[2],
-                    product_code=row[3], 
-                    product_name=row[4], 
-                    cartoon_size=row[5],
-                    position=row[6], 
-                    flute=row[7], 
-                    ply=int(row[8])
-                )
-                db.session.add(new_prod)
-            db.session.commit()
-            return "සියලුම දත්ත සාර්ථකව ඇතුළත් කරන ලදී! <a href='/dashboard'>පසුපසට යන්න</a>"
+            try:
+                stream = io.StringIO(file.stream.read().decode("UTF8"), newline=None)
+                csv_input = csv.reader(stream)
+                next(csv_input)  # Header මගහැරීමට
+                
+                for row in csv_input:
+                    if not row: continue # හිස් පේළි මගහැරීමට
+                    new_prod = CustomerProduct(
+                        customer_id=row[0], 
+                        customer_name=row[1], 
+                        customer_address=row[2],
+                        product_code=row[3], 
+                        product_name=row[4], 
+                        cartoon_size=row[5],
+                        position=row[6], 
+                        flute=row[7], 
+                        ply=int(row[8]) # මෙතැනදී දෝෂයක් ආවොත් except block එකට යයි
+                    )
+                    db.session.add(new_prod)
+                db.session.commit()
+                return "සියලුම දත්ත සාර්ථකව ඇතුළත් කරන ලදී! <a href='/dashboard'>පසුපසට යන්න</a>"
+            except Exception as e:
+                db.session.rollback()
+                return f"❌ දත්ත ඇතුළත් කිරීමේදී දෝෂයක් ඇති විය: {str(e)} <br> <a href='/upload_products'>නැවත උත්සාහ කරන්න</a>"
     return render_template('upload.html')
     
 if __name__ == '__main__':
