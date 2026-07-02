@@ -956,6 +956,11 @@ def calculate_reel_size(cartoon_size, position, ply):
             length = float(parts[0])
             width = float(parts[1])
             height = float(parts[2])
+
+        except Exception as e:
+            # මෙහි වැරදි පාලනය කිරීම සඳහා අවශ්‍ය දේ ලියන්න
+            print(f"Error occurred: {e}")
+            
     if position.lower() == 'internal':
         if ply == 3:
             base_1_ups = ((width + 4) / 2) + (height + 3) + 2
