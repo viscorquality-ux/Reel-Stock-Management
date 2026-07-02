@@ -1,189 +1,132 @@
-<!-- programme_plan.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Programme Plan - Stock System</title>
+    <title>Programme Plan</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body class="bg-light">
-    <!-- ඔබගේ පවතින Navbar එක මෙතනින් යොදන්න -->
+    <!-- Navbar (Base html එකෙහි ඇති පරිදි) -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
+        <div class="container-fluid">
+            <a class="navbar-brand fw-bold" href="/dashboard">Stock Management</a>
+            <a class="nav-link text-white" href="/dashboard">Back to Dashboard</a>
+        </div>
+    </nav>
 
-    <div class="container mt-4">
-        <h2 class="fw-bold mb-4"><i class="bi bi-diagram-3"></i> Programme Plan Creation</h2>
-        
-        <div class="card shadow-sm mb-4">
-            <div class="card-body bg-white">
-                <div class="row g-3 align-items-end">
-                    <div class="col-md-3">
-                        <label class="form-label fw-bold">PO No</label>
-                        <input type="text" id="po_no" class="form-control" placeholder="Enter PO">
+    <div class="container mt-5">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">Programme Plan - Calculation</h4>
+            </div>
+            <div class="card-body">
+                <!-- Data Entry Form -->
+                <form id="calcForm">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label fw-bold">PO No</label>
+                            <input type="text" id="po_no" class="form-control" required>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label fw-bold">Customer ID</label>
+                            <input type="text" id="customer_id" class="form-control" required>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label fw-bold">Product Code</label>
+                            <input type="text" id="product_code" class="form-control" required>
+                        </div>
                     </div>
-                    <div class="col-md-3">
-                        <label class="form-label fw-bold">Customer ID</label>
-                        <input type="text" id="customer_id" class="form-control" placeholder="Enter ID">
+                    <button type="submit" class="btn btn-success w-100">Calculate Reel Size</button>
+                </form>
+
+                <hr class="my-4">
+
+                <!-- Display Customer & Product Details -->
+                <div id="detailsSection" style="display: none;">
+                    <h5>Product Details:</h5>
+                    <div class="row mb-3 text-primary fw-bold">
+                        <div class="col-md-6"><span id="disp_cust_name"></span></div>
+                        <div class="col-md-6"><span id="disp_prod_name"></span></div>
+                        <div class="col-md-4">Cartoon Size: <span id="disp_size"></span></div>
+                        <div class="col-md-4">Position: <span id="disp_position"></span></div>
+                        <div class="col-md-4">Ply: <span id="disp_ply"></span></div>
                     </div>
-                    <div class="col-md-3">
-                        <label class="form-label fw-bold">Product Code</label>
-                        <input type="text" id="product_code" class="form-control" placeholder="Enter Code">
-                    </div>
-                    <div class="col-md-3">
-                        <button class="btn btn-primary w-100 fw-bold" onclick="fetchProductData()">Fetch Details</button>
-                    </div>
+
+                    <!-- Display Calculation Options -->
+                    <h5 class="mt-4">Best Reel Size Options:</h5>
+                    <table class="table table-bordered table-striped text-center mt-2">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Ups Count</th>
+                                <th>Required Size (cm)</th>
+                                <th>Suggested Reel Size (cm)</th>
+                                <th>Wastage (cm)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="optionsTableBody">
+                            <!-- Data will be populated here via JavaScript -->
+                        </tbody>
+                    </table>
                 </div>
-            </div>
-        </div>
 
-        <!-- Product Details & Calculation Options පෙන්නුම් කරන කොටස -->
-        <div id="results_section" style="display: none;">
-            <div class="alert alert-info shadow-sm">
-                <h5 class="fw-bold m-0" id="display_names"></h5>
-                <small id="display_specs"></small>
-            </div>
-
-            <h5 class="fw-bold mt-4">Calculated Reel Size Options</h5>
-            <div class="table-responsive">
-                <table class="table table-bordered bg-white shadow-sm">
-                    <thead class="table-dark">
-                        <tr>
-                            <th>Ups Layout</th>
-                            <th>Required Exact Size (cm)</th>
-                            <th>Suggested Standard Reel (cm)</th>
-                            <th>Wastage (cm)</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody id="options_table_body">
-                        <!-- Options dynamically load here -->
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Paper Combination කොටස -->
-        <div class="card shadow-sm mt-4 border-success" id="combination_section" style="display: none;">
-            <div class="card-header bg-success text-white fw-bold">
-                Configure Paper Combination for <span id="selected_reel_display"></span>cm Reel
-            </div>
-            <div class="card-body" id="combinations_body">
-                <!-- Dropdowns load dynamically based on Ply (3 or 5) -->
-            </div>
-            <div class="card-footer text-end">
-                <button class="btn btn-warning fw-bold me-2" id="btnRequestReel" style="display:none;">Request Reel from Packwell</button>
-                <button class="btn btn-success fw-bold" onclick="saveProgrammePlan()">Save Programme Plan</button>
+                <!-- Error Message -->
+                <div id="errorMessage" class="alert alert-danger mt-3" style="display: none;"></div>
             </div>
         </div>
     </div>
 
-<script>
-    let currentPly = 0;
-    
-    function fetchProductData() {
-        let custId = document.getElementById('customer_id').value;
-        let prodCode = document.getElementById('product_code').value;
+    <script>
+        document.getElementById('calcForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const custId = document.getElementById('customer_id').value;
+            const prodCode = document.getElementById('product_code').value;
 
-        fetch('/api/get_product_info', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({customer_id: custId, product_code: prodCode})
-        })
-        .then(response => response.json())
-        .then(data => {
-            if(data.success) {
-                document.getElementById('results_section').style.display = 'block';
-                document.getElementById('combination_section').style.display = 'none';
-                
-                document.getElementById('display_names').innerText = `Customer: ${data.customer_name} | Product: ${data.product_name}`;
-                document.getElementById('display_specs').innerText = `Size: ${data.cartoon_size} cm | Ply: ${data.ply} | Position: ${data.position}`;
-                currentPly = data.ply;
+            // API Call (app.py හි ඇති API එක වෙත)
+            fetch('/api/get_product_info', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    customer_id: custId,
+                    product_code: prodCode
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if(data.success) {
+                    document.getElementById('errorMessage').style.display = 'none';
+                    document.getElementById('detailsSection').style.display = 'block';
+                    
+                    // විස්තර පෙන්වීම
+                    document.getElementById('disp_cust_name').innerText = "Customer: " + data.customer_name;
+                    document.getElementById('disp_prod_name').innerText = "Product: " + data.product_name;
+                    document.getElementById('disp_size').innerText = data.cartoon_size;
+                    document.getElementById('disp_position').innerText = data.position;
+                    document.getElementById('disp_ply').innerText = data.ply;
 
-                let tbody = document.getElementById('options_table_body');
-                tbody.innerHTML = '';
-                data.options.forEach(opt => {
-                    tbody.innerHTML += `
-                        <tr>
-                            <td class="fw-bold">${opt.ups}</td>
-                            <td>${opt.required_size}</td>
-                            <td class="fw-bold text-primary fs-5">${opt.suggested_reel}</td>
-                            <td class="text-danger">${opt.wastage}</td>
-                            <td><button class="btn btn-sm btn-outline-primary fw-bold" onclick="selectReelOption(${opt.suggested_reel})">Select Option</button></td>
-                        </tr>
-                    `;
-                });
-            } else {
-                alert(data.message);
-            }
+                    // Table එකට Options එකතු කිරීම
+                    const tbody = document.getElementById('optionsTableBody');
+                    tbody.innerHTML = '';
+                    data.options.forEach(opt => {
+                        tbody.innerHTML += `
+                            <tr>
+                                <td>${opt.ups}</td>
+                                <td>${opt.required_size} cm</td>
+                                <td class="fw-bold text-success">${opt.suggested_reel} cm</td>
+                                <td class="text-danger">${opt.wastage} cm</td>
+                            </tr>
+                        `;
+                    });
+                } else {
+                    document.getElementById('detailsSection').style.display = 'none';
+                    document.getElementById('errorMessage').style.display = 'block';
+                    document.getElementById('errorMessage').innerText = data.message;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
         });
-    }
-
-    function selectReelOption(reelSize) {
-        document.getElementById('selected_reel_display').innerText = reelSize;
-        document.getElementById('combination_section').style.display = 'block';
-        
-        // Active Stock එකේ තියෙනවද බලන්න
-        fetch('/api/check_stock', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({size: reelSize})
-        })
-        .then(response => response.json())
-        .then(data => {
-            let reqBtn = document.getElementById('btnRequestReel');
-            if(!data.in_stock) {
-                alert(`Warning: ${reelSize}cm Reel is OUT OF STOCK. You will need to request it.`);
-                reqBtn.style.display = 'inline-block';
-            } else {
-                reqBtn.style.display = 'none';
-            }
-            generateCombinationInputs(data.papers);
-        });
-    }
-
-    function generateCombinationInputs(papers) {
-        let container = document.getElementById('combinations_body');
-        container.innerHTML = '';
-        
-        for(let i=1; i<=currentPly; i++) {
-            let options = papers.map(p => `<option value="${p.name}">${p.type} - ${p.name}</option>`).join('');
-            container.innerHTML += `
-                <div class="row mb-3">
-                    <div class="col-md-2 fw-bold text-end mt-2">Ply Layer ${i}:</div>
-                    <div class="col-md-3"><input type="number" class="form-control" placeholder="GSM (Type)"></div>
-                    <div class="col-md-7">
-                        <select class="form-select">
-                            <option value="">Select Paper Type & Name</option>
-                            ${options}
-                        </select>
-                    </div>
-                </div>
-            `;
-        }
-    }
-
-    function saveProgrammePlan() {
-        // මෙහිදී අදාළ Data ටික එකතු කරලා DB එකට යවන function එක ලියන්න
-        alert('Plan saved successfully!');
-    }
-
-    document.getElementById('btnRequestReel').addEventListener('click', function() {
-    let reelSize = document.getElementById('selected_reel_display').innerText;
-    let poNo = document.getElementById('po_no').value;
-
-    fetch('/api/request_reel', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({size: reelSize, po_no: poNo})
-    })
-    .then(response => response.json())
-    .then(data => {
-        if(data.success) {
-            alert('Request sent to Packwell (DataOp1/Super1) in Real-time!');
-            this.disabled = true; // Button එක නැවත click කිරීම වැලැක්වීමට
-            this.innerText = "Request Pending...";
-        }
-    });
-});
-    
-</script>
+    </script>
 </body>
 </html>
