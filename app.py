@@ -1076,7 +1076,7 @@ import csv
 import io
 from flask import request, render_template, flash, redirect, url_for
 
-@app.route('/upload', methods=['GET', 'POST'])
+@app.route('/upload_products', methods=['GET', 'POST'])
 def upload_products():
     if request.method == 'GET':
         return render_template('upload_products.html')
@@ -1097,23 +1097,20 @@ def upload_products():
             csv_reader = csv.DictReader(stream)
             
             for row in csv_reader:
-                # 1. පද්ධතියේ දැනටමත් මෙම Customer ID සහ Product Code එක සමාන Record එකක් තිබේදැයි පරීක්ෂා කිරීම
                 existing_product = CustomerProduct.query.filter_by(
                     customer_id = row['CustomerID'],
                     product_code = row['ProductCode']
                 ).first()
                 
                 if existing_product:
-                    # 2. පවතින දත්ත නම්, ඒවා අලුත් දත්ත වලින් Update කිරීම
                     existing_product.customer_name = row['CustomerName']
                     existing_product.address = row['Address']
                     existing_product.product_name = row['ProductName']
-                    existing_product.cartoon_size = row['CartoonSize']
+                    existing_product.cartoon_size = row['CartoonSize'] # අගය 50x40 ලෙස තිබිය යුතුය
                     existing_product.position = row['Position']
                     existing_product.flute = row['Flute']
                     existing_product.ply = int(row['Ply'])
                 else:
-                    # 3. අලුත්ම දත්තයක් නම්, අලුත් Record එකක් ලෙස Database එකට එකතු කිරීම
                     new_product = CustomerProduct(
                         customer_id = row['CustomerID'],
                         customer_name = row['CustomerName'],
@@ -1127,13 +1124,12 @@ def upload_products():
                     )
                     db.session.add(new_product)
                 
-            # වෙනස්කම් සියල්ල Database එකේ Save කිරීම
             db.session.commit() 
             flash('Products processed and updated successfully!', 'success')
             return redirect(url_for('dashboard'))
 
         except Exception as e:
-            db.session.rollback() # දෝෂයක් වුවහොත් දත්ත වෙනස් නොවේ
+            db.session.rollback() 
             flash(f'An error occurred: {str(e)}', 'danger')
             return redirect(request.url)
     
