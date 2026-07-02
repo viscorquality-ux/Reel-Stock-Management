@@ -1124,11 +1124,28 @@ def upload_products():
             db.session.rollback() 
             flash(f'An error occurred: {str(e)}', 'danger')
             return redirect(request.url)
-    
-if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
-    socketio.run(app, debug=True, host='0.0.0.0', port=5000)
+            
+@app.route('/add_product', methods=['GET', 'POST'])
+def add_product():
+    if request.method == 'POST':
+        # Form එකෙන් එන දත්ත ලබා ගැනීම
+        new_prod = CustomerProduct(
+            customer_id = request.form['customer_id'],
+            customer_name = request.form['customer_name'],
+            customer_address = request.form['address'],
+            product_code = request.form['product_code'],
+            product_name = request.form['product_name'],
+            cartoon_size = request.form['cartoon_size'],
+            position = request.form['position'],
+            flute = request.form['flute'],
+            ply = int(request.form['ply'])
+        )
+        db.session.add(new_prod)
+        db.session.commit()
+        flash('නව නිෂ්පාදනයක් සාර්ථකව එකතු කරන ලදී!', 'success')
+        return redirect(url_for('dashboard'))
+        
+    return render_template('add_product.html')
     
 if __name__ == '__main__':
     with app.app_context():
