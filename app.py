@@ -1069,7 +1069,6 @@ def handle_approve_reel(data):
     })
 
 @app.route('/upload_products', methods=['GET', 'POST'])
-@app.route('/upload', methods=['GET', 'POST'])
 def upload_products():
     if request.method == 'GET':
         return render_template('upload_products.html')
@@ -1097,9 +1096,9 @@ def upload_products():
                 
                 if existing_product:
                     existing_product.customer_name = row['CustomerName']
-                    existing_product.customer_address = row['Address'] # <-- Fix: address -> customer_address
+                    existing_product.customer_address = row['Address']  # <-- නිවැරදි කලා (customer_address)
                     existing_product.product_name = row['ProductName']
-                    existing_product.cartoon_size = row['CartoonSize'] # අගය 50x40 ලෙස තිබිය යුතුය
+                    existing_product.cartoon_size = row['CartoonSize']
                     existing_product.position = row['Position']
                     existing_product.flute = row['Flute']
                     existing_product.ply = int(row['Ply'])
@@ -1107,7 +1106,7 @@ def upload_products():
                     new_product = CustomerProduct(
                         customer_id = row['CustomerID'],
                         customer_name = row['CustomerName'],
-                        customer_address = row['Address'], # <-- Fix: address -> customer_address
+                        customer_address = row['Address'],  # <-- නිවැරදි කලා (customer_address)
                         product_code = row['ProductCode'],
                         product_name = row['ProductName'],
                         cartoon_size = row['CartoonSize'],
@@ -1119,12 +1118,17 @@ def upload_products():
                 
             db.session.commit() 
             flash('Products processed and updated successfully!', 'success')
-            return redirect(url_for('dashboard'))
+            return redirect(url_for('upload_products')) # <-- හිස්තැන් (Indentation) නිවැරදි කරන ලදී
 
         except Exception as e:
             db.session.rollback() 
             flash(f'An error occurred: {str(e)}', 'danger')
-           return redirect('/upload_products')
+            return redirect(request.url)
+    
+if __name__ == '__main__':
+    with app.app_context():
+        db.create_all()
+    socketio.run(app, debug=True, host='0.0.0.0', port=5000)
     
 if __name__ == '__main__':
     with app.app_context():
