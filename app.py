@@ -7,6 +7,7 @@ import pytz
 import random
 import re
 import json
+from models import Stock
 
 app = Flask(__name__)
 app.secret_key = 'viscor_packwell_ultimate_secure_key'
