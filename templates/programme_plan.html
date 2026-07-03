@@ -173,24 +173,18 @@
 
         // Initialize Product Configurations Registry View
         function loadProductsMasterRegistry() {
-            fetch('/api/get_products').then(r=>r.json()).then(data => {
-                let html = '';
-                data.forEach(p => {
-                    html += `<tr>
-                        <td><input type="text" class="form-control form-control-sm text-center" id="c_id_${p.id}" value="${p.customer_id}"></td>
-                        <td><input type="text" class="form-control form-control-sm text-center" id="c_nam_${p.id}" value="${p.customer_name}"></td>
-                        <td><input type="text" class="form-control form-control-sm text-center text-primary fw-bold" id="p_cod_${p.id}" value="${p.product_code}"></td>
-                        <td><input type="text" class="form-control form-control-sm text-center" id="p_nam_${p.id}" value="${p.product_name}"></td>
-                        <td><input type="text" class="form-control form-control-sm text-center" id="c_siz_${p.id}" value="${p.cartoon_size}"></td>
-                        <td><input type="text" class="form-control form-control-sm text-center" id="pos_${p.id}" value="${p.position}"></td>
-                        <td><input type="text" class="form-control form-control-sm text-center" id="flu_${p.id}" value="${p.flute}"></td>
-                        <td><input type="number" class="form-control form-control-sm text-center" id="ply_${p.id}" value="${p.ply}"></td>
-                        <td><button class="btn btn-sm btn-warning fw-bold px-2 py-0" onclick="saveProductRowInline(${p.id})"><i class="bi bi-save"></i> Edit</button></td>
-                    </tr>`;
-                });
-                document.getElementById('masterProductsBody').innerHTML = html;
-            });
-        }
+    fetch('/api/get_products').then(r=>r.json()).then(data => {
+        let html = '';
+        data.forEach(p => {
+            html += `<tr id="row_${p.id}">
+                <td><span class="view-mode">${p.customer_id}</span><input type="text" class="edit-mode form-control" value="${p.customer_id}" style="display:none"></td>
+                <!-- අනෙකුත් තීරු සඳහාත් මෙලෙසම span (view) සහ input (edit) සාදන්න -->
+                <td><button class="btn btn-sm btn-warning" onclick="toggleEdit(${p.id})">Edit</button></td>
+            </tr>`;
+        });
+        document.getElementById('masterProductsBody').innerHTML = html;
+    });
+}
 
         function saveProductRowInline(id) {
             const payload = {
