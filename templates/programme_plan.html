@@ -2,403 +2,455 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Active Stock - Viscor & Packwell Stock System</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>Advanced Programme Planning & Stock Matrix</title>
+    <link hreqf="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <style>
-        body { background-color: #f8f9fa; }
-        .nav-link.active { font-weight: bold; }
-        .summary-badge { font-size: 1.05rem; }
-
-        /* Table Scroll කිරීම සහ Sticky Header සඳහා CSS */
-        .table-scroll-container {
-            max-height: 550px;
-            overflow-y: auto;
-            border-bottom: 1px solid #dee2e6;
-            border-radius: 5px;
-        }
+        .table-active-panel { background: #ffffff; border-radius: 8px; padding: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .tick-icon { color: #28a745; font-size: 1.3rem; font-weight: bold; }
+        .cross-icon { color: #dc3545; font-size: 1.3rem; font-weight: bold; }
         
-        /* පහළට Scroll කිරීමේදී Header එක රැඳී තිබීමට (Sticky Header) */
-        .table-scroll-container thead th {
-            position: sticky;
-            top: 0;
-            z-index: 10;
-            background-color: #f8f9fa;
-            border-bottom: 2px solid #dee2e6;
-            box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1);
-        }
-
-        /* Print කිරීමේදී පමණක් යොදාගන්නා CSS */
-        @media print {
-            .table-scroll-container { max-height: none !important; overflow: visible !important; }
-            .no-print, .btn, .navbar, .alert, .nav-tabs { display: none !important; }
-            body { background-color: white !important; color: black !important; }
-            .card { border: none !important; box-shadow: none !important; }
-            .tab-pane:not(.active) { display: none !important; }
-            .tab-pane.active { display: block !important; opacity: 1 !important; margin-bottom: 20px;}
+        /* Print Styles: Hides non-essential items and formats table clearly as a document */
+        @media print { 
+            body { background: #fff !important; }
+            .no-print { display: none !important; }
+            .card { border: none !important; box-shadow: none !important; margin-bottom: 20px; }
+            .card-header { background: #fff !important; color: #000 !important; border-bottom: 2px solid #000; padding: 10px 0 !important; }
+            table { width: 100% !important; border-collapse: collapse; font-size: 10pt; }
+            th, td { border: 1px solid #000 !important; padding: 5px !important; color: #000 !important; }
+            .badge { border: none; color: #000 !important; background: transparent !important; padding: 0;}
+            input[type="number"] { border: none; background: transparent; color: #000; width: auto; font-weight: bold; text-align: center; }
+            .text-muted, .text-primary, .text-danger, .bg-light, .bg-secondary { color: #000 !important; background: transparent !important; }
         }
     </style>
 </head>
-<body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
+<body class="bg-light">
+    <audio id="alertSound" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
+
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4 no-print">
         <div class="container-fluid">
-            <a class="navbar-brand fw-bold" href="/"><i class="bi bi-box-seam"></i> Stock Management</a>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav me-auto">
-                    <li class="nav-item"><a class="nav-link" href="/dashboard">Dashboard</a></li>
-                    {% if session.get('role') in ['admin', 'dataop1', 'dataop2'] %}
-                    <li class="nav-item"><a class="nav-link" href="/add_stock">Add Stock</a></li>
-                    {% endif %}
-                    <li class="nav-item"><a class="nav-link active" href="/active_stock">Active Stock</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/sr_request">SR Request</a></li>
-                </ul>
-                <ul class="navbar-nav">
-                    <li class="nav-item"><a class="nav-link text-danger fw-bold" href="/logout"><i class="bi bi-power"></i> Logout ({{ session.get('username') }})</a></li>
-                </ul>
+            <span class="navbar-brand fw-bold"><i class="bi bi-cpu-fill text-warning"></i> Viscor & Packwell - Programme Planning Core</span>
+            <div>
+                <span class="text-white-50 me-3">Logged Role: <strong class="text-warning" id="loggedRole">{{ user_role }}</strong></span>
+                <a href="/dashboard" class="btn btn-outline-light btn-sm">Dashboard</a>
             </div>
         </div>
     </nav>
 
-    <div class="container-fluid my-4 px-4">
-        <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-            <div>
-                <h2 class="fw-bold text-dark m-0"><i class="bi bi-journal-text text-primary"></i> Active Reels Registry</h2>
-                <p class="text-muted m-0">Live stock tracking visualization</p>
-            </div>
-            <!-- Top Controls Container -->
-            <div class="d-flex gap-2 align-items-center">
-                <!-- අලුතින් එක් කළ Paper Name Filter Dropdown එක -->
-                <div class="input-group text-dark no-print" style="max-width: 250px;">
-                    <span class="input-group-text bg-white border-end-0 shadow-sm"><i class="bi bi-funnel text-muted"></i></span>
-                    <select id="FilteredPaperDropdown" class="form-select border-start-0 shadow-sm fw-bold text-primary">
-                        <option value="">All Paper Names...</option>
-                    </select>
-                </div>
-
-                <div class="input-group text-dark no-print" style="max-width: 350px;">
-                    <span class="input-group-text bg-white border-end-0 shadow-sm"><i class="bi bi-search text-muted"></i></span>
-                    <input type="text" id="SearchInput" class="form-control border-start-0 shadow-sm" placeholder="Search Size first (e.g. 150), then GSM...">
-                </div>
-                
-                <button onclick="window.print()" class="btn btn-primary fw-bold no-print shadow-sm">
-                    <i class="bi bi-printer"></i> Print
-                </button>
-            </div>
-        </div>
-
-        <div class="row g-3 mb-4 no-print">
-            <div class="col-md-3">
-                <div class="card shadow-sm border-0 border-start border-primary border-4 bg-white">
-                    <div class="card-body py-3">
-                        <small class="text-muted fw-bold text-uppercase">Full Reels In Stock</small>
-                        <h4 class="fw-bold text-primary m-0" id="fullReelCount">0</h4>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card shadow-sm border-0 border-start border-success border-4 bg-white">
-                    <div class="card-body py-3">
-                        <small class="text-muted fw-bold text-uppercase">Total Weight Full (kg)</small>
-                        <h4 class="fw-bold text-success m-0" id="fullReelWeight">0.00</h4>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card shadow-sm border-0 border-start border-warning border-4 bg-white">
-                    <div class="card-body py-3">
-                        <small class="text-muted fw-bold text-uppercase">Used Reels In Stock</small>
-                        <h4 class="fw-bold text-warning m-0" id="usedReelCount">0</h4>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card shadow-sm border-0 border-start border-danger border-4 bg-white">
-                    <div class="card-body py-3">
-                        <small class="text-muted fw-bold text-uppercase">Total Weight Used (kg)</small>
-                        <h4 class="fw-bold text-danger m-0" id="usedReelWeight">0.00</h4>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <ul class="nav nav-tabs mb-3 no-print" id="activeStockTabs" role="tablist">
+    <div class="container-fluid px-4">
+        
+        <!-- Add Nav Tabs for Planning and History segregation -->
+        <ul class="nav nav-tabs no-print mb-4 bg-white px-3 pt-3 rounded-top border shadow-sm" id="mainTabs" role="tablist">
             <li class="nav-item" role="presentation">
-                <button class="nav-link active fw-bold text-primary" id="full-reels-tab" data-bs-toggle="tab" data-bs-target="#full-reels-pane" type="button" role="tab" aria-controls="full-reels-pane" aria-selected="true">
-                    <i class="bi bi-box"></i> Full Reels Inventory
+                <button class="nav-link active fw-bold text-primary" id="planning-tab" data-bs-toggle="tab" data-bs-target="#planning" type="button" role="tab" aria-selected="true">
+                    <i class="bi bi-pencil-square"></i> New Programme Plan
                 </button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link fw-bold text-warning" id="used-reels-tab" data-bs-toggle="tab" data-bs-target="#used-reels-pane" type="button" role="tab" aria-controls="used-reels-pane" aria-selected="false">
-                    <i class="bi bi-scissors"></i> Used Reels / Balance Inventory
+                <button class="nav-link fw-bold text-dark" id="history-tab" data-bs-toggle="tab" data-bs-target="#history" type="button" role="tab" aria-selected="false">
+                    <i class="bi bi-clock-history"></i> Plan History
                 </button>
             </li>
         </ul>
 
-        <div class="tab-content" id="activeStockTabsContent">
-            <div class="tab-pane fade show active" id="full-reels-pane" role="tabpanel" aria-labelledby="full-reels-tab">
-                <div class="card shadow-sm border-0 mb-4 bg-white">
-                    <div class="card-header bg-dark text-white fw-bold py-3"><i class="bi bi-box"></i> Full Reels Inventory List</div>
-                    <div class="table-responsive table-scroll-container">
-                        <table class="table table-hover align-middle mb-0 text-dark">
-                            <thead class="text-secondary text-uppercase fs-7">
-                                <tr>
-                                    <th>ID</th><th>Reel Number</th><th>Size (cm)</th><th>Weight (kg)</th>
-                                    <th>GSM</th><th>Type</th><th>Paper Name</th><th>Location</th><th>Supplier</th>
-                                    <th class="no-print">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for stock in full_reels %}
-                                <tr class="full-reel-row" data-weight="{{ stock.weight_kg }}">
-                                    <td><strong>#{{ stock.id }}</strong></td>
-                                    <td><span class="badge bg-secondary px-2 py-1 fs-6">{{ stock.reel_number }}</span></td>
-                                    <td class="col-size fw-bold">{{ stock.size_cm }}</td>
-                                    <td class="fw-bold text-primary">{{ stock.weight_kg }} kg</td>
-                                    <td>{{ stock.gsm }}</td>
-                                    <td>{{ stock.reel_type }}</td>
-                                    <td>{{ stock.material_name }}</td>
-                                    <td><span class="badge bg-light text-dark border"><i class="bi bi-geo-alt"></i> {{ stock.store_location }}</span></td>
-                                    <td>{{ stock.supplier_name }}</td>
-                                    <td class="no-print">
-                                        <button class="btn btn-info btn-sm fw-bold text-white" {% if session.get('role') in ['super1', 'super2', 'programmer1', 'programmer2'] %}disabled{% endif %} data-bs-toggle="modal" data-bs-target="#editReel{{ stock.id }}"><i class="bi bi-pencil-square"></i> Edit</button>
-                                        <button class="btn btn-success btn-sm fw-bold" {% if session.get('role') in ['super1', 'super2', 'programmer1', 'programmer2'] %}disabled{% endif %} data-bs-toggle="modal" data-bs-target="#issue{{ stock.id }}" onclick="handleDocTypeChange('{{ stock.id }}')"><i class="bi bi-truck"></i> Dispatch</button>
-                                        <button class="btn btn-danger btn-sm fw-bold" {% if session.get('role') in ['super1', 'super2', 'programmer1', 'programmer2'] %}disabled{% endif %} data-bs-toggle="modal" data-bs-target="#updateStatus{{ stock.id }}"><i class="bi bi-gear"></i> Status</button>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+        <div class="tab-content" id="mainTabsContent">
+            
+            <!-- Tab 1: Configuration Panel -->
+            <div class="tab-pane fade show active" id="planning" role="tabpanel" aria-labelledby="planning-tab">
+                <div class="row mt-3 no-print">
+                    <div class="col-xl-4 col-md-5">
+                        <div class="card shadow mb-4">
+                            <div class="card-header bg-primary text-white fw-bold"><i class="bi bi-search"></i> Initialize Planning Sheet</div>
+                            <div class="card-body">
+                                <div class="mb-3"><label class="form-label fw-bold">PO Number Identity String</label><input type="text" id="po_no" class="form-control" placeholder="e.g. PO-7719"></div>
+                                <div class="mb-3"><label class="form-label fw-bold">Customer Reference ID</label><input type="text" id="customer_id" class="form-control" placeholder="e.g. CUST-102"></div>
+                                <div class="mb-3"><label class="form-label fw-bold">Product Match Code</label><input type="text" id="product_code" class="form-control" placeholder="e.g. PROD-550"></div>
+                                <button class="btn btn-success w-100 fw-bold" onclick="searchMasterProduct()"><i class="bi bi-arrow-right-circle"></i> Load Specification Matrix</button>
+                                
+                                <div id="selectedMetaSummary" class="mt-3 p-2 bg-light border text-primary fw-bold text-center rounded" style="display:none;"></div>
+                            </div>
+                        </div>
+
+                        <div class="card shadow mb-4" id="combinationConfigurationPanel" style="display:none;">
+                            <div class="card-header bg-info text-white fw-bold"><i class="bi bi-sliders"></i> Combination Layer Customizer</div>
+                            <div class="card-body">
+                                <div class="alert alert-light border mb-3">
+                                    <small class="text-muted d-block"><strong>L1:</strong> Top Layer | <strong>L2:</strong> Corrugated Layer | <strong>L3:</strong> Bottom Layer</small>
+                                </div>
+                                <div id="dynamicComboRowsContainer"></div>
+                                
+                                <div class="mb-3 mt-3">
+                                    <label class="form-label fw-bold text-danger">Manual Target Output Qty (Pcs):</label>
+                                    <input type="number" id="manual_qty" class="form-control border-danger fw-bold" value="1000" oninput="triggerStockWeightAudit()">
+                                </div>
+                                <button class="btn btn-primary w-100 fw-bold shadow-sm" onclick="dispatchSavePlan()"><i class="bi bi-save"></i> Save Finished Programme Plan</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-xl-8 col-md-7">
+                        <div class="card shadow mb-4" id="optionsCardPanel" style="display:none;">
+                            <div class="card-header bg-secondary text-white fw-bold"><i class="bi bi-grid-3x3-gap"></i> Corrugator Step Selection Options</div>
+                            <div class="card-body p-0">
+                                <table class="table table-bordered text-center align-middle mb-0">
+                                    <thead class="table-dark"><tr><th>Ups Factor</th><th>Required Dimension</th><th>Suggested Standard Reel</th><th>Expected Wastage</th><th>Action</th></tr></thead>
+                                    <tbody id="suggestedOptionsBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="card shadow mb-4" id="stockStatusSummaryPanel" style="display:none;">
+                            <div class="card-header bg-dark text-white fw-bold"><i class="bi bi-shield-check"></i> Active Stock Availability & Weight Analytics Dashboard</div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-striped align-middle mb-0 text-center">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Layer Target</th><th>Paper Name Designation</th><th>GSM Spec</th><th>Stock Match Status</th><th>Needed Weight (kg)</th><th>Warehouse Balance (kg)</th><th>Shortage Status</th><th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="detailedStockBody"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div class="tab-pane fade" id="used-reels-pane" role="tabpanel" aria-labelledby="used-reels-tab">
-                <div class="card shadow-sm border-0 bg-white">
-                    <div class="card-header bg-secondary text-white fw-bold py-3"><i class="bi bi-scissors"></i> Used Reels / Balance Inventory List</div>
-                    <div class="table-responsive table-scroll-container">
-                        <table class="table table-hover align-middle mb-0 text-dark">
-                            <thead class="text-secondary text-uppercase fs-7">
-                                <tr>
-                                    <th>ID</th><th>Reel Number</th><th>Size (cm)</th><th>Remaining (kg)</th>
-                                    <th>GSM</th><th>Type</th><th>Paper Name</th><th>Location</th><th>Supplier</th>
-                                    <th class="no-print">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for stock in used_reels %}
-                                <tr class="used-reel-row" data-weight="{{ stock.current_weight }}">
-                                    <td><strong>#{{ stock.id }}</strong></td>
-                                    <td><span class="badge bg-warning text-dark px-2 py-1 fs-6">{{ stock.reel_number }}</span></td>
-                                    <td class="col-size fw-bold">{{ stock.size_cm }}</td>
-                                    <td class="fw-bold text-danger">{{ stock.current_weight }} kg</td>
-                                    <td>{{ stock.gsm }}</td>
-                                    <td>{{ stock.reel_type }}</td>
-                                    <td>{{ stock.material_name }}</td>
-                                    <td><span class="badge bg-light text-dark border"><i class="bi bi-geo-alt"></i> {{ stock.store_location }}</span></td>
-                                    <td>{{ stock.supplier_name }}</td>
-                                    <td class="no-print">
-                                        <button class="btn btn-info btn-sm fw-bold text-white" {% if session.get('role') in ['super1', 'super2', 'programmer1', 'programmer2'] %}disabled{% endif %} data-bs-toggle="modal" data-bs-target="#editReel{{ stock.id }}"><i class="bi bi-pencil-square"></i> Edit</button>
-                                        <button class="btn btn-success btn-sm fw-bold" {% if session.get('role') in ['super1', 'super2', 'programmer1', 'programmer2'] %}disabled{% endif %} data-bs-toggle="modal" data-bs-target="#issue{{ stock.id }}" onclick="handleDocTypeChange('{{ stock.id }}')"><i class="bi bi-truck"></i> Dispatch</button>
-                                        <button class="btn btn-danger btn-sm fw-bold" {% if session.get('role') in ['super1', 'super2', 'programmer1', 'programmer2'] %}disabled{% endif %} data-bs-toggle="modal" data-bs-target="#updateStatus{{ stock.id }}"><i class="bi bi-gear"></i> Status</button>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+            <!-- Tab 2: History Mini Tab -->
+            <div class="tab-pane fade" id="history" role="tabpanel" aria-labelledby="history-tab">
+                <div class="card shadow mb-5">
+                    <div class="card-header bg-gradient bg-secondary text-white fw-bold py-3 d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-list-stars"></i> Active Reel-Size Specific Programme Planning Dashboard Table View</span>
+                        
+                        <div class="d-flex gap-2 no-print">
+                            <input type="date" id="filter_start" class="form-control form-control-sm">
+                            <input type="date" id="filter_end" class="form-control form-control-sm">
+                            <button class="btn btn-sm btn-dark fw-bold text-nowrap" onclick="renderRuntimePlansTable()"><i class="bi bi-search"></i> Filter</button>
+                            <!-- General PDF Print Option retains -->
+                            <button class="btn btn-sm btn-light fw-bold text-dark text-nowrap" onclick="window.print()"><i class="bi bi-printer-fill"></i> Print / Save PDF</button>
+                        </div>
                     </div>
+                    
+                    <div id="savedPlansWrapperContainer"></div>
                 </div>
             </div>
         </div>
     </div>
 
-    {% for stock in full_reels + used_reels %}
-        {% include 'stock_modals.html' %}
-    {% endfor %}
+    <div class="modal fade" id="incomingRequestModal" data-bs-backdrop="static" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-danger border-3">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-exclamation-octagon-fill"></i> CRITICAL REEL REQUEST INCOMING ALERT!</h5>
+                </div>
+                <div class="modal-body text-center">
+                    <p class="fs-5 text-dark" id="modalAlertMessage"></p>
+                    <div class="spinner-grow text-danger my-2" role="status"></div>
+                </div>
+                <div class="modal-footer justify-content-center">
+                    <button type="button" class="btn btn-success fw-bold px-4 fs-6" id="btnApproveTransfer"><i class="bi bi-check-circle"></i> Approve Auto-Verification Transfer</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
     <script>
-    // --- අලුතින් එකතු කළ Paper Name Filter Logic එක ---
-    function populateFilteredPaperNames() {
-        // ඔබ ලබාදුන් Paper Types ලැයිස්තුව
-        const targetPaperTypes = ['Test Liner(T)', 'Medium(C)', 'Kraft(K)', 'White Liner(WT)', 'White Kraft (WK)'];
-        const uniquePaperNames = new Set();
-        
-        // Full Reels සහ Used Reels වල සියලුම rows ලබා ගැනීම
-        const allRows = document.querySelectorAll('.full-reel-row, .used-reel-row');
-        
-        allRows.forEach(row => {
-            const cells = row.querySelectorAll('td');
-            if (cells.length > 6) {
-                // Table එකේ Type column එක (Index 5) සහ Paper Name column එක (Index 6)
-                const paperType = cells[5].innerText.trim(); 
-                const paperName = cells[6].innerText.trim(); 
-                
-                // Paper Type එක අපගේ list එකේ තිබේදැයි පරීක්ෂා කර, අදාල Paper Name එක Set එකට එකතු කිරීම
-                if (targetPaperTypes.includes(paperType) && paperName !== '') {
-                    uniquePaperNames.add(paperName);
-                }
+        const socket = io();
+        let targetPly = 3;
+        let selectedReelSize = 0;
+        let globalBoxLength = 0;
+        let globalBoxWidth = 0;
+        let activePlanSuggestedUps = 1;
+        let globalPlansData = {}; // Stores retrieved history plans for individual printing
+        const currentRole = document.getElementById('loggedRole').innerText.trim().toLowerCase();
+        let activeTransferPayload = null;
+        let notificationModalInstance = new bootstrap.Modal(document.getElementById('incomingRequestModal'));
+
+        socket.on('receive_packwell_alert', function(data) {
+            document.getElementById('alertSound').play().catch(()=>{});
+            if(currentRole === 'dataop2' || currentRole === 'super2' || currentRole === 'admin') {
+                activeTransferPayload = data;
+                document.getElementById('modalAlertMessage').innerHTML = `Packwell Active Stock Request Initiated!<br><strong>Reel Size:</strong> ${data.size}cm<br><strong>Paper:</strong> ${data.name}<br><br>Click authorization below to transfer to Viscor Return Verification registry.`;
+                notificationModalInstance.show();
             }
         });
-        
-        // Dropdown එකට options ඇතුලත් කිරීම
-        const dropdown = document.getElementById('FilteredPaperDropdown');
-        uniquePaperNames.forEach(name => {
-            const option = document.createElement('option');
-            option.value = name;
-            option.textContent = name;
-            dropdown.appendChild(option);
-        });
-    }
 
-    // Dropdown එකෙන් Paper Name එකක් තේරූ විට Table එක Filter වීමට
-    document.getElementById('FilteredPaperDropdown').addEventListener('change', function() {
-        triggerSmartMultiSearch();
-    });
-    // ---------------------------------------------------
-
-    function autoFillSR(inputId) {
-        let inputField = document.getElementById(inputId);
-        if(!inputField) return;
-        let now = new Date();
-        let year = now.getFullYear();
-        let month = String(now.getMonth() + 1).padStart(2, '0');
-        let day = String(now.getDate()).padStart(2, '0');
-        let hours = String(now.getHours()).padStart(2, '0');
-        let minutes = String(now.getMinutes()).padStart(2, '0');
-        let randomNum = Math.floor(Math.random() * 90) + 10;
-        inputField.value = `SR-${year}${month}${day}${hours}${minutes}-${randomNum}`;
-    }
-
-    function toggleTransferMode(stockId) {
-        let viscorCheck = document.getElementById('sendViscor' + stockId);
-        let packwellCheck = document.getElementById('returnPackwell' + stockId);
-        
-        let docTypeSelect = document.getElementById('doc_type_' + stockId);
-        let docNumberInput = document.getElementById('doc_number_' + stockId);
-        let hint = document.getElementById('auto_sr_hint_' + stockId);
-
-        let isChecked = (viscorCheck && viscorCheck.checked) || (packwellCheck && packwellCheck.checked);
-
-        if (isChecked) {
-            if(docTypeSelect) { docTypeSelect.disabled = true; }
-            if(docNumberInput) {
-                docNumberInput.readOnly = false;
-                docNumberInput.placeholder = "Enter Viscor SR / Gate Pass...";
-                docNumberInput.value = ""; 
+        document.getElementById('btnApproveTransfer').addEventListener('click', function() {
+            if(activeTransferPayload) {
+                fetch('/api/execute_packwell_transfer', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(activeTransferPayload)
+                }).then(r=>r.json()).then(res => {
+                    if(res.success) {
+                        alert(`Successfully approved transfer! Reel ${res.reel_number} pushed to Viscor Portal.`);
+                        notificationModalInstance.hide();
+                        triggerStockWeightAudit();
+                    } else { alert(res.message); }
+                });
             }
-            if(hint) { hint.style.display = 'none'; }
-        } else {
-            if(docTypeSelect) { docTypeSelect.disabled = false; }
-            if(hint) { hint.style.display = 'block'; }
-            handleDocTypeChange(stockId); 
+        });
+
+        function searchMasterProduct() {
+            const cid = document.getElementById('customer_id').value.trim();
+            const pcode = document.getElementById('product_code').value.trim();
+            
+            fetch(`/api/get_product_info?customer_id=${cid}&product_code=${pcode}`)
+            .then(r=>r.json()).then(data => {
+                if(data.success) {
+                    targetPly = data.ply;
+                    let dims = data.cartoon_size.match(/\d+\.?\d*/g);
+                    globalBoxLength = dims ? parseFloat(dims[0]) : 30;
+                    globalBoxWidth = dims ? parseFloat(dims[1]) : 20;
+
+                    document.getElementById('selectedMetaSummary').style.display = 'block';
+                    document.getElementById('selectedMetaSummary').innerHTML = `<i class="bi bi-info-circle"></i> Loaded Matrix: ${data.customer_name} | Ply: ${data.ply} | Flute: ${data.flute}`;
+                    
+                    let optionsHtml = '';
+                    data.options.forEach(o => {
+                        optionsHtml += `<tr>
+                            <td class="fw-bold text-dark">${o.ups} Ups</td><td>${o.required_size} cm</td><td class="text-primary fw-bold">${o.suggested_reel} cm</td><td>${o.wastage} cm</td>
+                            <td><button class="btn btn-sm btn-primary fw-bold" onclick="selectSuggestedReelOption(${o.suggested_reel}, ${o.ups})">Select Option</button></td>
+                        </tr>`;
+                    });
+                    document.getElementById('suggestedOptionsBody').innerHTML = optionsHtml;
+                    document.getElementById('optionsCardPanel').style.display = 'block';
+                } else { alert(data.message); }
+            });
         }
-    }
 
-    function handleDocTypeChange(stockId) {
-        let typeSelect = document.getElementById('doc_type_' + stockId);
-        let inputField = document.getElementById('doc_number_' + stockId);
-        let container = document.getElementById('doc_number_container_' + stockId);
-        
-        let viscorCheck = document.getElementById('sendViscor' + stockId);
-        let packwellCheck = document.getElementById('returnPackwell' + stockId);
+        function selectSuggestedReelOption(size, ups) {
+            selectedReelSize = size;
+            activePlanSuggestedUps = ups;
+            buildCombinationCustomizerRows();
+        }
 
-        if((viscorCheck && viscorCheck.checked) || (packwellCheck && packwellCheck.checked)) return;
-
-        if(!typeSelect || !inputField) return;
-        
-        if (typeSelect.value === 'Gate Pass') {
-            container.style.display = 'block';
-            inputField.value = '';
-            inputField.placeholder = "Enter Gate Pass number...";
-            inputField.readOnly = false;
-        } else if (typeSelect.value === 'SR') {
-            container.style.display = 'block';
-            autoFillSR('doc_number_' + stockId);
-            inputField.readOnly = true;
-        } 
-    }
-
-    function calculateDynamicTotals() {
-        let fullCount = 0; let fullWeight = 0.0;
-        let fullRows = document.querySelectorAll('.full-reel-row');
-        fullRows.forEach(row => {
-            if (row.style.display !== 'none') {
-                fullCount++;
-                let weight = parseFloat(row.getAttribute('data-weight')) || 0.0;
-                fullWeight += weight;
+        function buildCombinationCustomizerRows() {
+            document.getElementById('combinationConfigurationPanel').style.display = 'block';
+            let html = '';
+            for(let i=1; i<=targetPly; i++) {
+                // New Requirement: GSM as Input, Paper Type as Dropdown, Paper Name as Dropdown
+                html += `
+                <div class="p-2 border rounded mb-2 bg-white layer-row" data-layer="L${i}">
+                    <span class="badge bg-dark mb-1">Layer ${i} Specification</span>
+                    <div class="row g-1">
+                        <div class="col-3">
+                            <input type="number" class="form-control form-control-sm layer-gsm" placeholder="GSM" value="120" oninput="triggerStockWeightAudit()">
+                        </div>
+                        <div class="col-4">
+                            <select class="form-select form-select-sm layer-type" onchange="triggerStockWeightAudit()">
+                                <option value="Virgin">Virgin</option>
+                                <option value="Recycled">Recycled</option>
+                                <option value="Kraft">Kraft</option>
+                                <option value="Testliner">Testliner</option>
+                            </select>
+                        </div>
+                        <div class="col-5">
+                            <select class="form-select form-select-sm layer-name" onchange="triggerStockWeightAudit()">
+                                <option value="Liner(T)">Liner(T)</option>
+                                <option value="Medium (C)">Medium (C)</option>
+                                <option value="Kraft(K)">Kraft(K)</option>
+                                <option value="White(WT)">White(WT)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>`;
             }
-        });
-        document.getElementById('fullReelCount').innerText = fullCount;
-        document.getElementById('fullReelWeight').innerText = fullWeight.toFixed(2);
+            document.getElementById('dynamicComboRowsContainer').innerHTML = html;
+            triggerStockWeightAudit();
+        }
 
-        let usedCount = 0; let usedWeight = 0.0;
-        let usedRows = document.querySelectorAll('.used-reel-row');
-        usedRows.forEach(row => {
-            if (row.style.display !== 'none') {
-                usedCount++;
-                let weight = parseFloat(row.getAttribute('data-weight')) || 0.0;
-                usedWeight += weight;
-            }
-        });
-        document.getElementById('usedReelCount').innerText = usedCount;
-        document.getElementById('usedReelWeight').innerText = usedWeight.toFixed(2);
-    }
-
-    // Dropdown සහ Search input එක එකට වැඩ කිරීමට Update කළ Search Function එක
-    function triggerSmartMultiSearch() {
-        let searchInput = document.getElementById('SearchInput').value.toLowerCase().split(/\s+/).filter(word => word.trim() !== '');
-        let dropdownSelection = document.getElementById('FilteredPaperDropdown').value.toLowerCase();
-        let allRows = document.querySelectorAll('.full-reel-row, .used-reel-row');
-        
-        allRows.forEach(row => {
-            let showRow = true;
-            let cells = row.querySelectorAll('td');
+        function triggerStockWeightAudit() {
+            if(!selectedReelSize) return;
             
-            // Dropdown Filter Check
-            if (dropdownSelection !== '') {
-                let nameText = cells[6] ? cells[6].innerText.toLowerCase().trim() : '';
-                if (nameText !== dropdownSelection) {
-                    showRow = false;
+            let parsedSheetLength = (globalBoxWidth + globalBoxLength) * 2;
+            let currentQty = parseInt(document.getElementById('manual_qty').value) || 0;
+            
+            let materialsArray = [];
+            document.querySelectorAll('.layer-row').forEach(row => {
+                materialsArray.push({ gsm: row.querySelector('.layer-gsm').value, name: row.querySelector('.layer-name').value });
+            });
+
+            fetch('/api/check_stock_detailed', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ size: selectedReelSize, qty: currentQty, sheet_length: parsedSheetLength, materials: materialsArray })
+            }).then(r=>r.json()).then(data => {
+                let html = '';
+                data.results.forEach(res => {
+                    let icon = res.has_stock ? `<span class="tick-icon">&#10004; Passed</span>` : `<span class="cross-icon">&#10008; Short</span>`;
+                    let actionBtn = res.shortage > 0 ? `<button class="btn btn-danger btn-sm fw-bold py-0" onclick="triggerPackwellEmergencyRequest('${res.name}')"><i class="bi bi-bell"></i> Send Req</button>` : `<span class="text-muted">Available</span>`;
+                    
+                    html += `<tr>
+                        <td class="fw-bold">${res.layer}</td>
+                        <td><strong>${res.name}</strong></td>
+                        <td>${res.gsm}</td>
+                        <td>${icon}</td>
+                        <td class="text-primary fw-bold">${res.required_weight} kg</td>
+                        <td class="text-success fw-bold">${res.available_stock} kg</td>
+                        <td><span class="badge ${res.shortage > 0 ? 'bg-danger':'bg-success'}">Availability: ${res.available_stock} kg | Shortage: ${res.shortage} kg</span></td>
+                        <td><span class="no-print">${actionBtn}</span></td>
+                    </tr>`;
+                });
+                document.getElementById('detailedStockBody').innerHTML = html;
+                document.getElementById('stockStatusSummaryPanel').style.display = 'block';
+            });
+        }
+
+        function triggerPackwellEmergencyRequest(paperName) {
+            alert(`Emergency notifications sent to dataop2 and super2 with custom system sound alerts for Paper: ${paperName}.`);
+            socket.emit('send_reel_request_packwell', { size: selectedReelSize, name: paperName });
+        }
+
+        function dispatchSavePlan() {
+            let materialsArray = [];
+            document.querySelectorAll('.layer-row').forEach(row => {
+                // Collect type correctly alongside GSM and name
+                materialsArray.push({ 
+                    gsm: row.querySelector('.layer-gsm').value, 
+                    type: row.querySelector('.layer-type').value, 
+                    name: row.querySelector('.layer-name').value 
+                });
+            });
+
+            const payload = {
+                po_no: document.getElementById('po_no').value.trim(), customer_id: document.getElementById('customer_id').value.trim(),
+                product_code: document.getElementById('product_code').value.trim(), selected_reel_size: selectedReelSize,
+                selected_ups: activePlanSuggestedUps, materials: materialsArray
+            };
+
+            fetch('/api/save_programme_plan', {
+                method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
+            }).then(r=>r.json()).then(res => {
+                if(res.success) { 
+                    alert('Programme Plan Committed Successfully!'); 
+                    renderRuntimePlansTable(); 
+                    // Auto switch to History Tab
+                    document.getElementById('history-tab').click(); 
                 }
-            }
+            });
+        }
+
+        function renderRuntimePlansTable() {
+            const startDate = document.getElementById('filter_start').value;
+            const endDate = document.getElementById('filter_end').value;
+            let queryUrl = '/api/get_saved_plans';
             
-            // Search Input Check
-            if (showRow && searchInput.length > 0) {
-                let firstTerm = searchInput[0];
-                let sizeCell = row.querySelector('.col-size');
+            if(startDate && endDate) {
+                queryUrl += `?start_date=${startDate}&end_date=${endDate}`;
+            }
+
+            fetch(queryUrl).then(r=>r.json()).then(data => {
+                globalPlansData = data; // Assign globally so print job can extract it
+                let html = '';
+                for (const [size, plans] of Object.entries(data)) {
+                    html += `
+                    <div class="card mb-3 border-secondary">
+                        <div class="card-header bg-dark text-white fw-bold">Active Operation Size Band: ${size} cm</div>
+                        <div class="card-body p-0 table-responsive">
+                            <table class="table table-bordered table-sm align-middle text-center mb-0">
+                                <thead class="table-light text-uppercase" style="font-size: 0.85rem;">
+                                    <tr>
+                                        <th>Date & Time</th><th>1. PO No</th><th>2. Customer Name</th><th>3. Sheet Size (Reel &times; Cut Length)</th>
+                                        <th>4. Ply</th><th>5. Combination (GSM | Type | Name)</th><th>6. Qty</th><th>7. Remarks (Component & Flute)</th><th class="no-print">8. Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>`;
+                    
+                    plans.forEach(p => {
+                        // Dynamically render cut length derived from Backend Python Calculation
+                        let sheetSizeCalculatedFormula = `${size} cm &times; <strong>${p.cut_length} cm</strong>`;
+                        let combinationSpecsString = p.materials.map((m,i)=> `L${i+1}: ${m.gsm} - ${m.type || 'N/A'} - ${m.name}`).join('<br>');
+                        
+                        html += `
+                            <tr>
+                                <td class="text-muted" style="font-size: 0.8rem;">${p.created_at}</td>
+                                <td class="fw-bold text-primary">${p.po_no}</td>
+                                <td>${p.customer_name}</td>
+                                <td class="fw-bold bg-light text-danger">${sheetSizeCalculatedFormula}</td>
+                                <td><span class="badge bg-secondary">${p.ply} Ply</span></td>
+                                <td class="text-start ps-2" style="font-size: 0.85rem; font-family: monospace;">${combinationSpecsString}</td>
+                                <td><input type="number" class="form-control form-control-sm mx-auto text-center border-primary fw-bold" style="max-width:90px;" value="1000"></td>
+                                <td class="text-muted" style="font-size:0.85rem;">${p.remarks}</td>
+                                <td class="no-print">
+                                    <button class="btn btn-sm btn-outline-dark fw-bold" onclick="printSinglePlan('${size}', ${p.id})">
+                                        <i class="bi bi-printer"></i> Print
+                                    </button>
+                                </td>
+                            </tr>`;
+                    });
+                    html += `</tbody></table></div></div>`;
+                }
                 
-                if (sizeCell) {
-                    let sizeText = sizeCell.innerText.toLowerCase().trim();
-                    if (!sizeText.includes(firstTerm)) {
-                        showRow = false;
-                    }
+                if(Object.keys(data).length === 0) {
+                    html = '<div class="alert alert-warning text-center m-3">No plans found for the selected time range.</div>';
                 }
+                document.getElementById('savedPlansWrapperContainer').innerHTML = html;
+            });
+        }
 
-                if (showRow && searchInput.length > 1) {
-                    let fullRowText = row.innerText.toLowerCase();
-                    for (let i = 1; i < searchInput.length; i++) {
-                        if (!fullRowText.includes(searchInput[i])) {
-                            showRow = false;
-                            break;
-                        }
-                    }
-                }
-            }
+        // Dedicated Method to Print Selected Individual Row Document
+        function printSinglePlan(size, planId) {
+            let plan = globalPlansData[size].find(p => p.id === planId);
+            if (!plan) return;
+
+            let combinationRows = plan.materials.map((m, i) => `<tr><td>L${i+1}</td><td>${m.gsm} GSM</td><td>${m.type || 'General'}</td><td>${m.name}</td></tr>`).join('');
+
+            let printWindow = window.open('', '_blank', 'width=800,height=600');
+            printWindow.document.write(`
+                <html>
+                <head>
+                    <title>Print Job: ${plan.po_no}</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; padding: 20px; color: #000; }
+                        .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; }
+                        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px; }
+                        th, td { border: 1px solid #000; padding: 10px; text-align: left; }
+                        th { background-color: #f2f2f2; }
+                        .title-row th { background-color: #000; color: #fff; text-align: center; font-size: 16px; }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h2>Programme Plan Ticket</h2>
+                        <p><strong>PO Number:</strong> ${plan.po_no} | <strong>Date:</strong> ${plan.created_at}</p>
+                    </div>
+                    <table>
+                        <tr class="title-row"><th colspan="2">Order Details</th></tr>
+                        <tr><th>Customer Name</th><td>${plan.customer_name}</td></tr>
+                        <tr><th>Product Code</th><td>${plan.product_code}</td></tr>
+                        <tr><th>Ply Configuration</th><td>${plan.ply} Ply</td></tr>
+                        <tr><th>Sheet Size</th><td><strong>${size} cm &times; ${plan.cut_length} cm</strong></td></tr>
+                        <tr><th>Ups Factor</th><td>${plan.ups} Ups</td></tr>
+                        <tr><th>Remarks / Flute</th><td>${plan.remarks}</td></tr>
+                    </table>
+                    <table>
+                        <tr class="title-row"><th colspan="4">Combination Configuration Matrix</th></tr>
+                        <tr><th>Layer Identifier</th><th>GSM Specs</th><th>Paper Type</th><th>Paper Name Designation</th></tr>
+                        ${combinationRows}
+                    </table>
+                    <script>
+                        setTimeout(() => {
+                            window.print();
+                            window.close();
+                        }, 500);
+                    <\/script>
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+        }
+
+        document.addEventListener("DOMContentLoaded", function() {
+            // Set default date range to today for easy quick-filtering optionally
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('filter_start').value = today;
+            document.getElementById('filter_end').value = today;
             
-            row.style.display = showRow ? '' : 'none';
+            renderRuntimePlansTable();
         });
-        
-        calculateDynamicTotals();
-    }
-
-    document.getElementById('SearchInput').addEventListener('input', triggerSmartMultiSearch);
-
-    document.addEventListener("DOMContentLoaded", function() {
-        populateFilteredPaperNames(); // Page එක Load වනවිට Drop Down එක පිරවීම 
-        calculateDynamicTotals();
-    });
     </script>
 </body>
 </html>
