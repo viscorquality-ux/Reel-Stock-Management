@@ -40,79 +40,103 @@
 
     <div class="container-fluid px-4">
         
-        <div class="row mt-3 no-print">
-            <div class="col-xl-4 col-md-5">
-                <div class="card shadow mb-4">
-                    <div class="card-header bg-primary text-white fw-bold"><i class="bi bi-search"></i> Initialize Planning Sheet</div>
-                    <div class="card-body">
-                        <div class="mb-3"><label class="form-label fw-bold">PO Number Identity String</label><input type="text" id="po_no" class="form-control" placeholder="e.g. PO-7719"></div>
-                        <div class="mb-3"><label class="form-label fw-bold">Customer Reference ID</label><input type="text" id="customer_id" class="form-control" placeholder="e.g. CUST-102"></div>
-                        <div class="mb-3"><label class="form-label fw-bold">Product Match Code</label><input type="text" id="product_code" class="form-control" placeholder="e.g. PROD-550"></div>
-                        <button class="btn btn-success w-100 fw-bold" onclick="searchMasterProduct()"><i class="bi bi-arrow-right-circle"></i> Load Specification Matrix</button>
-                        
-                        <div id="selectedMetaSummary" class="mt-3 p-2 bg-light border text-primary fw-bold text-center rounded" style="display:none;"></div>
-                    </div>
-                </div>
+        <!-- Add Nav Tabs for Planning and History segregation -->
+        <ul class="nav nav-tabs no-print mb-4 bg-white px-3 pt-3 rounded-top border shadow-sm" id="mainTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active fw-bold text-primary" id="planning-tab" data-bs-toggle="tab" data-bs-target="#planning" type="button" role="tab" aria-selected="true">
+                    <i class="bi bi-pencil-square"></i> New Programme Plan
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link fw-bold text-dark" id="history-tab" data-bs-toggle="tab" data-bs-target="#history" type="button" role="tab" aria-selected="false">
+                    <i class="bi bi-clock-history"></i> Plan History
+                </button>
+            </li>
+        </ul>
 
-                <div class="card shadow mb-4" id="combinationConfigurationPanel" style="display:none;">
-                    <div class="card-header bg-info text-white fw-bold"><i class="bi bi-sliders"></i> Combination Layer Customizer</div>
-                    <div class="card-body">
-                        <div class="alert alert-light border mb-3">
-                            <small class="text-muted d-block"><strong>L1:</strong> Top Layer | <strong>L2:</strong> Corrugated Layer | <strong>L3:</strong> Bottom Layer</small>
-                        </div>
-                        <div id="dynamicComboRowsContainer"></div>
-                        
-                        <div class="mb-3 mt-3">
-                            <label class="form-label fw-bold text-danger">Manual Target Output Qty (Pcs):</label>
-                            <input type="number" id="manual_qty" class="form-control border-danger fw-bold" value="1000" oninput="triggerStockWeightAudit()">
-                        </div>
-                        <button class="btn btn-primary w-100 fw-bold shadow-sm" onclick="dispatchSavePlan()"><i class="bi bi-save"></i> Save Finished Programme Plan</button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-xl-8 col-md-7">
-                <div class="card shadow mb-4" id="optionsCardPanel" style="display:none;">
-                    <div class="card-header bg-secondary text-white fw-bold"><i class="bi bi-grid-3x3-gap"></i> Corrugator Step Selection Options</div>
-                    <div class="card-body p-0">
-                        <table class="table table-bordered text-center align-middle mb-0">
-                            <thead class="table-dark"><tr><th>Ups Factor</th><th>Required Dimension</th><th>Suggested Standard Reel</th><th>Expected Wastage</th><th>Action</th></tr></thead>
-                            <tbody id="suggestedOptionsBody"></tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <div class="card shadow mb-4" id="stockStatusSummaryPanel" style="display:none;">
-                    <div class="card-header bg-dark text-white fw-bold"><i class="bi bi-shield-check"></i> Active Stock Availability & Weight Analytics Dashboard</div>
-                    <div class="card-body p-0">
-                        <div class="table-responsive">
-                            <table class="table table-striped align-middle mb-0 text-center">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>Layer Target</th><th>Paper Name Designation</th><th>GSM Spec</th><th>Stock Match Status</th><th>Needed Weight (kg)</th><th>Warehouse Balance (kg)</th><th>Shortage Status</th><th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="detailedStockBody"></tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="card shadow mb-5">
-            <div class="card-header bg-gradient bg-secondary text-white fw-bold py-3 d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-list-stars"></i> Active Reel-Size Specific Programme Planning Dashboard Table View</span>
-                
-                <div class="d-flex gap-2 no-print">
-                    <input type="date" id="filter_start" class="form-control form-control-sm">
-                    <input type="date" id="filter_end" class="form-control form-control-sm">
-                    <button class="btn btn-sm btn-dark fw-bold text-nowrap" onclick="renderRuntimePlansTable()"><i class="bi bi-search"></i> Filter</button>
-                    <button class="btn btn-sm btn-light fw-bold text-dark text-nowrap" onclick="window.print()"><i class="bi bi-printer-fill"></i> Print / Save PDF</button>
-                </div>
-            </div>
+        <div class="tab-content" id="mainTabsContent">
             
-            <div id="savedPlansWrapperContainer"></div>
+            <!-- Tab 1: Configuration Panel -->
+            <div class="tab-pane fade show active" id="planning" role="tabpanel" aria-labelledby="planning-tab">
+                <div class="row mt-3 no-print">
+                    <div class="col-xl-4 col-md-5">
+                        <div class="card shadow mb-4">
+                            <div class="card-header bg-primary text-white fw-bold"><i class="bi bi-search"></i> Initialize Planning Sheet</div>
+                            <div class="card-body">
+                                <div class="mb-3"><label class="form-label fw-bold">PO Number Identity String</label><input type="text" id="po_no" class="form-control" placeholder="e.g. PO-7719"></div>
+                                <div class="mb-3"><label class="form-label fw-bold">Customer Reference ID</label><input type="text" id="customer_id" class="form-control" placeholder="e.g. CUST-102"></div>
+                                <div class="mb-3"><label class="form-label fw-bold">Product Match Code</label><input type="text" id="product_code" class="form-control" placeholder="e.g. PROD-550"></div>
+                                <button class="btn btn-success w-100 fw-bold" onclick="searchMasterProduct()"><i class="bi bi-arrow-right-circle"></i> Load Specification Matrix</button>
+                                
+                                <div id="selectedMetaSummary" class="mt-3 p-2 bg-light border text-primary fw-bold text-center rounded" style="display:none;"></div>
+                            </div>
+                        </div>
+
+                        <div class="card shadow mb-4" id="combinationConfigurationPanel" style="display:none;">
+                            <div class="card-header bg-info text-white fw-bold"><i class="bi bi-sliders"></i> Combination Layer Customizer</div>
+                            <div class="card-body">
+                                <div class="alert alert-light border mb-3">
+                                    <small class="text-muted d-block"><strong>L1:</strong> Top Layer | <strong>L2:</strong> Corrugated Layer | <strong>L3:</strong> Bottom Layer</small>
+                                </div>
+                                <div id="dynamicComboRowsContainer"></div>
+                                
+                                <div class="mb-3 mt-3">
+                                    <label class="form-label fw-bold text-danger">Manual Target Output Qty (Pcs):</label>
+                                    <input type="number" id="manual_qty" class="form-control border-danger fw-bold" value="1000" oninput="triggerStockWeightAudit()">
+                                </div>
+                                <button class="btn btn-primary w-100 fw-bold shadow-sm" onclick="dispatchSavePlan()"><i class="bi bi-save"></i> Save Finished Programme Plan</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-xl-8 col-md-7">
+                        <div class="card shadow mb-4" id="optionsCardPanel" style="display:none;">
+                            <div class="card-header bg-secondary text-white fw-bold"><i class="bi bi-grid-3x3-gap"></i> Corrugator Step Selection Options</div>
+                            <div class="card-body p-0">
+                                <table class="table table-bordered text-center align-middle mb-0">
+                                    <thead class="table-dark"><tr><th>Ups Factor</th><th>Required Dimension</th><th>Suggested Standard Reel</th><th>Expected Wastage</th><th>Action</th></tr></thead>
+                                    <tbody id="suggestedOptionsBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="card shadow mb-4" id="stockStatusSummaryPanel" style="display:none;">
+                            <div class="card-header bg-dark text-white fw-bold"><i class="bi bi-shield-check"></i> Active Stock Availability & Weight Analytics Dashboard</div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-striped align-middle mb-0 text-center">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Layer Target</th><th>Paper Name Designation</th><th>GSM Spec</th><th>Stock Match Status</th><th>Needed Weight (kg)</th><th>Warehouse Balance (kg)</th><th>Shortage Status</th><th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="detailedStockBody"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 2: History Mini Tab -->
+            <div class="tab-pane fade" id="history" role="tabpanel" aria-labelledby="history-tab">
+                <div class="card shadow mb-5">
+                    <div class="card-header bg-gradient bg-secondary text-white fw-bold py-3 d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-list-stars"></i> Active Reel-Size Specific Programme Planning Dashboard Table View</span>
+                        
+                        <div class="d-flex gap-2 no-print">
+                            <input type="date" id="filter_start" class="form-control form-control-sm">
+                            <input type="date" id="filter_end" class="form-control form-control-sm">
+                            <button class="btn btn-sm btn-dark fw-bold text-nowrap" onclick="renderRuntimePlansTable()"><i class="bi bi-search"></i> Filter</button>
+                            <!-- General PDF Print Option retains -->
+                            <button class="btn btn-sm btn-light fw-bold text-dark text-nowrap" onclick="window.print()"><i class="bi bi-printer-fill"></i> Print / Save PDF</button>
+                        </div>
+                    </div>
+                    
+                    <div id="savedPlansWrapperContainer"></div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -141,7 +165,7 @@
         let globalBoxLength = 0;
         let globalBoxWidth = 0;
         let activePlanSuggestedUps = 1;
-        let availableMasterPapers = [];
+        let globalPlansData = {}; // Stores retrieved history plans for individual printing
         const currentRole = document.getElementById('loggedRole').innerText.trim().toLowerCase();
         let activeTransferPayload = null;
         let notificationModalInstance = new bootstrap.Modal(document.getElementById('incomingRequestModal'));
@@ -208,12 +232,23 @@
             document.getElementById('combinationConfigurationPanel').style.display = 'block';
             let html = '';
             for(let i=1; i<=targetPly; i++) {
+                // New Requirement: GSM as Input, Paper Type as Dropdown, Paper Name as Dropdown
                 html += `
                 <div class="p-2 border rounded mb-2 bg-white layer-row" data-layer="L${i}">
                     <span class="badge bg-dark mb-1">Layer ${i} Specification</span>
                     <div class="row g-1">
-                        <div class="col-4"><input type="number" class="form-control form-control-sm layer-gsm" placeholder="GSM" value="120" oninput="triggerStockWeightAudit()"></div>
-                        <div class="col-8">
+                        <div class="col-3">
+                            <input type="number" class="form-control form-control-sm layer-gsm" placeholder="GSM" value="120" oninput="triggerStockWeightAudit()">
+                        </div>
+                        <div class="col-4">
+                            <select class="form-select form-select-sm layer-type" onchange="triggerStockWeightAudit()">
+                                <option value="Virgin">Virgin</option>
+                                <option value="Recycled">Recycled</option>
+                                <option value="Kraft">Kraft</option>
+                                <option value="Testliner">Testliner</option>
+                            </select>
+                        </div>
+                        <div class="col-5">
                             <select class="form-select form-select-sm layer-name" onchange="triggerStockWeightAudit()">
                                 <option value="Liner(T)">Liner(T)</option>
                                 <option value="Medium (C)">Medium (C)</option>
@@ -272,7 +307,12 @@
         function dispatchSavePlan() {
             let materialsArray = [];
             document.querySelectorAll('.layer-row').forEach(row => {
-                materialsArray.push({ gsm: row.querySelector('.layer-gsm').value, name: row.querySelector('.layer-name').value, type: 'General' });
+                // Collect type correctly alongside GSM and name
+                materialsArray.push({ 
+                    gsm: row.querySelector('.layer-gsm').value, 
+                    type: row.querySelector('.layer-type').value, 
+                    name: row.querySelector('.layer-name').value 
+                });
             });
 
             const payload = {
@@ -284,11 +324,15 @@
             fetch('/api/save_programme_plan', {
                 method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
             }).then(r=>r.json()).then(res => {
-                if(res.success) { alert('Programme Plan Committed Successfully!'); renderRuntimePlansTable(); }
+                if(res.success) { 
+                    alert('Programme Plan Committed Successfully!'); 
+                    renderRuntimePlansTable(); 
+                    // Auto switch to History Tab
+                    document.getElementById('history-tab').click(); 
+                }
             });
         }
 
-        // UPDATE: History filter logic added to renderRuntimePlansTable
         function renderRuntimePlansTable() {
             const startDate = document.getElementById('filter_start').value;
             const endDate = document.getElementById('filter_end').value;
@@ -299,6 +343,7 @@
             }
 
             fetch(queryUrl).then(r=>r.json()).then(data => {
+                globalPlansData = data; // Assign globally so print job can extract it
                 let html = '';
                 for (const [size, plans] of Object.entries(data)) {
                     html += `
@@ -308,15 +353,16 @@
                             <table class="table table-bordered table-sm align-middle text-center mb-0">
                                 <thead class="table-light text-uppercase" style="font-size: 0.85rem;">
                                     <tr>
-                                        <th>Date & Time</th><th>1. PO No</th><th>2. Customer Name</th><th>3. Sheet Size (Reel * ((W+L)*2))</th>
-                                        <th>4. Ply</th><th>5. Combination (GSM, Name)</th><th>6. Qty (Manual Input)</th><th>7. Remarks (Component & Flute)</th>
+                                        <th>Date & Time</th><th>1. PO No</th><th>2. Customer Name</th><th>3. Sheet Size (Reel &times; Cut Length)</th>
+                                        <th>4. Ply</th><th>5. Combination (GSM | Type | Name)</th><th>6. Qty</th><th>7. Remarks (Component & Flute)</th><th class="no-print">8. Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>`;
                     
                     plans.forEach(p => {
-                        let sheetSizeCalculatedFormula = `${size} cm &times; [Cut length]`;
-                        let combinationSpecsString = p.materials.map((m,i)=> `L${i+1}: ${m.gsm} - ${m.name}`).join('<br>');
+                        // Dynamically render cut length derived from Backend Python Calculation
+                        let sheetSizeCalculatedFormula = `${size} cm &times; <strong>${p.cut_length} cm</strong>`;
+                        let combinationSpecsString = p.materials.map((m,i)=> `L${i+1}: ${m.gsm} - ${m.type || 'N/A'} - ${m.name}`).join('<br>');
                         
                         html += `
                             <tr>
@@ -328,6 +374,11 @@
                                 <td class="text-start ps-2" style="font-size: 0.85rem; font-family: monospace;">${combinationSpecsString}</td>
                                 <td><input type="number" class="form-control form-control-sm mx-auto text-center border-primary fw-bold" style="max-width:90px;" value="1000"></td>
                                 <td class="text-muted" style="font-size:0.85rem;">${p.remarks}</td>
+                                <td class="no-print">
+                                    <button class="btn btn-sm btn-outline-dark fw-bold" onclick="printSinglePlan('${size}', ${p.id})">
+                                        <i class="bi bi-printer"></i> Print
+                                    </button>
+                                </td>
                             </tr>`;
                     });
                     html += `</tbody></table></div></div>`;
@@ -338,6 +389,58 @@
                 }
                 document.getElementById('savedPlansWrapperContainer').innerHTML = html;
             });
+        }
+
+        // Dedicated Method to Print Selected Individual Row Document
+        function printSinglePlan(size, planId) {
+            let plan = globalPlansData[size].find(p => p.id === planId);
+            if (!plan) return;
+
+            let combinationRows = plan.materials.map((m, i) => `<tr><td>L${i+1}</td><td>${m.gsm} GSM</td><td>${m.type || 'General'}</td><td>${m.name}</td></tr>`).join('');
+
+            let printWindow = window.open('', '_blank', 'width=800,height=600');
+            printWindow.document.write(`
+                <html>
+                <head>
+                    <title>Print Job: ${plan.po_no}</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; padding: 20px; color: #000; }
+                        .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; }
+                        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px; }
+                        th, td { border: 1px solid #000; padding: 10px; text-align: left; }
+                        th { background-color: #f2f2f2; }
+                        .title-row th { background-color: #000; color: #fff; text-align: center; font-size: 16px; }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h2>Programme Plan Ticket</h2>
+                        <p><strong>PO Number:</strong> ${plan.po_no} | <strong>Date:</strong> ${plan.created_at}</p>
+                    </div>
+                    <table>
+                        <tr class="title-row"><th colspan="2">Order Details</th></tr>
+                        <tr><th>Customer Name</th><td>${plan.customer_name}</td></tr>
+                        <tr><th>Product Code</th><td>${plan.product_code}</td></tr>
+                        <tr><th>Ply Configuration</th><td>${plan.ply} Ply</td></tr>
+                        <tr><th>Sheet Size</th><td><strong>${size} cm &times; ${plan.cut_length} cm</strong></td></tr>
+                        <tr><th>Ups Factor</th><td>${plan.ups} Ups</td></tr>
+                        <tr><th>Remarks / Flute</th><td>${plan.remarks}</td></tr>
+                    </table>
+                    <table>
+                        <tr class="title-row"><th colspan="4">Combination Configuration Matrix</th></tr>
+                        <tr><th>Layer Identifier</th><th>GSM Specs</th><th>Paper Type</th><th>Paper Name Designation</th></tr>
+                        ${combinationRows}
+                    </table>
+                    <script>
+                        setTimeout(() => {
+                            window.print();
+                            window.close();
+                        }, 500);
+                    <\/script>
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
         }
 
         document.addEventListener("DOMContentLoaded", function() {
