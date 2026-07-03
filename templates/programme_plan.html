@@ -2,286 +2,379 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Programme Plan</title>
+    <title>Advanced Programme Planning & Stock Matrix</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <style>
-        /* Print Styles */
-        @media print {
-            body * { visibility: hidden; }
-            .print-area, .print-area * { visibility: visible; }
-            .print-area { position: absolute; left: 0; top: 0; width: 100%; }
-            .no-print { display: none !important; }
-        }
+        .table-active-panel { background: #ffffff; border-radius: 8px; padding: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .tick-icon { color: #28a745; font-size: 1.3rem; font-weight: bold; }
+        .cross-icon { color: #dc3545; font-size: 1.3rem; font-weight: bold; }
+        @media print { .no-print { display: none !important; } }
     </style>
 </head>
 <body class="bg-light">
-    <audio id="notifySound" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
+    <!-- Web Audio API sound file block definition -->
+    <audio id="alertSound" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
 
-    <nav class="navbar navbar-dark bg-dark mb-4 no-print">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4 no-print">
         <div class="container-fluid">
-            <span class="navbar-brand mb-0 h1">Programme Planning</span>
+            <span class="navbar-brand fw-bold"><i class="bi bi-cpu-fill text-warning"></i> Viscor & Packwell - Programme Planning Core</span>
             <div>
-                <span class="text-warning me-3">Role: <span id="currentRole">{{ user_role }}</span></span>
+                <span class="text-white-50 me-3">Logged Role: <strong class="text-warning" id="loggedRole">{{ user_role }}</strong></span>
                 <a href="/dashboard" class="btn btn-outline-light btn-sm">Dashboard</a>
             </div>
         </div>
     </nav>
 
-    <div class="container no-print">
+    <div class="container-fluid px-4">
+        
+        <!-- SECTION 1: CUSTOMER PRODUCT TABLE VIEW & INLINE EDITING ENGINE -->
         <div class="card shadow mb-4">
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-3"><input type="text" id="po_no" class="form-control" placeholder="PO No *"></div>
-                    <div class="col-md-3"><input type="text" id="customer_id" class="form-control" placeholder="Customer ID *"></div>
-                    <div class="col-md-3"><input type="text" id="product_code" class="form-control" placeholder="Product Code *"></div>
-                    <div class="col-md-3"><button class="btn btn-success w-100" onclick="fetchProduct()">Search</button></div>
+            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-table"></i> Customer Products Base Registry</h5>
+                <small class="text-warning">* Click Edit button to modify master specs directly</small>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover align-middle mb-0 text-center" id="masterProductsTable">
+                        <thead class="table-secondary">
+                            <tr>
+                                <th>Cust ID</th><th>Customer Name</th><th>Product Code</th><th>Product Name</th>
+                                <th>Box Dimensions</th><th>Position</th><th>Flute Type</th><th>Ply</th><th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="masterProductsBody">
+                            <!-- Populated Dynamically via JavaScript -->
+                        </tbody>
+                    </table>
                 </div>
-                <div id="productDetails" class="mt-3 text-primary fw-bold" style="display:none;"></div>
-                <table class="table table-bordered mt-3" id="optionsTable" style="display:none;">
-                    <thead class="table-dark"><tr><th>Ups</th><th>Required</th><th>Suggested Reel</th><th>Wastage</th><th>Action</th></tr></thead>
-                    <tbody id="optionsBody"></tbody>
-                </table>
             </div>
         </div>
 
-        <div class="card shadow mb-4" id="comboSection" style="display:none;">
-            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Paper Combination (<span id="plyCount"></span> Ply) - Reel: <span id="selectedReelTxt"></span>cm</h5>
+        <!-- SECTION 2: PROGRAMME GENERATION FORM -->
+        <div class="row">
+            <div class="col-xl-4 col-md-5">
+                <div class="card shadow mb-4">
+                    <div class="card-header bg-primary text-white fw-bold"><i class="bi bi-search"></i> Initialize Planning Sheet</div>
+                    <div class="card-body">
+                        <div class="mb-3"><label class="form-label fw-bold">PO Number Identity String</label><input type="text" id="po_no" class="form-control" placeholder="e.g. PO-7719"></div>
+                        <div class="mb-3"><label class="form-label fw-bold">Customer Reference ID</label><input type="text" id="customer_id" class="form-control" placeholder="e.g. CUST-102"></div>
+                        <div class="mb-3"><label class="form-label fw-bold">Product Match Code</label><input type="text" id="product_code" class="form-control" placeholder="e.g. PROD-550"></div>
+                        <button class="btn btn-success w-100 fw-bold" onclick="searchMasterProduct()"><i class="bi bi-arrow-right-circle"></i> Load Specification Matrix</button>
+                        
+                        <div id="selectedMetaSummary" class="mt-3 p-2 bg-light border text-primary fw-bold text-center rounded" style="display:none;"></div>
+                    </div>
+                </div>
+
+                <!-- DYNAMIC COMBINATION MANAGEMENT MATRIX PANEL -->
+                <div class="card shadow mb-4" id="combinationConfigurationPanel" style="display:none;">
+                    <div class="card-header bg-info text-white fw-bold"><i class="bi bi-sliders"></i> Combination Layer Customizer</div>
+                    <div class="card-body">
+                        <div class="alert alert-light border mb-3">
+                            <small class="text-muted d-block"><strong>L1:</strong> Top Layer | <strong>L2:</strong> Corrugated Layer | <strong>L3:</strong> Bottom Layer</small>
+                        </div>
+                        <div id="dynamicComboRowsContainer"></div>
+                        
+                        <div class="mb-3 mt-3">
+                            <label class="form-label fw-bold text-danger">Manual Target Output Qty (Pcs):</label>
+                            <input type="number" id="manual_qty" class="form-control border-danger fw-bold" value="1000" oninput="triggerStockWeightAudit()">
+                        </div>
+                        <button class="btn btn-primary w-100 fw-bold shadow-sm" onclick="dispatchSavePlan()"><i class="bi bi-save"></i> Save Finished Programme Plan</button>
+                    </div>
+                </div>
             </div>
-            <div class="card-body">
-                <div id="combinationRows"></div>
-                <!-- Fix: Save Button -->
-                <button class="btn btn-primary mt-3 w-100" onclick="savePlan()">Save Programme Plan</button>
+
+            <!-- SECTION 3: SPECIFIC SUGGESTED REEL SIZE MATRIX -->
+            <div class="col-xl-8 col-md-7">
+                <div class="card shadow mb-4" id="optionsCardPanel" style="display:none;">
+                    <div class="card-header bg-secondary text-white fw-bold"><i class="bi bi-grid-3x3-gap"></i> Corrugator Step Selection Options</div>
+                    <div class="card-body p-0">
+                        <table class="table table-bordered text-center align-middle mb-0">
+                            <thead class="table-dark"><tr><th>Ups Factor</th><th>Required Dimension</th><th>Suggested Standard Reel</th><th>Expected Wastage</th><th>Action</th></tr></thead>
+                            <tbody id="suggestedOptionsBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- REEL LOGISTICS ANALYSIS SCOREBOARD PANEL -->
+                <div class="card shadow mb-4" id="stockStatusSummaryPanel" style="display:none;">
+                    <div class="card-header bg-dark text-white fw-bold"><i class="bi bi-shield-check"></i> Active Stock Availability & Weight Analytics Dashboard</div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-striped align-middle mb-0 text-center">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Layer Target</th><th>Paper Name Designation</th><th>GSM Spec</th><th>Stock Match Status</th><th>Needed Weight (kg)</th><th>Warehouse Balance (kg)</th><th>Shortage Status</th><th>Actions</th>
+                                    </tr>
+                                </thead>
+                                id <tbody id="detailedStockBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <div class="alert alert-warning" id="waitingAlert" style="display:none;">
-            ⏳ Waiting for DataOp1 / Super1 to approve the Reel Request...
+        <!-- SECTION 4: PROGRAMME PLANNING RUNTIME TRACKING OVERVIEW TABLE -->
+        <div class="card shadow mb-5">
+            <div class="card-header bg-gradient bg-secondary text-white fw-bold py-3"><i class="bi bi-list-stars"></i> Active Reel-Size Specific Programme Planning Dashboard Table View</div>
+            <div id="savedPlansWrapperContainer"></div>
         </div>
     </div>
 
-    <div class="container mt-5" id="savedPlansContainer"></div>
+    <!-- REEL REQUEST INCOMING NOTIFICATION MODAL (Sound alerts targeted here) -->
+    <div class="modal fade" id="incomingRequestModal" data-bs-backdrop="static" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-danger border-3">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-exclamation-octagon-fill"></i> CRITICAL REEL REQUEST INCOMING ALERT!</h5>
+                </div>
+                <div class="modal-body text-center">
+                    <p class="fs-5 text-dark" id="modalAlertMessage"></p>
+                    <div class="spinner-grow text-danger my-2" role="status"></div>
+                </div>
+                <div class="modal-footer justify-content-center">
+                    <button type="button" class="btn btn-success fw-bold px-4 fs-6" id="btnApproveTransfer"><i class="bi bi-check-circle"></i> Approve Auto-Verification Transfer</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         const socket = io();
-        let currentPly = 0;
-        let selectedSize = 0;
-        let activePapers = [];
-        const userRole = document.getElementById('currentRole').innerText.trim().toLowerCase();
+        let targetPly = 3;
+        let selectedReelSize = 0;
+        let globalBoxLength = 0;
+        let globalBoxWidth = 0;
+        let activePlanSuggestedUps = 1;
+        let availableMasterPapers = [];
+        const currentRole = document.getElementById('loggedRole').innerText.trim().toLowerCase();
+        let activeTransferPayload = null;
+        let notificationModalInstance = new bootstrap.Modal(document.getElementById('incomingRequestModal'));
 
-        socket.on('receive_reel_notification', function(data) {
-            document.getElementById('notifySound').play().catch(()=>{});
-            
-            if(data.type === 'request' && (userRole === 'dataop1' || userRole === 'super1' || userRole === 'admin')) {
-                if(confirm(data.message + "\nClick OK to Approve this request.")){
-                    socket.emit('approve_reel_request', {size: data.size});
-                }
-            } else if (data.type === 'approve') {
-                alert(data.message);
-                if(parseFloat(data.size) === selectedSize) {
-                    document.getElementById('waitingAlert').style.display = 'none';
-                    buildCombinationRows();
-                }
+        // Listen for standard background events
+        socket.on('receive_packwell_alert', function(data) {
+            document.getElementById('alertSound').play().catch(()=>{});
+            if(currentRole === 'dataop2' || currentRole === 'super2' || currentRole === 'admin') {
+                activeTransferPayload = data;
+                document.getElementById('modalAlertMessage').innerHTML = `Packwell Active Stock Request Initiated!<br><strong>Reel Size:</strong> ${data.size}cm<br><strong>Paper:</strong> ${data.name}<br><br>Click authorization below to transfer to Viscor Return Verification registry.`;
+                notificationModalInstance.show();
             }
         });
 
-        function fetchProduct() {
-            const poNo = document.getElementById('po_no').value.trim();
+        document.getElementById('btnApproveTransfer').addEventListener('click', function() {
+            if(activeTransferPayload) {
+                fetch('/api/execute_packwell_transfer', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(activeTransferPayload)
+                }).then(r=>r.json()).then(res => {
+                    if(res.success) {
+                        alert(`Successfully approved transfer! Reel ${res.reel_number} pushed to Viscor Portal.`);
+                        notificationModalInstance.hide();
+                        triggerStockWeightAudit();
+                    } else { alert(res.message); }
+                });
+            }
+        });
+
+        // Initialize Product Configurations Registry View
+        function loadProductsMasterRegistry() {
+            fetch('/api/get_products').then(r=>r.json()).then(data => {
+                let html = '';
+                data.forEach(p => {
+                    html += `<tr>
+                        <td><input type="text" class="form-control form-control-sm text-center" id="c_id_${p.id}" value="${p.customer_id}"></td>
+                        <td><input type="text" class="form-control form-control-sm text-center" id="c_nam_${p.id}" value="${p.customer_name}"></td>
+                        <td><input type="text" class="form-control form-control-sm text-center text-primary fw-bold" id="p_cod_${p.id}" value="${p.product_code}"></td>
+                        <td><input type="text" class="form-control form-control-sm text-center" id="p_nam_${p.id}" value="${p.product_name}"></td>
+                        <td><input type="text" class="form-control form-control-sm text-center" id="c_siz_${p.id}" value="${p.cartoon_size}"></td>
+                        <td><input type="text" class="form-control form-control-sm text-center" id="pos_${p.id}" value="${p.position}"></td>
+                        <td><input type="text" class="form-control form-control-sm text-center" id="flu_${p.id}" value="${p.flute}"></td>
+                        <td><input type="number" class="form-control form-control-sm text-center" id="ply_${p.id}" value="${p.ply}"></td>
+                        <td><button class="btn btn-sm btn-warning fw-bold px-2 py-0" onclick="saveProductRowInline(${p.id})"><i class="bi bi-save"></i> Edit</button></td>
+                    </tr>`;
+                });
+                document.getElementById('masterProductsBody').innerHTML = html;
+            });
+        }
+
+        function saveProductRowInline(id) {
+            const payload = {
+                id: id, customer_id: document.getElementById(`c_id_${id}`).value, customer_name: document.getElementById(`c_nam_${id}`).value,
+                product_code: document.getElementById(`p_cod_${id}`).value, product_name: document.getElementById(`p_nam_${id}`).value,
+                cartoon_size: document.getElementById(`c_siz_${id}`).value, position: document.getElementById(`pos_${id}`).value,
+                flute: document.getElementById(`flu_${id}`).value, ply: document.getElementById(`ply_${id}`).value
+            };
+            fetch('/api/update_product', {
+                method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
+            }).then(r=>r.json()).then(res => { if(res.success) alert('Product master record updated successfully.'); else alert(res.message); });
+        }
+
+        function searchMasterProduct() {
             const cid = document.getElementById('customer_id').value.trim();
             const pcode = document.getElementById('product_code').value.trim();
             
             fetch(`/api/get_product_info?customer_id=${cid}&product_code=${pcode}`)
-            .then(response => response.json())
-            .then(data => {
+            .then(r=>r.json()).then(data => {
                 if(data.success) {
-                    currentPly = data.ply;
-                    document.getElementById('productDetails').style.display = 'block';
-                    document.getElementById('productDetails').innerHTML = `${data.customer_name} | ${data.product_name} | Size: ${data.cartoon_size} | Ply: ${data.ply}`;
+                    targetPly = data.ply;
+                    let dims = data.cartoon_size.match(/\d+\.?\d*/g);
+                    globalBoxLength = dims ? parseFloat(dims[0]) : 30;
+                    globalBoxWidth = dims ? parseFloat(dims[1]) : 20;
+
+                    document.getElementById('selectedMetaSummary').style.display = 'block';
+                    document.getElementById('selectedMetaSummary').innerHTML = `<i class="bi bi-info-circle"></i> Loaded Matrix: ${data.customer_name} | Ply: ${data.ply} | Flute: ${data.flute}`;
                     
-                    const tbody = document.getElementById('optionsBody');
-                    tbody.innerHTML = '';
-                    data.options.forEach(opt => {
-                        tbody.innerHTML += `<tr>
-                            <td>${opt.ups}</td><td>${opt.required_size}</td><td>${opt.suggested_reel}</td><td>${opt.wastage}</td>
-                            <td><button class="btn btn-sm btn-primary" onclick="selectOption(${opt.suggested_reel}, ${opt.ups})">Select</button></td>
+                    let optionsHtml = '';
+                    data.options.forEach(o => {
+                        optionsHtml += `<tr>
+                            <td class="fw-bold text-dark">${o.ups} Ups</td><td>${o.required_size} cm</td><td class="text-primary fw-bold">${o.suggested_reel} cm</td><td>${o.wastage} cm</td>
+                            <td><button class="btn btn-sm btn-primary fw-bold" onclick="selectSuggestedReelOption(${o.suggested_reel}, ${o.ups})">Select Option</button></td>
                         </tr>`;
                     });
-                    document.getElementById('optionsTable').style.display = 'table';
-                } else { 
-                    alert(data.message); 
-                }
-            }).catch(err => console.error("Error fetching product:", err));
-        }
-
-        function selectOption(size, ups) {
-            selectedSize = size;
-            document.getElementById('selectedReelTxt').innerText = size;
-            document.getElementById('plyCount').innerText = currentPly;
-            window.selectedUps = ups;
-
-            fetch('/api/check_stock', {
-                method: 'POST', 
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({size: size})
-            }).then(r=>r.json()).then(data => {
-                activePapers = data.papers; 
-                if(data.in_stock) {
-                    buildCombinationRows();
-                } else {
-                    if(confirm(`Reel Size ${size}cm is OUT OF STOCK. Send request to DataOp1/Super1?`)) {
-                        document.getElementById('comboSection').style.display = 'none';
-                        document.getElementById('waitingAlert').style.display = 'block';
-                        socket.emit('request_reel_approval', {size: size});
-                    }
-                }
+                    document.getElementById('suggestedOptionsBody').innerHTML = optionsHtml;
+                    document.getElementById('optionsCardPanel').style.display = 'block';
+                } else { alert(data.message); }
             });
         }
 
-        function buildCombinationRows() {
-            document.getElementById('comboSection').style.display = 'block';
-            let html = '';
-            
-            const uniqueTypes = [...new Set(activePapers.map(p => p.type))];
-            let typeOptions = `<option value="">Select Type</option>` + uniqueTypes.map(t => `<option value="${t}">${t}</option>`).join('');
+        function selectSuggestedReelOption(size, ups) {
+            selectedReelSize = size;
+            activePlanSuggestedUps = ups;
+            buildCombinationCustomizerRows();
+        }
 
-            for(let i=1; i<=currentPly; i++) {
+        function buildCombinationCustomizerRows() {
+            document.getElementById('combinationConfigurationPanel').style.display = 'block';
+            let html = '';
+            for(let i=1; i<=targetPly; i++) {
                 html += `
-                <div class="row mb-2 mat-row">
-                    <div class="col-md-2 fw-bold pt-2">Layer ${i}</div>
-                    <div class="col-md-3">
-                        <input type="number" class="form-control gsm-input" placeholder="GSM">
-                    </div>
-                    <div class="col-md-3">
-                        <select class="form-select type-select" onchange="filterNames(this)">${typeOptions}</select>
-                    </div>
-                    <div class="col-md-4">
-                        <select class="form-select name-select"><option value="">Select Name</option></select>
+                <div class="p-2 border rounded mb-2 bg-white layer-row" data-layer="L${i}">
+                    <span class="badge bg-dark mb-1">Layer ${i} Specification</span>
+                    <div class="row g-1">
+                        <div class="col-4"><input type="number" class="form-control form-control-sm layer-gsm" placeholder="GSM" value="120" oninput="triggerStockWeightAudit()"></div>
+                        <div class="col-8">
+                            <select class="form-select form-select-sm layer-name" onchange="triggerStockWeightAudit()">
+                                <option value="Liner(T)">Liner(T)</option>
+                                <option value="Medium (C)">Medium (C)</option>
+                                <option value="Kraft(K)">Kraft(K)</option>
+                                <option value="White(WT)">White(WT)</option>
+                            </select>
+                        </div>
                     </div>
                 </div>`;
             }
-            document.getElementById('combinationRows').innerHTML = html;
+            document.getElementById('dynamicComboRowsContainer').innerHTML = html;
+            triggerStockWeightAudit();
         }
 
-        function filterNames(selectElement) {
-            const selectedType = selectElement.value;
-            const nameSelect = selectElement.closest('.mat-row').querySelector('.name-select');
-            nameSelect.innerHTML = '<option value="">Select Name</option>';
+        // MATRIX COMBINATION STOCK VERIFICATION AND AUTOMATED SHORTAGE ENGINE
+        function triggerStockWeightAudit() {
+            if(!selectedReelSize) return;
             
-            activePapers.filter(p => p.type === selectedType).forEach(p => {
-                nameSelect.innerHTML += `<option value="${p.name}">${p.name}</option>`;
+            // Sheet Length formulation parameter identity: ((W + L) * 2)
+            let parsedSheetLength = (globalBoxWidth + globalBoxLength) * 2;
+            let currentQty = parseInt(document.getElementById('manual_qty').value) || 0;
+            
+            let materialsArray = [];
+            document.querySelectorAll('.layer-row').forEach(row => {
+                materialsArray.push({ gsm: row.querySelector('.layer-gsm').value, name: row.querySelector('.layer-name').value });
+            });
+
+            fetch('/api/check_stock_detailed', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ size: selectedReelSize, qty: currentQty, sheet_length: parsedSheetLength, materials: materialsArray })
+            }).then(r=>r.json()).then(data => {
+                let html = '';
+                data.results.forEach(res => {
+                    let icon = res.has_stock ? `<span class="tick-icon">&#10004; Passed</span>` : `<span class="cross-icon">&#10008; Short</span>`;
+                    let actionBtn = res.shortage > 0 ? `<button class="btn btn-danger btn-sm fw-bold py-0" onclick="triggerPackwellEmergencyRequest('${res.name}')"><i class="bi bi-bell"></i> Send Req</button>` : `<span class="text-muted">Available</span>`;
+                    
+                    html += `<tr>
+                        <td class="fw-bold">${res.layer}</td>
+                        <td><strong>${res.name}</strong></td>
+                        <td>${res.gsm}</td>
+                        <td>${icon}</td>
+                        <td class="text-primary fw-bold">${res.required_weight} kg</td>
+                        <td class="text-success fw-bold">${res.available_stock} kg</td>
+                        <td><span class="badge ${res.shortage > 0 ? 'bg-danger':'bg-success'}">Availability: ${res.available_stock} kg | Shortage: ${res.shortage} kg</span></td>
+                        <td>${actionBtn}</td>
+                    </tr>`;
+                });
+                document.getElementById('detailedStockBody').innerHTML = html;
+                document.getElementById('stockStatusSummaryPanel').style.display = 'block';
             });
         }
 
-        // ** FIX: Added Validation and Error Catching for Save Plan **
-        function savePlan(editId = null) {
-            const po_no = document.getElementById('po_no').value.trim();
-            const customer_id = document.getElementById('customer_id').value.trim();
-            const product_code = document.getElementById('product_code').value.trim();
+        function triggerPackwellEmergencyRequest(paperName) {
+            alert(`Emergency notifications sent to dataop2 and super2 with custom system sound alerts for Paper: ${paperName}.`);
+            socket.emit('send_reel_request_packwell', { size: selectedReelSize, name: paperName });
+        }
 
-            if (!po_no || !customer_id || !product_code) {
-                alert("❌ කරුණාකර PO No, Customer ID සහ Product Code අනිවාර්යයෙන්ම ඇතුලත් කරන්න!");
-                return;
-            }
-
-            const rows = document.querySelectorAll('.mat-row');
-            let materials = [];
-            rows.forEach(r => {
-                materials.push({
-                    gsm: r.querySelector('.gsm-input').value || 0,
-                    type: r.querySelector('.type-select').value || "",
-                    name: r.querySelector('.name-select').value || ""
-                });
+        function dispatchSavePlan() {
+            let materialsArray = [];
+            document.querySelectorAll('.layer-row').forEach(row => {
+                materialsArray.push({ gsm: row.querySelector('.layer-gsm').value, name: row.querySelector('.layer-name').value, type: 'General' });
             });
 
             const payload = {
-                plan_id: typeof editId === 'number' ? editId : null,
-                po_no: po_no,
-                customer_id: customer_id,
-                product_code: product_code,
-                selected_reel_size: selectedSize,
-                selected_ups: window.selectedUps,
-                materials: materials
+                po_no: document.getElementById('po_no').value.trim(), customer_id: document.getElementById('customer_id').value.trim(),
+                product_code: document.getElementById('product_code').value.trim(), selected_reel_size: selectedReelSize,
+                selected_ups: activePlanSuggestedUps, materials: materialsArray
             };
 
             fetch('/api/save_programme_plan', {
-                method: 'POST', 
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(payload)
-            }).then(r => r.json()).then(data => {
-                if(data.success) {
-                    alert('✅ Programme Plan Saved Successfully!');
-                    document.getElementById('comboSection').style.display = 'none';
-                    loadSavedPlans();
-                } else {
-                    alert('❌ Error saving plan: ' + data.message);
-                }
-            }).catch(err => {
-                console.error("Save Error:", err);
-                alert('❌ Server Error! කරුණාකර ටිකකින් නැවත උත්සහ කරන්න.');
+                method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
+            }).then(r=>r.json()).then(res => {
+                if(res.success) { alert('Programme Plan Committed Successfully!'); renderRuntimePlansTable(); }
             });
         }
 
-        function loadSavedPlans() {
+        // SECTION 4 - SEVEN COLUMN RUNTIME SPECIFICATION RE-INDEX IMPLEMENTATION
+        function renderRuntimePlansTable() {
             fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
                 let html = '';
                 for (const [size, plans] of Object.entries(data)) {
                     html += `
-                    <div class="card mb-4 print-area-wrapper">
-                        <div class="card-header bg-secondary text-white d-flex justify-content-between">
-                            <h5 class="mb-0">Reel Size: ${size} cm</h5>
-                            <button class="btn btn-light btn-sm no-print" onclick="printTable(this)">Print this Table</button>
-                        </div>
-                        <div class="card-body table-responsive">
-                            <table class="table table-bordered table-sm text-center align-middle">
-                                <thead class="table-light">
+                    <div class="card mb-3 border-secondary">
+                        <div class="card-header bg-dark text-white fw-bold">Active Operation Size Band: ${size} cm</div>
+                        <div class="card-body p-0 table-responsive">
+                            <table class="table table-bordered table-sm align-middle text-center mb-0">
+                                <thead class="table-light text-uppercase" style="font-size: 0.85rem;">
                                     <tr>
-                                        <th>PO No</th><th>Customer ID</th><th>Item Code</th><th>Ups</th>
-                                        <th>Combinations (Layer: GSM - Type - Name)</th>
-                                        <th class="no-print">Action</th>
+                                        <th>1. PO No</th><th>2. Customer Name</th><th>3. Sheet Size (Reel * ((W+L)*2))</th>
+                                        <th>4. Ply</th><th>5. Combination (GSM, Name)</th><th>6. Qty (Manual Input)</th><th>7. Remarks (Component & Flute)</th>
                                     </tr>
                                 </thead>
-                                <tbody>
-                    `;
+                                <tbody>`;
+                    
                     plans.forEach(p => {
-                        let matHtml = "No materials specified";
-                        if (p.materials && p.materials.length > 0) {
-                            matHtml = p.materials.map((m, idx) => `L${idx+1}: ${m.gsm} - ${m.type} - ${m.name}`).join('<br>');
-                        }
+                        // Formula: Reel Size * ((Width + Length)*2) -> rendered purely as markup
+                        let sheetSizeCalculatedFormula = `${size} cm &times; [Cut length]`;
+                        let combinationSpecsString = p.materials.map((m,i)=> `L${i+1}: ${m.gsm} - ${m.name}`).join('<br>');
+                        
                         html += `
                             <tr>
-                                <td>${p.po_no}</td><td>${p.customer_id}</td><td>${p.product_code}</td><td>${p.ups}</td>
-                                <td class="text-start" style="font-size:0.9rem;">${matHtml}</td>
-                                <td class="no-print"><button class="btn btn-sm btn-warning">Edit</button></td>
-                            </tr>
-                        `;
+                                <td class="fw-bold text-primary">${p.po_no}</td>
+                                <td>${p.customer_name}</td>
+                                <td class="fw-bold bg-light text-danger">${sheetSizeCalculatedFormula}</td>
+                                <td><span class="badge bg-secondary">${p.ply} Ply</span></td>
+                                <td class="text-start ps-2" style="font-size: 0.85rem; font-family: monospace;">${combinationSpecsString}</td>
+                                <td><input type="number" class="form-control form-control-sm mx-auto text-center border-primary fw-bold" style="max-width:90px;" value="1000"></td>
+                                <td class="text-muted" style="font-size:0.85rem;">${p.remarks}</td>
+                            </tr>`;
                     });
                     html += `</tbody></table></div></div>`;
                 }
-                document.getElementById('savedPlansContainer').innerHTML = html;
+                document.getElementById('savedPlansWrapperContainer').innerHTML = html;
             });
         }
 
-        function printTable(btn) {
-            document.querySelectorAll('.print-area').forEach(el => el.classList.remove('print-area'));
-            btn.closest('.print-area-wrapper').classList.add('print-area');
-            window.print();
-        }
-
-        loadSavedPlans();
-
-        window.addEventListener('beforeunload', function() {
-            if (socket) {
-                socket.disconnect();
-            }
-        });
-
-        let debounceTimer;
-        document.getElementById('po_no').addEventListener('input', function() {
-            clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(() => {
-                console.log("Debounced Searching for PO:", this.value);
-            }, 800); 
+        document.addEventListener("DOMContentLoaded", function() {
+            loadProductsMasterRegistry();
+            renderRuntimePlansTable();
         });
     </script>
 </body>
