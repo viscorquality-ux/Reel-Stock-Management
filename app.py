@@ -986,79 +986,105 @@ def programme_plan():
     if 'role' not in session: return redirect(url_for('login'))
     return render_template('programme_plan.html', user_role=get_user_role())
 
-@app.route('/api/get_product_info', methods=['GET', 'POST'])
-def get_product_info():
-    if request.method == 'POST':
-        data = request.get_json() or {}
-        customer_id = data.get('customer_id')
-        product_code = data.get('product_code')
-    else:
-        customer_id = request.args.get('customer_id')
-        product_code = request.args.get('product_code')
+# API ENDPOINTS FOR PRODUCTS
+@app.route('/api/get_products', methods=['GET'])
+def get_products():
+    products = CustomerProduct.query.all()
+    return jsonify([{
+        'id': p.id, 'customer_id': p.customer_id, 'customer_name': p.customer_name,
+        'product_code': p.product_code, 'product_name': p.product_name,
+        'cartoon_size': p.cartoon_size, 'position': p.position, 'flute': p.flute, 'ply': p.ply
+    } for p in products])
 
+@app.route('/api/update_product', methods=['POST'])
+def update_product():
+    data = request.json
+    prod = CustomerProduct.query.get(data.get('id'))
+    if prod:
+        prod.customer_id = data.get('customer_id')
+        prod.customer_name = data.get('customer_name')
+        prod.product_code = data.get('product_code')
+        prod.product_name = data.get('product_name')
+        prod.cartoon_size = data.get('cartoon_size')
+        prod.position = data.get('position')
+        prod.flute = data.get('flute')
+        prod.ply = int(data.get('ply'))
+        db.session.commit()
+        return jsonify({'success': True})
+    return jsonify({'success': False, 'message': 'Product not found'})
+
+@app.route('/api/get_product_info', methods=['GET'])
+def get_product_info():
+    customer_id = request.args.get('customer_id')
+    product_code = request.args.get('product_code')
     product = CustomerProduct.query.filter_by(customer_id=customer_id, product_code=product_code).first() 
     if product:
-        try:
-            dims = [float(x) for x in re.findall(r'\d+\.?\d*', product.cartoon_size)]
-            l = dims[0] if len(dims) > 0 else 30.0
-            w = dims[1] if len(dims) > 1 else 20.0
-            h = dims[2] if len(dims) > 2 else 10.0
-        except Exception:
-            l, w, h = 30.0, 20.0, 10.0
-
-        options = calculate_reel_size(l, w, h, product.position, product.ply)
-        return jsonify({
-            "success": True, 
-            "customer_name": product.customer_name,
-            "product_name": product.product_name,
-            "cartoon_size": product.cartoon_size,
-            "ply": product.ply,
-            "options": options
-        })
+        dims = [float(x) for x in re.findall(r'\d+\.?\d*', product.cartoon_size)]
+        l = dims[0] if len(dims) > 0 else 30.0
+        w = dims[1] if len(dims) > 1 else 20.0
+        h = dims[2] if len(dims) > 2 else 10.0
+        
+        # Calculate standard suggestions
+        options = []
+        base_1_ups = (w + 0.4) + (h + 0.3) + 2 if product.ply == 3 else w + h + 2
+        for ups in range(1, 6):
+            req_size = base_1_ups * ups
+            for std in range(75, 155, 5):
+                if std >= req_size:
+                    options.append({'ups': ups, 'required_size': round(req_size, 2), 'suggested_reel': std, 'wastage': round(std - req_size, 2)})
+                    break
+        return jsonify({"success": True, "customer_name": product.customer_name, "product_name": product.product_name, "cartoon_size": product.cartoon_size, "ply": product.ply, "flute": product.flute, "position": product.position, "options": options})
     return jsonify({"success": False, "message": "Product not found"})
 
-@app.route('/api/check_stock', methods=['POST'])
-def api_check_stock():
-    req_size = float(request.json.get('size'))
-    in_stock = Reel.query.filter(Reel.size_cm == req_size, Reel.status.in_(['Full', 'Used'])).count()
+@app.route('/api/check_stock_detailed', methods=['POST'])
+def check_stock_detailed():
+    data = request.json
+    size = float(data.get('size'))
+    materials = data.get('materials', [])
+    qty = int(data.get('qty', 0))
+    sheet_length = float(data.get('sheet_length', 0))
     
-    papers_data = db.session.query(Reel.reel_type, Reel.material_name).filter(Reel.status.in_(['Full', 'Used'])).distinct().all()
-    papers_list = [{'type': p.reel_type or 'General', 'name': p.material_name} for p in papers_data]
+    results = []
+    for idx, mat in enumerate(materials):
+        gsm = int(mat.get('gsm', 0))
+        name = mat.get('name', '')
+        layer_role = f"L{idx+1}" # L1=Top, L2=Corru, L3=Bottom
+        
+        # Calculate required weight
+        calc_weight = (size * sheet_length * (gsm / 10000.0) * qty) / 1000.0
+        if idx == 1: # L2 is Corrugated
+            calc_weight *= 1.5
+            
+        # Check active stock matching same size and name
+        active_reels = Reel.query.filter(
+            Reel.size_cm == size, Reel.material_name == name, Reel.gsm == gsm, Reel.status.in_(['Full', 'Used'])
+        ).all()
+        
+        available_stock = sum([r.current_weight for r in active_reels])
+        has_stock = available_stock >= calc_weight if calc_weight > 0 else available_stock > 0
+        shortage = max(0.0, calc_weight - available_stock)
+        
+        results.append({
+            'layer': layer_role, 'name': name, 'gsm': gsm, 'has_stock': has_stock,
+            'required_weight': round(calc_weight, 2), 'available_stock': round(available_stock, 2), 'shortage': round(shortage, 2)
+        })
+        
+    # Full list of papers for combo replacements
+    papers_data = db.session.query(Reel.material_name).filter(Reel.status.in_(['Full', 'Used'])).distinct().all()
     
-    return jsonify({
-        'in_stock': in_stock > 0,
-        'papers': papers_list
-    })
+    return jsonify({'results': results, 'all_papers': [p.material_name for p in papers_data]})
 
 @app.route('/api/save_programme_plan', methods=['POST'])
 def save_programme_plan():
-    try:
-        data = request.json
-        plan_id = data.get('plan_id')
-        
-        if plan_id: 
-            plan = ProgrammePlan.query.get(plan_id)
-            if plan:
-                plan.materials_json = json.dumps(data.get('materials', []))
-                db.session.commit()
-                return jsonify({'success': True})
-                
-        new_plan = ProgrammePlan(
-            po_no=data.get('po_no', 'N/A'),
-            customer_id=data.get('customer_id', 'N/A'),
-            product_code=data.get('product_code', 'N/A'),
-            selected_reel_size=safe_float(data.get('selected_reel_size')),
-            selected_ups=safe_int(data.get('selected_ups')),
-            materials_json=json.dumps(data.get('materials', [])),
-            created_by=session.get('username', 'System')
-        )
-        db.session.add(new_plan)
-        db.session.commit()
-        return jsonify({'success': True})
-    except Exception as e:
-        db.session.rollback()
-        print(f"Error saving programme plan: {e}")
-        return jsonify({'success': False, 'message': str(e)})
+    data = request.json
+    new_plan = ProgrammePlan(
+        po_no=data.get('po_no'), customer_id=data.get('customer_id'), product_code=data.get('product_code'),
+        selected_reel_size=safe_float(data.get('selected_reel_size')), selected_ups=safe_int(data.get('selected_ups')),
+        materials_json=json.dumps(data.get('materials', [])), created_by=session.get('username', 'System')
+    )
+    db.session.add(new_plan)
+    db.session.commit()
+    return jsonify({'success': True})
 
 @app.route('/api/get_saved_plans')
 def get_saved_plans():
@@ -1066,36 +1092,48 @@ def get_saved_plans():
     result = {}
     for p in plans:
         size = str(p.selected_reel_size)
-        if size not in result:
-            result[size] = []
+        if size not in result: result[size] = []
+        prod = CustomerProduct.query.filter_by(customer_id=p.customer_id, product_code=p.product_code).first()
+        c_name = prod.customer_name if prod else "Unknown"
         result[size].append({
-            'id': p.id,
-            'po_no': p.po_no,
-            'customer_id': p.customer_id,
-            'product_code': p.product_code,
-            'ups': p.selected_ups,
+            'id': p.id, 'po_no': p.po_no, 'customer_id': p.customer_id, 'customer_name': c_name,
+            'product_code': p.product_code, 'ups': p.selected_ups, 'ply': prod.ply if prod else 3,
+            'remarks': f"{prod.position} / Flute: {prod.flute}" if prod else "",
             'materials': json.loads(p.materials_json) if p.materials_json else []
         })
     return jsonify(result)
 
-# WebSocket Events
-@socketio.on('request_reel_approval')
-def handle_reel_request(data):
-    req_by = session.get('username', 'User')
-    emit('receive_reel_notification', {
-        'type': 'request',
-        'message': f"New Reel Request: {data['size']}cm requested by {req_by}.",
-        'size': data['size']
-    }, broadcast=True)
+# WEBSOCKET FOR EMERGENCY TRANSFER REQUESTS
+@socketio.on('send_reel_request_packwell')
+def handle_packwell_request(data):
+    # Triggers sound alert to dataop2 and super2
+    emit('receive_packwell_alert', data, broadcast=True)
 
-@socketio.on('approve_reel_request')
-def handle_reel_approve(data):
-    app_by = session.get('username', 'Admin')
-    emit('receive_reel_notification', {
-        'type': 'approve',
-        'message': f"Reel Request for {data['size']}cm APPROVED by {app_by}.",
-        'size': data['size']
-    }, broadcast=True)
+@app.route('/api/execute_packwell_transfer', methods=['POST'])
+def execute_packwell_transfer():
+    data = request.json
+    size = float(data.get('size'))
+    paper_name = data.get('name')
+    
+    # Find any active Packwell reel matching definitions to auto-verify transfer
+    reel = Reel.query.filter(
+        Reel.size_cm == size, Reel.material_name == paper_name,
+        Reel.store_location.like('Packwell%'), Reel.status.in_(['Full', 'Used'])
+    ).first()
+    
+    if reel:
+        old_w = reel.current_weight
+        reel.status = 'Pending_Verify'
+        reel.store_location = 'Viscor Lanka' # Transferring location structure
+        
+        db.session.add(ReelHistory(
+            reel_id=reel.id, usage_type='Transferred for Verification',
+            weight_before=old_w, weight_after=old_w,
+            doc_number="AUTO-REQ-TRANSFER", remarks="Emergency low stock auto-request trigger approved"
+        ))
+        db.session.commit()
+        return jsonify({'success': True, 'reel_number': reel.reel_number})
+    return jsonify({'success': False, 'message': 'No matching active reels found in Packwell Stock.'})
     
 if __name__ == '__main__':
     socketio.run(app, debug=True, host='0.0.0.0', port=5000)
