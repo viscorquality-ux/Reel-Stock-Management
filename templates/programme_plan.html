@@ -72,8 +72,6 @@
             
             <div class="tab-pane fade show active" id="live-planning" role="tabpanel" aria-labelledby="live-planning-tab">
                 
-                <!-- Master Customer Product Registry Reference Matrix table එක මෙතනින් ඉවත් කර ඇත -->
-
                 <div class="row">
                     <div class="col-xl-4 col-md-5 no-print">
                         <div class="card border-0 shadow-sm mb-4">
@@ -216,7 +214,6 @@
         let activeTransferPayload = null;
         let notificationModalInstance = new bootstrap.Modal(document.getElementById('incomingRequestModal'));
 
-        // Active Stock Registry එකේ දැනට පවතින දත්තයන් JavaScript Array එකක් ලෙස ලබා ගැනීම
         const activeReels = [
             {% for reel in full_reels + used_reels %}
             {
@@ -226,7 +223,6 @@
             {% endfor %}
         ];
 
-        // Backup static fallback mapping (Active Stock එකේ දත්ත නොමැති අවස්ථාවක භාවිතයට)
         const paperTypeMapping = {
             "Test Liner(T)": ["TSLNY", "TIDB", "TLINER", "T-LITE"],
             "Medium(C)": ["CSLNY", "CAL", "MEDIUM", "CORRUGATED"],
@@ -235,7 +231,6 @@
             "White Kraft (WK)": ["WKLNY", "WKRAFT", "WHITE-K"]
         };
 
-        // Socket Alerts Handling Engine 
         socket.on('receive_packwell_alert', function(data) {
             document.getElementById('alertSound').play().catch(()=>{});
             if(currentRole === 'dataop2' || currentRole === 'super2' || currentRole === 'admin') {
@@ -294,7 +289,6 @@
             buildCombinationCustomizerRows();
         }
 
-        // PAPER TYPE CHANGE FILTER ACTION CONTROLLER (Active Reels Registry එකෙන් පෙරා Drop Down එක සෑදීම)
         function filterPaperNamesByLayerType(layerIndex) {
             const typeSelect = document.getElementById(`layer-type-${layerIndex}`);
             const nameSelect = document.getElementById(`layer-name-${layerIndex}`);
@@ -305,12 +299,10 @@
             
             let filteredNames = new Set();
             
-            // Active Stock එකෙන් අදාල Type එකට ගැලපෙන Paper Names සෙවීම
             activeReels.forEach(reel => {
                 let rType = reel.type ? reel.type.toLowerCase().trim() : "";
                 let sType = selectedType.toLowerCase().trim();
                 
-                // (T), (C) වැනි කොටස් ඉවත් කර මූලික නම සාදෘශ්‍ය කර බැලීම
                 let cleanSType = sType.split('(')[0].trim(); 
                 
                 if (rType === sType || rType.includes(cleanSType) || sType.includes(rType)) {
@@ -318,12 +310,10 @@
                 }
             });
             
-            // කිසිදු දත්තයක් Active stock එකේ නැතිනම් static fallback එක යොදාගැනීම
             if (filteredNames.size === 0 && paperTypeMapping[selectedType]) {
                 paperTypeMapping[selectedType].forEach(name => filteredNames.add(name));
             }
             
-            // Dropdown එක සාදා අගයන් ඇතුලත් කිරීම
             filteredNames.forEach(name => {
                 let opt = document.createElement('option');
                 opt.value = name;
@@ -334,7 +324,6 @@
             triggerStockWeightAudit();
         }
 
-        // DYNAMIC COMBINATION MANAGEMENT MATRIX PANEL BUILDER WITH TYPE/NAME SEPARATED DROPDOWNS
         function buildCombinationCustomizerRows() {
             document.getElementById('combinationConfigurationPanel').style.display = 'block';
             let html = '';
@@ -367,7 +356,6 @@
             }
             document.getElementById('dynamicComboRowsContainer').innerHTML = html;
             
-            // මුලින්ම Dropdowns සියල්ල default filter කර පිරවීම
             for(let i = 1; i <= targetPly; i++) {
                 filterPaperNamesByLayerType(i);
             }
@@ -417,6 +405,7 @@
             socket.emit('send_reel_request_packwell', { size: selectedReelSize, name: paperName });
         }
 
+        // --- NEW AUTO SR GENERATION DATA SUBMISSION SCRIPT ---
         function dispatchSavePlan() {
             let materialsArray = [];
             document.querySelectorAll('.layer-row').forEach(row => {
@@ -427,12 +416,16 @@
                 });
             });
 
+            let parsedSheetLength = (globalBoxWidth + globalBoxLength) * 2;
+
             const payload = {
                 po_no: document.getElementById('po_no').value.trim(), 
                 customer_id: document.getElementById('customer_id').value.trim(),
                 product_code: document.getElementById('product_code').value.trim(), 
                 selected_reel_size: selectedReelSize,
                 selected_ups: activePlanSuggestedUps, 
+                qty: parseInt(document.getElementById('manual_qty').value) || 0,
+                sheet_length: parsedSheetLength,
                 materials: materialsArray
             };
 
@@ -440,7 +433,11 @@
                 method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
             }).then(r=>r.json()).then(res => {
                 if(res.success) { 
-                    alert('Programme Plan Committed Successfully!'); 
+                    if(res.sr_auto_created) {
+                        alert('✅ Programme Plan Committed & SR Requests Auto-Generated Successfully into Live Size Matrix!'); 
+                    } else {
+                        alert('⚠️ Programme Plan Committed! \n(Stock Shortage detected: SR Requests were NOT auto-generated.)');
+                    }
                     renderRuntimePlansTable(); 
                 }
             });
