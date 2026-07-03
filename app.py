@@ -988,7 +988,6 @@ def save_programme_plan():
     db.session.commit()
     return jsonify({'success': True})
 
-# UPDATE: Accept start/end date for history filtering
 @app.route('/api/get_saved_plans')
 def get_saved_plans():
     start_date = request.args.get('start_date')
@@ -1011,6 +1010,14 @@ def get_saved_plans():
         prod = CustomerProduct.query.filter_by(customer_id=p.customer_id, product_code=p.product_code).first()
         c_name = prod.customer_name if prod else "Unknown"
         
+        # New Feature: Add Cut length calculation based on the DB Product dims
+        cut_length = 0
+        if prod and prod.cartoon_size:
+            dims = [float(x) for x in re.findall(r'\d+\.?\d*', prod.cartoon_size)]
+            l = dims[0] if len(dims) > 0 else 0
+            w = dims[1] if len(dims) > 1 else 0
+            cut_length = (w + l) * 2
+            
         # Format Date to display in Table
         date_str = p.created_at.strftime('%Y-%m-%d %I:%M %p') if p.created_at else ""
         
@@ -1019,7 +1026,8 @@ def get_saved_plans():
             'product_code': p.product_code, 'ups': p.selected_ups, 'ply': prod.ply if prod else 3,
             'remarks': f"{prod.position} / Flute: {prod.flute}" if prod else "",
             'materials': json.loads(p.materials_json) if p.materials_json else [],
-            'created_at': date_str
+            'created_at': date_str,
+            'cut_length': cut_length
         })
     return jsonify(result)
 
