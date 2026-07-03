@@ -1016,7 +1016,7 @@ def get_saved_plans():
             dims = [float(x) for x in re.findall(r'\d+\.?\d*', prod.cartoon_size)]
             l = dims[0] if len(dims) > 0 else 0
             w = dims[1] if len(dims) > 1 else 0
-            cut_length = (w + l) * 2
+            cut_length = ((w + l) * 2) + 6
             
         # Format Date to display in Table
         date_str = p.created_at.strftime('%Y-%m-%d %I:%M %p') if p.created_at else ""
