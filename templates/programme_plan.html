@@ -166,23 +166,21 @@
         let globalBoxWidth = 0;
         let activePlanSuggestedUps = 1;
         let globalPlansData = {}; // Stores retrieved history plans for individual printing
-        
-        // Mock Active Stock Data - Backend එකෙන් සැබෑ දත්ත මෙහි load කළ හැක
-        const activeStockData = [
-            { type: "Virgin", name: "Virgin Top Liner" },
-            { type: "Virgin", name: "Virgin Premium 150G" },
-            { type: "Recycled", name: "Recycled Eco Liner" },
-            { type: "Kraft", name: "White Kraft 120G" },
-            { type: "Kraft", name: "Brown Kraft 150G" },
-            { type: "Testliner", name: "Testliner Premium" },
-            { type: "Testliner", name: "Testliner Standard" },
-            { type: "Fluting", name: "Corrugated Flute A" },
-            { type: "Fluting", name: "Medium (C)" }
-        ];
-
         const currentRole = document.getElementById('loggedRole') ? document.getElementById('loggedRole').innerText.trim().toLowerCase() : 'admin';
         let activeTransferPayload = null;
         let notificationModalInstance = new bootstrap.Modal(document.getElementById('incomingRequestModal'));
+
+        // Mock Active Stock Data - මේවායින් Paper Types සහ Paper Names ලබා ගනී. අනාගතයේදී Backend එකෙන් ලබාගත හැක.
+        const activeStockData = [
+            { type: "Test Liner(T)", name: "Test Liner 125G" },
+            { type: "Test Liner(T)", name: "Test Liner 150G" },
+            { type: "Medium(C)", name: "Medium Flute 110G" },
+            { type: "Medium(C)", name: "Medium Flute 120G" },
+            { type: "Kraft(K)", name: "Brown Kraft 150G" },
+            { type: "Kraft(K)", name: "Brown Kraft 175G" },
+            { type: "White Liner(WT)", name: "White Top Liner 140G" },
+            { type: "White Kraft (WK)", name: "White Kraft Premium 150G" }
+        ];
 
         socket.on('receive_packwell_alert', function(data) {
             document.getElementById('alertSound').play().catch(()=>{});
@@ -242,19 +240,23 @@
             buildCombinationCustomizerRows();
         }
 
-        // Paper Types මත පදනම්ව Paper Names වෙනස් කිරීමේ function එක
+        // තෝරන Paper Type එකට අදාළව Paper Names Filter කරන Function එක
         window.updatePaperNames = function(selectElement) {
             let selectedType = selectElement.value;
             let nameDropdown = selectElement.closest('.layer-row').querySelector('.layer-name');
             nameDropdown.innerHTML = '';
             
             let filteredNames = activeStockData.filter(s => s.type === selectedType);
-            filteredNames.forEach(item => {
-                let opt = document.createElement('option');
-                opt.value = item.name;
-                opt.innerText = item.name;
-                nameDropdown.appendChild(opt);
-            });
+            if(filteredNames.length === 0) {
+                nameDropdown.innerHTML = '<option value="">No Paper Found</option>';
+            } else {
+                filteredNames.forEach(item => {
+                    let opt = document.createElement('option');
+                    opt.value = item.name;
+                    opt.innerText = item.name;
+                    nameDropdown.appendChild(opt);
+                });
+            }
             triggerStockWeightAudit();
         }
 
@@ -263,10 +265,10 @@
             let html = '';
             
             // Unique Paper Types ලබා ගැනීම
-            let uniqueTypes = [...new Set(activeStockData.map(item => item.type))];
+            let uniqueTypes = ["Test Liner(T)", "Medium(C)", "Kraft(K)", "White Liner(WT)", "White Kraft (WK)"];
             let typeOptions = uniqueTypes.map(t => `<option value="${t}">${t}</option>`).join('');
             
-            // Initial Paper Names (පළමු type එකට අදාළව)
+            // පළමු Paper Type එකට අදාළ Paper Names ගෙන ඒම
             let initialNames = activeStockData.filter(s => s.type === uniqueTypes[0]).map(n => `<option value="${n.name}">${n.name}</option>`).join('');
 
             for(let i=1; i<=targetPly; i++) {
@@ -297,8 +299,7 @@
         function triggerStockWeightAudit() {
             if(!selectedReelSize) return;
             
-            // 6cm Glue Joint එක sheet length එකට එකතු කිරීම
-            let parsedSheetLength = ((globalBoxWidth + globalBoxLength) * 2) + 6;
+            let parsedSheetLength = (globalBoxWidth + globalBoxLength) * 2;
             let currentQty = parseInt(document.getElementById('manual_qty').value) || 0;
             
             let materialsArray = [];
@@ -339,6 +340,7 @@
         function dispatchSavePlan() {
             let materialsArray = [];
             document.querySelectorAll('.layer-row').forEach(row => {
+                // Collect type correctly alongside GSM and name
                 materialsArray.push({ 
                     gsm: row.querySelector('.layer-gsm').value, 
                     type: row.querySelector('.layer-type').value, 
@@ -391,19 +393,16 @@
                                 <tbody>`;
                     
                     plans.forEach(p => {
-                        // Backend එකෙන් එන cut length එකට 6cm එකතු කර පෙන්වීම
-                        let baseCutLength = parseFloat(p.cut_length) || 0;
-                        let finalCutLength = baseCutLength + 6;
-                        
-                        let sheetSizeCalculatedFormula = `${size} cm &times; <strong class="text-success">${finalCutLength} cm</strong> <br><small class="text-muted">(Includes +6cm Glue Joint)</small>`;
-                        let combinationSpecsString = p.materials.map((m,i)=> `L${i+1}: ${m.gsm} GSM - ${m.type || 'N/A'} - ${m.name}`).join('<br>');
+                        // Dynamically render cut length derived from Backend Python Calculation
+                        let sheetSizeCalculatedFormula = `${size} cm &times; <strong>${p.cut_length} cm</strong>`;
+                        let combinationSpecsString = p.materials.map((m,i)=> `L${i+1}: ${m.gsm} - ${m.type || 'N/A'} - ${m.name}`).join('<br>');
                         
                         html += `
                             <tr>
                                 <td class="text-muted" style="font-size: 0.8rem;">${p.created_at}</td>
                                 <td class="fw-bold text-primary">${p.po_no}</td>
                                 <td>${p.customer_name}</td>
-                                <td class="fw-bold bg-light">${sheetSizeCalculatedFormula}</td>
+                                <td class="fw-bold bg-light text-danger">${sheetSizeCalculatedFormula}</td>
                                 <td><span class="badge bg-secondary">${p.ply} Ply</span></td>
                                 <td class="text-start ps-2" style="font-size: 0.85rem; font-family: monospace;">${combinationSpecsString}</td>
                                 <td><input type="number" class="form-control form-control-sm mx-auto text-center border-primary fw-bold" style="max-width:90px;" value="1000"></td>
@@ -431,10 +430,6 @@
             if (!plan) return;
 
             let combinationRows = plan.materials.map((m, i) => `<tr><td>L${i+1}</td><td>${m.gsm} GSM</td><td>${m.type || 'General'}</td><td>${m.name}</td></tr>`).join('');
-            
-            // Print View එකේදීත් Cut length එකට 6cm එකතු කිරීම
-            let baseCutLength = parseFloat(plan.cut_length) || 0;
-            let finalCutLength = baseCutLength + 6;
 
             let printWindow = window.open('', '_blank', 'width=800,height=600');
             printWindow.document.write(`
@@ -460,7 +455,7 @@
                         <tr><th>Customer Name</th><td>${plan.customer_name}</td></tr>
                         <tr><th>Product Code</th><td>${plan.product_code}</td></tr>
                         <tr><th>Ply Configuration</th><td>${plan.ply} Ply</td></tr>
-                        <tr><th>Sheet Size</th><td><strong>${size} cm &times; ${finalCutLength} cm (Includes +6cm Glue Joint)</strong></td></tr>
+                        <tr><th>Sheet Size</th><td><strong>${size} cm &times; ${plan.cut_length} cm</strong></td></tr>
                         <tr><th>Ups Factor</th><td>${plan.ups} Ups</td></tr>
                         <tr><th>Remarks / Flute</th><td>${plan.remarks}</td></tr>
                     </table>
