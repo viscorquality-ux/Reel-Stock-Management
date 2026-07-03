@@ -7,7 +7,7 @@ import pytz
 import random
 import re
 import json
-from models import Stock
+
 
 app = Flask(__name__)
 app.secret_key = 'viscor_packwell_ultimate_secure_key'
@@ -882,8 +882,8 @@ def calculate_reel_size(length, width, height, position, ply):
 @app.route('/programme_plan')
 def programme_plan():
     # 1. පලමුව දත්ත ටික Database එකෙන් ලබා ගන්න (ඔබේ query එක මෙහි තිබිය යුතුය)
-    full_reels = Stock.query.filter_by(status='full').all() # මෙය උදාහරණයකි
-    used_reels = Stock.query.filter_by(status='used').all() # මෙය උදාහරණයකි
+    full_reels = Reel.query.filter_by(status='Full').all() # මෙය උදාහරණයකි
+    used_reels = Reel.query.filter_by(status='Used').all() # මෙය උදාහරණයකි
 
     # 2. දැන් render_template කරන විට ඒ දත්ත දෙකම එකතු කරන්න
     return render_template('programme_plan.html', 
