@@ -13,29 +13,12 @@
         .cross-icon { color: #dc3545; font-size: 1.1rem; font-weight: bold; }
         
         /* Card & UI Enhancements */
-        .card { border: none; border-radius: 12px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04); overflow: hidden; transition: all 0.3s ease; }
-        .card-header { border-bottom: none; font-size: 0.95rem; letter-spacing: 0.5px; }
-        .form-control, .form-select { border-radius: 8px; border: 1px solid #dee2e6; padding: 0.6rem 0.75rem; font-size: 0.9rem; }
-        .form-control:focus, .form-select:focus { border-color: #0d6efd; box-shadow: 0 0 0 0.25px rgba(13, 110, 253, 0.25); }
-        .btn { border-radius: 8px; padding: 0.55rem 1rem; font-size: 0.9rem; transition: all 0.2s ease; }
+        .card { border: none; border-radius: 12px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04); overflow: hidden; transition: all 0.3s; }
+        .card-header { background: linear-gradient(135deg, #1e3c72, #2a5298); color: white; font-weight: 600; border: none; }
+        .form-control, .form-select { border-radius: 8px; border: 1px solid #ced4da; }
+        .form-control:focus, .form-select:focus { border-color: #2a5298; box-shadow: 0 0 0 0.25px rgba(42, 82, 152, 0.25); }
         
-        /* Custom Nav Tabs */
-        .nav-tabs { border-bottom: 2px solid #dee2e6; }
-        .nav-tabs .nav-link { border: none; color: #6c757d; padding: 1rem 1.5rem; position: relative; transition: all 0.2s ease; }
-        .nav-tabs .nav-link.active { color: #0d6efd; background: transparent; font-weight: 600; }
-        .nav-tabs .nav-link.active::after { content: ''; position: absolute; bottom: -2px; left: 0; right: 0; height: 3px; background-color: #0d6efd; border-radius: 3px; }
-
-        /* Print Typography Formatting Structure */
-        @media print { 
-            body { background: #fff !important; color: #000 !important; }
-            .no-print { display: none !important; }
-            .card { border: none !important; box-shadow: none !important; margin-bottom: 20px; }
-            .card-header { background: #fff !important; color: #000 !important; padding: 0 !important; font-size: 1.2rem !important; font-weight: bold !important; }
-            .table-responsive { overflow: visible !important; max-height: none !important; }
-            table { width: 100% !important; border-collapse: collapse !important; }
-            th, td { border: 1px solid #000 !important; padding: 6px !important; font-size: 10pt !important; }
-            .print-only-block { display: block !important; }
-        }
+        @media print { .no-print { display: none !important; } }
     </style>
 </head>
 <body class="bg-light">
@@ -43,496 +26,200 @@
 
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4 no-print">
         <div class="container-fluid">
-            <span class="navbar-brand fw-bold text-uppercase d-flex align-items-center">
-                <i class="bi bi-cpu-fill text-warning me-2 fs-4"></i> Viscor & Packwell - Planning Enterprise Core
-            </span>
-            <div>
-                <span class="text-white-50 me-3">Logged Role: <strong class="text-warning text-uppercase" id="loggedRole">{{ user_role }}</strong></span>
-                <a href="/dashboard" class="btn btn-outline-light btn-sm px-3 rounded-pill"><i class="bi bi-speedometer2 me-1"></i> Dashboard</a>
+            <span class="navbar-brand mb-0 h1"><i class="bi bi-cpu-fill me-2"></i>Viscor & Packwell - Intelligence Corrugation Control Panel</span>
+            <div class="d-flex">
+                <a href="/dashboard" class="btn btn-outline-light btn-sm"><i class="bi bi-speedometer2 me-1"></i> Dashboard</a>
             </div>
         </div>
     </nav>
 
     <div class="container-fluid px-4">
-        
-        <ul class="nav nav-tabs mb-4 no-print" id="planningTabs" role="tablist">
-            <li class="nav-item" role="presentation">
-                <button class="nav-link active fw-bold text-uppercase" id="live-planning-tab" data-bs-toggle="tab" data-bs-target="#live-planning" type="button" role="tab">
-                    <i class="bi bi-sliders2-vertical me-2"></i>Live Planning & Matrix
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link fw-bold text-uppercase" id="history-tab" data-bs-toggle="tab" data-bs-target="#history-logs" type="button" role="tab" onclick="loadHistoryLogs()">
-                    <i class="bi bi-clock-history me-2"></i>Plan History Audit Trail
-                </button>
-            </li>
-        </ul>
-
-        <div class="tab-content" id="planningTabsContent">
-            
-            <div class="tab-pane fade show active" id="live-planning" role="tabpanel" aria-labelledby="live-planning-tab">
-                
-                <div class="row">
-                    <div class="col-xl-4 col-md-5 no-print">
-                        <div class="card border-0 shadow-sm mb-4">
-                            <div class="card-header bg-dark text-white fw-bold py-3"><i class="bi bi-search text-warning me-1"></i> Initialize Planning Sheet</div>
-                            <div class="card-body p-4">
-                                <div class="mb-3">
-                                    <label class="form-label fw-semibold text-secondary small">PO Number Identity String</label>
-                                    <input type="text" id="po_no" class="form-control" placeholder="e.g. PO-7719">
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label fw-semibold text-secondary small">Customer Reference ID</label>
-                                    <input type="text" id="customer_id" class="form-control" placeholder="e.g. CUST-102">
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label fw-semibold text-secondary small">Product Match Code</label>
-                                    <input type="text" id="product_code" class="form-control" placeholder="e.g. PROD-550">
-                                </div>
-                                <button class="btn btn-primary w-100 fw-bold py-2 shadow-sm" onclick="searchMasterProduct()">
-                                    <i class="bi bi-arrow-right-circle me-1"></i> Load Specification Matrix
-                                </button>
-                                
-                                <div id="selectedMetaSummary" class="mt-3 p-3 bg-primary-subtle text-primary border border-primary-subtle fw-bold text-center rounded-3 small" style="display:none;"></div>
-                            </div>
-                        </div>
-
-                        <div class="card border-0 shadow-sm mb-4" id="combinationConfigurationPanel" style="display:none;">
-                            <div class="card-header bg-gradient bg-primary text-white fw-bold py-3"><i class="bi bi-sliders me-1"></i> Combination Layer Customizer</div>
-                            <div class="card-body p-4 bg-light-subtle">
-                                <div class="alert alert-warning border-0 p-2 mb-3 small d-flex align-items-center rounded-3">
-                                    <i class="bi bi-info-circle-fill me-2 text-warning fs-5"></i>
-                                    <span><strong>L1:</strong> Top Layer | <strong>L2:</strong> Corrugated | <strong>L3:</strong> Bottom</span>
-                                </div>
-                                <div id="dynamicComboRowsContainer"></div>
-                                
-                                <div class="mb-4 mt-3 p-3 bg-white rounded-3 border">
-                                    <label class="form-label fw-bold text-danger mb-1 small"><i class="bi bi-calculator me-1"></i> Manual Target Output Qty (Pcs):</label>
-                                    <input type="number" id="manual_qty" class="form-control form-control-lg border-danger fw-bold text-center" value="1000" oninput="triggerStockWeightAudit()">
-                                </div>
-                                <button class="btn btn-success w-100 fw-bold py-2.5 shadow rounded-2 text-uppercase" onclick="dispatchSavePlan()">
-                                    <i class="bi bi-save me-1"></i> Save Finished Programme Plan
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="col-xl-8 col-md-7 no-print">
-                        <div class="card border-0 shadow-sm mb-4" id="optionsCardPanel" style="display:none;">
-                            <div class="card-header bg-secondary text-white fw-bold py-3"><i class="bi bi-grid-3x3-gap me-1"></i> Corrugator Step Selection Options</div>
-                            <div class="card-body p-0 overflow-hidden">
-                                <table class="table table-hover text-center align-middle mb-0">
-                                    <thead class="table-dark">
-                                        <tr><th>Ups Factor</th><th>Required Dimension</th><th>Suggested Standard Reel</th><th>Expected Wastage</th><th>Action</th></tr>
-                                    </thead>
-                                    <tbody id="suggestedOptionsBody" class="fw-semibold"></tbody>
-                                </table>
-                            </div>
-                        </div>
-
-                        <div class="card border-0 shadow-sm mb-4" id="stockStatusSummaryPanel" style="display:none;">
-                            <div class="card-header bg-navy text-white fw-bold py-3" style="background-color: #1e293b;"><i class="bi bi-shield-check text-success me-1"></i> Active Stock Availability & Weight Analytics Dashboard</div>
-                            <div class="card-body p-0 overflow-hidden">
-                                <div class="table-responsive">
-                                    <table class="table table-hover align-middle mb-0 text-center">
-                                        <thead class="table-light text-secondary small fw-bold text-uppercase">
-                                            <tr>
-                                                <th>Layer Target</th><th>Paper Name</th><th>GSM Spec</th><th>Stock Match Status</th><th>Needed Wt</th><th>Warehouse Bal</th><th>Shortage Status</th><th>Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="detailedStockBody" class="small"></tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card shadow-sm border-0 mb-5 mt-3">
-                    <div class="card-header bg-gradient bg-secondary text-white fw-bold py-3 d-flex justify-content-between align-items-center">
-                        <span><i class="bi bi-list-stars me-1"></i> Active Reel-Size Specific Programme Planning Dashboard Table View</span>
-                        <button class="btn btn-xs btn-light fw-bold py-1 px-3 no-print rounded-pill" onclick="window.print()"><i class="bi bi-printer-fill me-1"></i> Print Entire Dashboard</button>
-                    </div>
-                    <div class="card-body p-4 bg-light-subtle" id="savedPlansWrapperContainer">
-                    </div>
-                </div>
-
+        <div class="card mb-4 no-print">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-layers-half me-2"></i>Active Roll Stock Compatibility Matrix (Runtime Calculator)</span>
+                <button class="btn btn-sm btn-light fw-bold text-primary" onclick="renderRuntimePlansTable()"><i class="bi bi-arrow-clockwise me-1"></i> Refresh Allocation Status</button>
             </div>
-
-            <div class="tab-pane fade" id="history-logs" role="tabpanel" aria-labelledby="history-tab">
-                <div class="card shadow-sm border-0 mb-5">
-                    <div class="card-header bg-dark text-white fw-bold py-3 d-flex justify-content-between align-items-center">
-                        <span><i class="bi bi-clock-history text-warning me-1"></i> Plan History Log Audit Trail</span>
-                        <button class="btn btn-sm btn-outline-light py-1" onclick="loadHistoryLogs()"><i class="bi bi-arrow-clockwise"></i> Refresh Logs</button>
-                    </div>
-                    <div class="card-body p-0">
-                        <div class="table-responsive">
-                            <table class="table table-striped table-hover align-middle mb-0 text-center">
-                                <thead class="table-secondary font-monospace text-uppercase small">
-                                    <tr>
-                                        <th>Timestamp</th><th>PO Number</th><th>Customer</th><th>Config Size Info</th><th>Ply</th><th>Materials Build</th><th>Status Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="historyLogsTableBody" class="small">
-                                    <tr><td colspan="7" class="text-muted py-4">Loading history audit logs...</td></tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+            <div class="card-body">
+                <div id="runtimeMatrixContainer">
+                    <div class="text-center py-4 text-muted">Analyzing real-time reel availability benchmarks...</div>
                 </div>
             </div>
-
         </div>
-    </div>
 
-    <div class="modal fade" id="incomingRequestModal" data-bs-backdrop="static" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-danger border-3">
-                <div class="modal-header bg-danger text-white">
-                    <h5 class="modal-title fw-bold"><i class="bi bi-exclamation-octagon-fill"></i> CRITICAL REEL REQUEST INCOMING ALERT!</h5>
+        <div class="card shadow-sm">
+            <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-journal-check me-2"></i>Committed Order Plans & SR Audit Log Logs</span>
+                <div class="d-flex gap-2 no-print">
+                    <input type="date" id="filter_start" class="form-control form-control-sm text-center">
+                    <input type="date" id="filter_end" class="form-control form-control-sm text-center">
+                    <button class="btn btn-sm btn-dark" onclick="loadSavedPlans()"><i class="bi bi-funnel"></i> Filter</button>
                 </div>
-                <div class="modal-body text-center">
-                    <p class="fs-5 text-dark" id="modalAlertMessage"></p>
-                    <div class="spinner-grow text-danger my-2" role="status"></div>
-                </div>
-                <div class="modal-footer justify-content-center">
-                    <button type="button" class="btn btn-success fw-bold px-4 fs-6" id="btnApproveTransfer"><i class="bi bi-check-circle"></i> Approve Auto-Verification Transfer</button>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped align-middle mb-0 text-center text-nowrap" id="savedPlansTable">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>PO Number</th>
+                                <th>Customer</th>
+                                <th>Formula Dimensions</th>
+                                <th>Ply</th>
+                                <th>Material Structural Spec</th>
+                                <th>Status Matrix</th>
+                            </tr>
+                        </thead>
+                        <tbody id="savedPlansWrapperContainer">
+                            <tr><td colspan="7" class="text-muted py-4">Select date boundaries or hit filter to synchronize registers.</td></tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        const socket = io();
-        let targetPly = 3;
-        let selectedReelSize = 0;
-        let globalBoxLength = 0;
-        let globalBoxWidth = 0;
-        let activePlanSuggestedUps = 1;
-        const currentRole = document.getElementById('loggedRole').innerText.trim().toLowerCase();
-        let activeTransferPayload = null;
-        let notificationModalInstance = new bootstrap.Modal(document.getElementById('incomingRequestModal'));
+        let productsMasterRegistry = [];
 
-        const activeReels = [
-            {% for reel in full_reels + used_reels %}
-            {
-                type: {{ reel.reel_type|tojson if reel.reel_type else ""|tojson }},
-                name: {{ reel.material_name|tojson if reel.material_name else ""|tojson }}
-            },
-            {% endfor %}
-        ];
-
-        const paperTypeMapping = {
-            "Test Liner(T)": ["TSLNY", "TIDB", "TLINER", "T-LITE"],
-            "Medium(C)": ["CSLNY", "CAL", "MEDIUM", "CORRUGATED"],
-            "Kraft(K)": ["KTLNY", "KLB", "KRAFT", "K-LINER"],
-            "White Liner(WT)": ["WTLNY", "WLINER", "WHITE-L"],
-            "White Kraft (WK)": ["WKLNY", "WKRAFT", "WHITE-K"]
-        };
-
-        socket.on('receive_packwell_alert', function(data) {
-            document.getElementById('alertSound').play().catch(()=>{});
-            if(currentRole === 'dataop2' || currentRole === 'super2' || currentRole === 'admin') {
-                activeTransferPayload = data;
-                document.getElementById('modalAlertMessage').innerHTML = `Packwell Active Stock Request Initiated!<br><strong>Reel Size:</strong> ${data.size}cm<br><strong>Paper:</strong> ${data.name}<br><br>Click authorization below to transfer to Viscor Return Verification registry.`;
-                notificationModalInstance.show();
-            }
-        });
-
-        document.getElementById('btnApproveTransfer').addEventListener('click', function() {
-            if(activeTransferPayload) {
-                fetch('/api/execute_packwell_transfer', {
-                    method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(activeTransferPayload)
-                }).then(r=>r.json()).then(res => {
-                    if(res.success) {
-                        alert(`Successfully approved transfer! Reel ${res.reel_number} pushed to Viscor Portal.`);
-                        notificationModalInstance.hide();
-                        triggerStockWeightAudit();
-                    } else { alert(res.message); }
-                });
-            }
-        });
-
-        function searchMasterProduct() {
-            const cid = document.getElementById('customer_id').value.trim();
-            const pcode = document.getElementById('product_code').value.trim();
-            
-            fetch(`/api/get_product_info?customer_id=${cid}&product_code=${pcode}`)
-            .then(r=>r.json()).then(data => {
-                if(data.success) {
-                    targetPly = data.ply;
-                    let dims = data.cartoon_size.match(/\d+\.?\d*/g);
-                    globalBoxLength = dims ? parseFloat(dims[0]) : 30;
-                    globalBoxWidth = dims ? parseFloat(dims[1]) : 20;
-
-                    document.getElementById('selectedMetaSummary').style.display = 'block';
-                    document.getElementById('selectedMetaSummary').innerHTML = `<i class="bi bi-info-circle"></i> Loaded Matrix: ${data.customer_name} | Ply: ${data.ply} | Flute: ${data.flute}`;
-                    
-                    let optionsHtml = '';
-                    data.options.forEach(o => {
-                        optionsHtml += `<tr>
-                            <td class="fw-bold text-dark">${o.ups} Ups</td><td>${o.required_size} cm</td><td class="text-primary fw-bold">${o.suggested_reel} cm</td><td>${o.wastage} cm</td>
-                            <td><button class="btn btn-sm btn-primary fw-bold" onclick="selectSuggestedReelOption(${o.suggested_reel}, ${o.ups})">Select Option</button></td>
-                        </tr>`;
-                    });
-                    document.getElementById('suggestedOptionsBody').innerHTML = optionsHtml;
-                    document.getElementById('optionsCardPanel').style.display = 'block';
-                } else { alert(data.message); }
+        function loadProductsMasterRegistry() {
+            fetch('/api/get_products').then(r => r.json()).then(data => {
+                productsMasterRegistry = data;
+                renderRuntimePlansTable();
             });
-        }
-
-        function selectSuggestedReelOption(size, ups) {
-            selectedReelSize = size;
-            activePlanSuggestedUps = ups;
-            buildCombinationCustomizerRows();
-        }
-
-        function filterPaperNamesByLayerType(layerIndex) {
-            const typeSelect = document.getElementById(`layer-type-${layerIndex}`);
-            const nameSelect = document.getElementById(`layer-name-${layerIndex}`);
-            if (!typeSelect || !nameSelect) return;
-
-            const selectedType = typeSelect.value;
-            nameSelect.innerHTML = '';
-            
-            let filteredNames = new Set();
-            
-            activeReels.forEach(reel => {
-                let rType = reel.type ? reel.type.toLowerCase().trim() : "";
-                let sType = selectedType.toLowerCase().trim();
-                
-                let cleanSType = sType.split('(')[0].trim(); 
-                
-                if (rType === sType || rType.includes(cleanSType) || sType.includes(rType)) {
-                    filteredNames.add(reel.name);
-                }
-            });
-            
-            if (filteredNames.size === 0 && paperTypeMapping[selectedType]) {
-                paperTypeMapping[selectedType].forEach(name => filteredNames.add(name));
-            }
-            
-            filteredNames.forEach(name => {
-                let opt = document.createElement('option');
-                opt.value = name;
-                opt.textContent = name;
-                nameSelect.appendChild(opt);
-            });
-            
-            triggerStockWeightAudit();
-        }
-
-        function buildCombinationCustomizerRows() {
-            document.getElementById('combinationConfigurationPanel').style.display = 'block';
-            let html = '';
-            for(let i = 1; i <= targetPly; i++) {
-                html += `
-                <div class="p-3 border border-light-subtle rounded-3 mb-3 bg-white shadow-sm layer-row" data-layer="L${i}">
-                    <span class="badge bg-dark mb-2 px-2 py-1" style="font-size:0.8rem;">Layer ${i} Specification</span>
-                    <div class="row g-2">
-                        <div class="col-md-3 col-12">
-                            <label class="form-label text-muted small fw-semibold mb-1">Target GSM</label>
-                            <input type="number" id="layer-gsm-${i}" class="form-control form-control-sm layer-gsm fw-bold text-center" placeholder="GSM" value="120" oninput="triggerStockWeightAudit()">
-                        </div>
-                        <div class="col-md-4 col-12">
-                            <label class="form-label text-muted small fw-semibold mb-1">Paper Type</label>
-                            <select id="layer-type-${i}" class="form-select form-select-sm layer-type fw-semibold" onchange="filterPaperNamesByLayerType(${i})">
-                                <option value="Test Liner(T)">Test Liner(T)</option>
-                                <option value="Medium(C)">Medium(C)</option>
-                                <option value="Kraft(K)">Kraft(K)</option>
-                                <option value="White Liner(WT)">White Liner(WT)</option>
-                                <option value="White Kraft (WK)">White Kraft (WK)</option>
-                            </select>
-                        </div>
-                        <div class="col-md-5 col-12">
-                            <label class="form-label text-muted small fw-semibold mb-1">Designated Paper Name</label>
-                            <select id="layer-name-${i}" class="form-select form-select-sm layer-name fw-bold text-primary" onchange="triggerStockWeightAudit()">
-                            </select>
-                        </div>
-                    </div>
-                </div>`;
-            }
-            document.getElementById('dynamicComboRowsContainer').innerHTML = html;
-            
-            for(let i = 1; i <= targetPly; i++) {
-                filterPaperNamesByLayerType(i);
-            }
-        }
-
-        function triggerStockWeightAudit() {
-            if(!selectedReelSize) return;
-            
-            let parsedSheetLength = (globalBoxWidth + globalBoxLength) * 2;
-            let currentQty = parseInt(document.getElementById('manual_qty').value) || 0;
-            
-            let materialsArray = [];
-            document.querySelectorAll('.layer-row').forEach(row => {
-                materialsArray.push({ 
-                    gsm: row.querySelector('.layer-gsm').value, 
-                    name: row.querySelector('.layer-name').value 
-                });
-            });
-
-            fetch('/api/check_stock_detailed', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ size: selectedReelSize, qty: currentQty, sheet_length: parsedSheetLength, materials: materialsArray })
-            }).then(r=>r.json()).then(data => {
-                let html = '';
-                data.results.forEach(res => {
-                    let icon = res.has_stock ? `<span class="tick-icon">&#10004; Passed</span>` : `<span class="cross-icon">&#10008; Short</span>`;
-                    let actionBtn = res.shortage > 0 ? `<button class="btn btn-danger btn-sm fw-bold py-0" onclick="triggerPackwellEmergencyRequest('${res.name}')"><i class="bi bi-bell"></i> Send Req</button>` : `<span class="text-muted small">Available</span>`;
-                    
-                    html += `<tr>
-                        <td class="fw-bold">${res.layer}</td>
-                        <td><strong>${res.name}</strong></td>
-                        <td>${res.gsm}</td>
-                        <td>${icon}</td>
-                        <td class="text-primary fw-bold">${res.required_weight} kg</td>
-                        <td class="text-success fw-bold">${res.available_stock} kg</td>
-                        <td><span class="badge ${res.shortage > 0 ? 'bg-danger':'bg-success'}">Shortage: ${res.shortage} kg</span></td>
-                        <td class="no-print">${actionBtn}</td>
-                    </tr>`;
-                });
-                document.getElementById('detailedStockBody').innerHTML = html;
-                document.getElementById('stockStatusSummaryPanel').style.display = 'block';
-            });
-        }
-
-        function triggerPackwellEmergencyRequest(paperName) {
-            alert(`Emergency notifications sent to dataop2 and super2 with custom system sound alerts for Paper: ${paperName}.`);
-            socket.emit('send_reel_request_packwell', { size: selectedReelSize, name: paperName });
-        }
-
-        // --- NEW AUTO SR GENERATION DATA SUBMISSION SCRIPT ---
-        function dispatchSavePlan() {
-            let materialsArray = [];
-            document.querySelectorAll('.layer-row').forEach(row => {
-                materialsArray.push({ 
-                    gsm: row.querySelector('.layer-gsm').value, 
-                    name: row.querySelector('.layer-name').value, 
-                    type: 'General' 
-                });
-            });
-
-            let parsedSheetLength = (globalBoxWidth + globalBoxLength) * 2;
-
-            const payload = {
-                po_no: document.getElementById('po_no').value.trim(), 
-                customer_id: document.getElementById('customer_id').value.trim(),
-                product_code: document.getElementById('product_code').value.trim(), 
-                selected_reel_size: selectedReelSize,
-                selected_ups: activePlanSuggestedUps, 
-                qty: parseInt(document.getElementById('manual_qty').value) || 0,
-                sheet_length: parsedSheetLength,
-                materials: materialsArray
-            };
-
-            fetch('/api/save_programme_plan', {
-                method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
-            }).then(r=>r.json()).then(res => {
-                if(res.success) { 
-                    if(res.sr_auto_created) {
-                        alert('✅ Programme Plan Committed & SR Requests Auto-Generated Successfully into Live Size Matrix!'); 
-                    } else {
-                        alert('⚠️ Programme Plan Committed! \n(Stock Shortage detected: SR Requests were NOT auto-generated.)');
-                    }
-                    renderRuntimePlansTable(); 
-                }
-            });
-        }
-
-        function printSelectedBand(bandId) {
-            let printContents = document.getElementById(bandId).outerHTML;
-            
-            let printWindow = window.open('', '_blank', 'width=900,height=650');
-            printWindow.document.write(`
-                <html>
-                <head>
-                    <title>Print Size Band Doc</title>
-                    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-                    <style>
-                        body { padding: 30px; background: #fff !important; }
-                        .no-print { display:none !important; }
-                        table { width:100%; border-collapse: collapse; margin-top:15px; }
-                        th, td { border:1px solid #111 !important; padding:8px !important; text-align:center; }
-                    </style>
-                </head>
-                <body>
-                    <h3 class="text-uppercase border-bottom pb-2 mb-4">Viscor Manufacturing Order Document</h3>
-                    ${printContents}
-                    <script>setTimeout(() => { window.print(); window.close(); }, 400);<\/script>
-                </body>
-                </html>
-            `);
-            printWindow.document.close();
         }
 
         function renderRuntimePlansTable() {
-            fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
-                let html = '';
-                let indexCounter = 0;
-                for (const [size, plans] of Object.entries(data)) {
-                    indexCounter++;
-                    let bandUniqueId = `size_band_block_${indexCounter}`;
-                    
+            fetch('/api/get_runtime_plans').then(r => r.json()).then(plans => {
+                let container = document.getElementById('runtimeMatrixContainer');
+                if(!plans || plans.length === 0) {
+                    container.innerHTML = `<div class="alert alert-warning text-center fw-bold"><i class="bi bi-exclamation-triangle me-2"></i>No running programmatic allocation plans scheduled in the active scheduler pool.</div>`;
+                    return;
+                }
+
+                // Group by Size_cm
+                let groups = {};
+                plans.forEach(p => {
+                    let size = p.size_cm || "Unknown";
+                    if(!groups[size]) groups[size] = [];
+                    groups[size].push(p);
+                });
+
+                let html = "";
+                for (let size in groups) {
                     html += `
-                    <div class="card mb-4 border border-secondary-subtle shadow-sm" id="${bandUniqueId}">
-                        <div class="card-header bg-dark text-white fw-bold py-3 d-flex justify-content-between align-items-center">
-                            <span><i class="bi bi-tag-fill text-warning me-2"></i>Active Operation Size Band: ${size} cm</span>
-                            <button class="btn btn-sm btn-outline-light no-print py-1" onclick="printSelectedBand('${bandUniqueId}')">
-                                <i class="bi bi-printer me-1"></i> Print This Band
-                            </button>
+                    <div class="table-active-panel mb-4 border border-primary-subtle">
+                        <div class="d-flex justify-content-between align-items-center mb-3 bg-primary-subtle p-2 rounded">
+                            <h5 class="mb-0 text-primary fw-bold"><i class="bi bi-rulers me-2"></i>Deckle Size Group: <span class="badge bg-primary fs-6">${size} cm</span></h5>
+                            <span class="badge bg-secondary">${groups[size].length} Parallel Orders</span>
                         </div>
-                        <div class="card-body p-0 table-responsive">
-                            <table class="table table-bordered table-striped align-middle text-center mb-0">
-                                <thead class="table-light text-uppercase small font-monospace" style="font-size: 0.82rem;">
+                        <div class="table-responsive">
+                            <table class="table table-bordered text-center align-middle bg-white table-sm">
+                                <thead class="table-dark text-nowrap">
                                     <tr>
-                                        <th>1. PO No</th><th>2. Customer Name</th><th>3. Sheet Size (Calculated Size)</th>
-                                        <th>4. Ply</th><th>5. Combination (GSM, Name)</th><th>6. Qty (Manual Input)</th><th>7. Remarks (Component & Flute)</th><th class="no-print">Action</th>
+                                        <th>PO Number</th>
+                                        <th>Customer</th>
+                                        <th>Sheet Size (Formula)</th>
+                                        <th>Ply</th>
+                                        <th>Combination Specs (Required Layers)</th>
+                                        <th style="width:130px;">Production Qty</th>
+                                        <th>Remarks / Alert Logs</th>
+                                        <th class="no-print">Action Trigger</th>
                                     </tr>
                                 </thead>
                                 <tbody>`;
-                    
-                    plans.forEach(p => {
-                        let dynamicCutLength = p.cut_length ? p.cut_length : "N/A";
-                        let sheetSizeCalculatedFormula = `${size} cm &times; ${dynamicCutLength} cm`;
+
+                    groups[size].forEach((p, idx) => {
+                        let sheetSizeCalculatedFormula = `${size} cm &times; [Cut length]`;
                         let combinationSpecsString = p.materials.map((m,i)=> `L${i+1}: ${m.gsm} - ${m.name}`).join('<br>');
                         
+                        // Qty input එක හිස්ව (blank) තබා ඇත, එවිට පරිශීලකයාට ඇතුලත් කිරීමට සිදුවේ
                         html += `
                             <tr>
                                 <td class="fw-bold text-primary">${p.po_no}</td>
-                                <td class="text-start">${p.customer_name}</td>
-                                <td class="fw-bold bg-light text-danger font-monospace">${sheetSizeCalculatedFormula}</td>
+                                <td>${p.customer_name}</td>
+                                <td class="fw-bold bg-light text-danger">${sheetSizeCalculatedFormula}</td>
                                 <td><span class="badge bg-secondary">${p.ply} Ply</span></td>
-                                <td class="text-start ps-2 font-monospace" style="font-size: 0.82rem;">${combinationSpecsString}</td>
-                                <td><input type="number" class="form-control form-control-sm mx-auto text-center border-primary fw-bold" style="max-width:90px;" value="1000"></td>
-                                <td class="text-muted text-start" style="font-size:0.82rem;">${p.remarks || 'N/A'}</td>
+                                <td class="text-start ps-2" style="font-size: 0.85rem; font-family: monospace;">${combinationSpecsString}</td>
+                                <td>
+                                    <input type="number" id="qty_input_${p.po_no}" class="form-control form-control-sm mx-auto text-center border-primary fw-bold" style="max-width:110px;" placeholder="Enter Qty" min="1">
+                                </td>
+                                <td class="text-muted" style="font-size:0.85rem;">${p.remarks || ''}</td>
                                 <td class="no-print">
-                                    <button class="btn btn-sm btn-outline-secondary px-2 py-0" title="Print Row Matrix Option" onclick="alert('Row specific document view parsed for PO: ${p.po_no}')">
-                                        <i class="bi bi-printer"></i>
+                                    <button class="btn btn-sm btn-success fw-bold" onclick="commitSinglePlan('${p.po_no}', ${size})">
+                                        <i class="bi bi-cloud-arrow-up-fill me-1"></i> Commit & SR
                                     </button>
                                 </td>
                             </tr>`;
                     });
                     html += `</tbody></table></div></div>`;
                 }
-                document.getElementById('savedPlansWrapperContainer').innerHTML = html || `<div class="text-center text-muted p-4">No active live execution plans scheduled.</div>`;
+                container.innerHTML = html;
             });
         }
 
-        function loadHistoryLogs() {
-            const tableBody = document.getElementById('historyLogsTableBody');
-            tableBody.innerHTML = `<tr><td colspan="7" class="py-4"><div class="spinner-border spinner-border-sm text-primary"></div> Fetching history trail...</td></tr>`;
-            
-            fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
-                let html = '';
-                let hasRecords = false;
+        // Plan එක Commit කර SR සාදන ප්‍රධාන Function එක
+        function commitSinglePlan(poNo, sizeCm) {
+            let qtyInput = document.getElementById(`qty_input_${poNo}`);
+            let qty = parseFloat(qtyInput.value);
+
+            // 1. Qty එක ඇතුලත් කර ඇත්දැයි පරික්ෂා කිරීම සහ විමසීම
+            if (!qty || qty <= 0) {
+                let promptQty = prompt(`[PO: ${poNo}] සඳහා Production Qty එක ඇතුළත් කරන්න:`, "1000");
+                if (promptQty === null) return; // User Cancel කලහොත් නතර කරන්න
                 
-                for (const [size, plans] of Object.entries(data)) {
+                qty = parseFloat(promptQty);
+                if (isNaN(qty) || qty <= 0) {
+                    alert("වලංගු Production Qty එකක් ඇතුළත් කරන්න!");
+                    return;
+                }
+                qtyInput.value = qty; // Input box එකට අගය යාවත්කාලීන කිරීම
+            }
+
+            // 2. Excess Weight එක Qty එකෙන් 5% ක් ලෙස ස්වයංක්‍රීයව ගණනය කිරීම
+            let excessWeight = qty * 0.05;
+
+            if(!confirm(`ඔබට මෙම සැලසුම Commit කර SR Request එකක් සෑදීමට අවශ්‍යද?\n\nPO No: ${poNo}\nQuantity: ${qty}\nExcess Weight (5%): ${excessWeight.toFixed(2)} kg`)) {
+                return;
+            }
+
+            // Backend එක වෙත දත්ත යැවීම
+            fetch('/api/commit_production_plan', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ 
+                    po_no: poNo,
+                    qty: qty,
+                    excess_weight: excessWeight
+                })
+            }).then(r => r.json()).then(res => {
+                if(res.success) {
+                    // සාර්ථක ශබ්ද සංඥාවක් නිකුත් කිරීම
+                    try { document.getElementById('alertSound').play(); } catch(e){}
+                    alert(`Plan Committed successfully! SR Auto-Created.\nExcess Weight set to: ${excessWeight.toFixed(2)} kg`);
+                    renderRuntimePlansTable();
+                    loadSavedPlans();
+                } else {
+                    alert(res.message || "Error committing production sequence blueprint.");
+                }
+            }).catch(err => {
+                alert("Network communication breakdown logging state transaction.");
+            });
+        }
+
+        function loadSavedPlans() {
+            let start = document.getElementById('filter_start').value;
+            let end = document.getElementById('filter_end').value;
+            
+            fetch(`/api/get_saved_plans?start=${start}&end=${end}`)
+            .then(r => r.json())
+            .then(plans => {
+                let tableBody = document.getElementById('savedPlansWrapperContainer');
+                let html = "";
+                let hasRecords = plans && plans.length > 0;
+                
+                if(hasRecords) {
                     plans.forEach(p => {
-                        hasRecords = true;
+                        let size = p.size_cm || 'N/A';
                         let dateStamp = p.created_at ? p.created_at : new Date().toLocaleDateString();
                         let materialsBadgeStr = p.materials.map(m => `<span class="badge bg-light text-dark border me-1">${m.gsm}g-${m.name}</span>`).join('');
                         
@@ -549,12 +236,18 @@
                 }
                 tableBody.innerHTML = hasRecords ? html : `<tr><td colspan="7" class="text-muted py-4">No historical planning records found in session matrix.</td></tr>`;
             }).catch(err => {
-                tableBody.innerHTML = `<tr><td colspan="7" class="text-danger py-4">Failed to synchronize audit log registers.</td></tr>`;
+                document.getElementById('savedPlansWrapperContainer').innerHTML = `<tr><td colspan="7" class="text-danger py-4">Failed to synchronize audit log registers.</td></tr>`;
             });
         }
 
         document.addEventListener("DOMContentLoaded", function() {
-            renderRuntimePlansTable();
+            // Default දිනයන් අද දිනට සකස් කිරීම
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('filter_start').value = today;
+            document.getElementById('filter_end').value = today;
+            
+            loadProductsMasterRegistry();
+            loadSavedPlans();
         });
     </script>
 </body>
