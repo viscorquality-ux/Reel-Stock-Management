@@ -8,7 +8,6 @@ import random
 import re
 import json
 
-
 app = Flask(__name__)
 app.secret_key = 'viscor_packwell_ultimate_secure_key'
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='gevent', ping_timeout=60, ping_interval=25)
@@ -855,7 +854,6 @@ def add_product():
 
     return render_template('add_product.html', user_role=user_role)
 
-# UPDATE: Reel Size calculation logic to add trimming allowance (+2) only once per formula
 def calculate_reel_size(length, width, height, position, ply):
     standard_sizes = list(range(75, 155, 5))
     options = []
@@ -881,11 +879,9 @@ def calculate_reel_size(length, width, height, position, ply):
 
 @app.route('/programme_plan')
 def programme_plan():
-    # 1. පලමුව දත්ත ටික Database එකෙන් ලබා ගන්න (ඔබේ query එක මෙහි තිබිය යුතුය)
-    full_reels = Reel.query.filter_by(status='Full').all() # මෙය උදාහරණයකි
-    used_reels = Reel.query.filter_by(status='Used').all() # මෙය උදාහරණයකි
+    full_reels = Reel.query.filter_by(status='Full').all()
+    used_reels = Reel.query.filter_by(status='Used').all()
 
-    # 2. දැන් render_template කරන විට ඒ දත්ත දෙකම එකතු කරන්න
     return render_template('programme_plan.html', 
                            user_role=get_user_role(), 
                            full_reels=full_reels, 
@@ -918,7 +914,6 @@ def update_product():
         return jsonify({'success': True})
     return jsonify({'success': False, 'message': 'Product not found'})
 
-# UPDATE: API Reel size calculation matching the same +2 isolated logic
 @app.route('/api/get_product_info', methods=['GET'])
 def get_product_info():
     customer_id = request.args.get('customer_id')
@@ -940,7 +935,7 @@ def get_product_info():
                     req_size = ((w + 0.8) + (h + 0.3)) * ups + 2
                 else:
                     req_size = (w + h) * ups + 2
-            else: # external
+            else: 
                 req_size = (w + h) * ups + 2
                 
             for std in range(75, 155, 5):
@@ -1018,7 +1013,6 @@ def get_saved_plans():
         prod = CustomerProduct.query.filter_by(customer_id=p.customer_id, product_code=p.product_code).first()
         c_name = prod.customer_name if prod else "Unknown"
         
-        # New Feature: Add Cut length calculation based on the DB Product dims
         cut_length = 0
         if prod and prod.cartoon_size:
             dims = [float(x) for x in re.findall(r'\d+\.?\d*', prod.cartoon_size)]
@@ -1026,7 +1020,6 @@ def get_saved_plans():
             w = dims[1] if len(dims) > 1 else 0
             cut_length = ((w + l) * 2) + 6
             
-        # Format Date to display in Table
         date_str = p.created_at.strftime('%Y-%m-%d %I:%M %p') if p.created_at else ""
         
         result[size].append({
