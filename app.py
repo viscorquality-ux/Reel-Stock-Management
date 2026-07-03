@@ -952,8 +952,8 @@ def add_product():
 
 def calculate_reel_size(length, width, height, position, ply):
     if position.lower() == 'internal':
-        if ply == 3: base_1_ups = (width + 4) + (height + 3) + 2
-        elif ply == 5: base_1_ups = (width + 8) + (height + 3) + 2
+        if ply == 3: base_1_ups = (width + 0.4) + (height + 0.3) + 2
+        elif ply == 5: base_1_ups = (width + 0.8) + (height + 0.3) + 2
         else: base_1_ups = width + height + 2
     else:
         base_1_ups = width + height + 2
