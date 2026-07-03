@@ -31,7 +31,7 @@ class SmartRole(str):
         return self.lower().replace(" ", "") == other.lower().replace(" ", "")
     def __ne__(self, other): return not self.__eq__(other)
 
-# MODELS (Optimized with Indexes for faster search performance)
+# MODELS
 class Reel(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     reel_number = db.Column(db.String(100), unique=True, nullable=False, index=True)
@@ -107,12 +107,10 @@ class ProgrammePlan(db.Model):
 
 with app.app_context():
     db.create_all()
-    # FIX: Attempt to safely add the missing materials_json column to the existing table
     try:
         db.session.execute(text("ALTER TABLE programme_plan ADD COLUMN materials_json TEXT;"))
         db.session.commit()
     except Exception:
-        # If the column already exists or another error occurs, ignore and continue
         db.session.rollback()
     
 @app.template_filter('datetimeformat')
@@ -142,22 +140,17 @@ def apply_location_filter(query, model):
         return query.filter(model.store_location == 'Viscor Lanka')
     return query
 
-# Safe Number Parsing
 def safe_float(val, default=0.0):
     try:
-        if val is None or str(val).strip() == '':
-            return float(default)
+        if val is None or str(val).strip() == '': return float(default)
         return float(val)
-    except (ValueError, TypeError):
-        return float(default)
+    except (ValueError, TypeError): return float(default)
 
 def safe_int(val, default=0):
     try:
-        if val is None or str(val).strip() == '':
-            return int(default)
+        if val is None or str(val).strip() == '': return int(default)
         return int(float(val))
-    except (ValueError, TypeError):
-        return int(default)
+    except (ValueError, TypeError): return int(default)
 
 @app.route('/', methods=['GET', 'POST'])
 @app.route('/login', methods=['GET', 'POST'])
@@ -196,7 +189,6 @@ def logout():
 def dashboard():
     if 'role' not in session: return redirect(url_for('login'))
     
-    # Optimized: DB Level Aggregation to eliminate slowness
     stats_query = db.session.query(
         func.count(Reel.id),
         func.sum(Reel.current_weight)
@@ -244,16 +236,11 @@ def add_stock():
             reel_status = 'Used' if status_input == 'Used Reel' else 'Full'
 
             new_reel = Reel(
-                reel_number=reel_num,
-                size_cm=safe_float(request.form.get('size_cm')),
-                gsm=safe_int(request.form.get('gsm')),
-                material_name=request.form.get('material_name', ''),
-                reel_type=request.form.get('reel_type', ''),
-                weight_kg=safe_float(request.form.get('weight_kg')),
-                current_weight=safe_float(request.form.get('weight_kg')),
-                status=reel_status, 
-                store_location=request.form.get('store_location', ''),
-                supplier_name=request.form.get('supplier_name', ''),
+                reel_number=reel_num, size_cm=safe_float(request.form.get('size_cm')),
+                gsm=safe_int(request.form.get('gsm')), material_name=request.form.get('material_name', ''),
+                reel_type=request.form.get('reel_type', ''), weight_kg=safe_float(request.form.get('weight_kg')),
+                current_weight=safe_float(request.form.get('weight_kg')), status=reel_status, 
+                store_location=request.form.get('store_location', ''), supplier_name=request.form.get('supplier_name', ''),
                 received_date=rcv_date
             )
             db.session.add(new_reel)
@@ -332,11 +319,7 @@ def mark_damage_sell(id):
         reel.status = 'Finished'
         reel.current_weight = 0.0
         db.session.add(ReelHistory(
-            reel_id=reel.id,
-            usage_type='Finished Usage',
-            weight_before=old_w,
-            weight_after=0.0,
-            remarks=remarks
+            reel_id=reel.id, usage_type='Finished Usage', weight_before=old_w, weight_after=0.0, remarks=remarks
         ))
         flash(f"✅ Reel {reel.reel_number} marked as Fully Finished!", "success")
     else:
@@ -358,10 +341,7 @@ def mark_finished(id):
     reel.current_weight = 0.0 
     
     db.session.add(ReelHistory(
-        reel_id=reel.id,
-        usage_type='Finished Usage',
-        weight_before=old_weight,
-        weight_after=0.0,
+        reel_id=reel.id, usage_type='Finished Usage', weight_before=old_weight, weight_after=0.0,
         remarks=f"Reel {reel.reel_number} fully consumed."
     ))
     db.session.commit()
@@ -395,8 +375,7 @@ def sr_request():
                 
                 if m_name and m_gsm_str:
                     valid_materials.append({
-                        'name': m_name,
-                        'gsm': safe_int(m_gsm_str),
+                        'name': m_name, 'gsm': safe_int(m_gsm_str),
                         'comp_type': request.form.get(f'component_type_{i}', ''),
                         'flute': request.form.get(f'flute_type_{i}', '')
                     })
@@ -418,20 +397,10 @@ def sr_request():
                 comp_sr_num = base_sr_num if len(valid_materials) == 1 else f"{base_sr_num}-L{idx+1}"
 
                 new_sr = SRRequest(
-                    sr_number=comp_sr_num,
-                    po_number=po_number,
-                    reel_size=r_size,
-                    cartoon_amount=cartoon_amt,
-                    gsm=mat['gsm'],
-                    material_name=mat['name'],
-                    qty=qty,
-                    calculated_weight=round(calc_weight, 2),
-                    board_width=b_width,
-                    board_length=b_length,
-                    component_type=mat['comp_type'],
-                    flute_type=mat['flute'],
-                    excess_weight=round(excess_per_comp, 2),
-                    total_weight=round(tot_weight, 2)
+                    sr_number=comp_sr_num, po_number=po_number, reel_size=r_size, cartoon_amount=cartoon_amt,
+                    gsm=mat['gsm'], material_name=mat['name'], qty=qty, calculated_weight=round(calc_weight, 2),
+                    board_width=b_width, board_length=b_length, component_type=mat['comp_type'], flute_type=mat['flute'],
+                    excess_weight=round(excess_per_comp, 2), total_weight=round(tot_weight, 2)
                 )
                 db.session.add(new_sr)
 
@@ -457,10 +426,7 @@ def sr_request():
             group_key = f"{r.material_name}_{r.gsm}"
             if group_key not in grouped_requests[size]['groups']:
                 grouped_requests[size]['groups'][group_key] = {
-                    'material_name': r.material_name,
-                    'gsm': r.gsm,
-                    'total_mat_srs': 0, 
-                    'comp_groups': {}   
+                    'material_name': r.material_name, 'gsm': r.gsm, 'total_mat_srs': 0, 'comp_groups': {}   
                 }
                 
             flute_str = str(r.flute_type).strip() if r.flute_type else ""
@@ -469,10 +435,7 @@ def sr_request():
 
             if comp_key not in grouped_requests[size]['groups'][group_key]['comp_groups']:
                 grouped_requests[size]['groups'][group_key]['comp_groups'][comp_key] = {
-                    'component_type': r.component_type,
-                    'flute_type': r.flute_type,
-                    'total_weight': 0.0,
-                    'srs': []
+                    'component_type': r.component_type, 'flute_type': r.flute_type, 'total_weight': 0.0, 'srs': []
                 }
                 
             grouped_requests[size]['groups'][group_key]['comp_groups'][comp_key]['total_weight'] += r.total_weight
@@ -500,8 +463,7 @@ def edit_sr(id):
         if cartoon_amt <= 0: cartoon_amt = 1.0
             
         calc_weight = ((b_width * b_length) * (gsm / 1000.0)) / cartoon_amt * qty
-        if comp_type == 'Corru':
-            calc_weight = calc_weight * 1.5
+        if comp_type == 'Corru': calc_weight = calc_weight * 1.5
             
         sr.board_width = b_width
         sr.board_length = b_length
@@ -545,33 +507,25 @@ def proceed_sr_batch(sr_id):
     allocated_reels = []
     
     full_reels = Reel.query.filter(
-        Reel.size_cm == sr.reel_size,
-        Reel.material_name == sr.material_name,
-        Reel.gsm == sr.gsm,
-        Reel.status == 'Full'
+        Reel.size_cm == sr.reel_size, Reel.material_name == sr.material_name, Reel.gsm == sr.gsm, Reel.status == 'Full'
     ).order_by(Reel.received_date.asc()).all()
     
     for reel in full_reels:
         if current_allocated < total_needed:
             allocated_reels.append(reel)
             current_allocated += reel.current_weight
-        else:
-            break
+        else: break
             
     if current_allocated < total_needed:
         used_reels = Reel.query.filter(
-            Reel.size_cm == sr.reel_size,
-            Reel.material_name == sr.material_name,
-            Reel.gsm == sr.gsm,
-            Reel.status == 'Used'
+            Reel.size_cm == sr.reel_size, Reel.material_name == sr.material_name, Reel.gsm == sr.gsm, Reel.status == 'Used'
         ).order_by(Reel.received_date.asc()).all()
         
         for reel in used_reels:
             if current_allocated < total_needed:
                 allocated_reels.append(reel)
                 current_allocated += reel.current_weight
-            else:
-                break
+            else: break
                 
     if current_allocated >= total_needed:
         for reel in allocated_reels:
@@ -580,12 +534,8 @@ def proceed_sr_batch(sr_id):
             reel.sr_request_id = sr.id
             
             db.session.add(ReelHistory(
-                reel_id=reel.id,
-                usage_type='Issued to Production',
-                weight_before=old_weight,
-                weight_after=0.0,
-                doc_number=sr.sr_number,
-                remarks='Auto-Dispatched via SR Matrix Proceed'
+                reel_id=reel.id, usage_type='Issued to Production', weight_before=old_weight,
+                weight_after=0.0, doc_number=sr.sr_number, remarks='Auto-Dispatched via SR Matrix Proceed'
             ))
         sr.status = 'Processed'
         db.session.commit()
@@ -609,12 +559,8 @@ def issue_reel_direct(id):
         reel.status = 'Issued'
         
         db.session.add(ReelHistory(
-            reel_id=reel.id,
-            usage_type='Issued to Production',
-            weight_before=old_weight,
-            weight_after=0.0,
-            doc_number=sr_num,
-            remarks='Directly Issued from SR Request'
+            reel_id=reel.id, usage_type='Issued to Production', weight_before=old_weight,
+            weight_after=0.0, doc_number=sr_num, remarks='Directly Issued from SR Request'
         ))
         db.session.commit()
         flash(f"✅ Reel {reel.reel_number} successfully Issued!", "success")
@@ -639,12 +585,8 @@ def issue_reel(id):
         reel.status = 'Pending_Verify'
         reel.store_location = 'Viscor Lanka'
         db.session.add(ReelHistory(
-            reel_id=reel.id,
-            usage_type='Transferred for Verification',
-            weight_before=old_weight,
-            weight_after=old_weight,
-            doc_number=doc_num if doc_num else 'Transfer Without Doc Number',
-            remarks='Sent to Viscor Lanka by Packwell'
+            reel_id=reel.id, usage_type='Transferred for Verification', weight_before=old_weight, weight_after=old_weight,
+            doc_number=doc_num if doc_num else 'Transfer Without Doc Number', remarks='Sent to Viscor Lanka by Packwell'
         ))
         db.session.commit()
         flash(f"✅ Reel {reel.reel_number} successfully transferred to Viscor Lanka Verification!", "success")
@@ -654,12 +596,8 @@ def issue_reel(id):
         old_weight = reel.current_weight
         reel.status = 'Pending_Return'
         db.session.add(ReelHistory(
-            reel_id=reel.id,
-            usage_type='Returned to Packwell',
-            weight_before=old_weight,
-            weight_after=old_weight,
-            doc_number=doc_num if doc_num else 'Return Without Doc Number',
-            remarks='Returned to Packwell by Viscor Lanka'
+            reel_id=reel.id, usage_type='Returned to Packwell', weight_before=old_weight, weight_after=old_weight,
+            doc_number=doc_num if doc_num else 'Return Without Doc Number', remarks='Returned to Packwell by Viscor Lanka'
         ))
         db.session.commit()
         flash(f"✅ Reel {reel.reel_number} successfully sent to Packwell Returns!", "success")
@@ -673,12 +611,8 @@ def issue_reel(id):
         final_doc_num = doc_num if doc_num else auto_sr
         
         db.session.add(ReelHistory(
-            reel_id=reel.id,
-            usage_type='Conditional Issue (Damaged)',
-            weight_before=old_weight,
-            weight_after=0.0,
-            doc_number=final_doc_num,
-            remarks=remarks if remarks else 'Damaged stock conditionally issued'
+            reel_id=reel.id, usage_type='Conditional Issue (Damaged)', weight_before=old_weight, weight_after=0.0,
+            doc_number=final_doc_num, remarks=remarks if remarks else 'Damaged stock conditionally issued'
         ))
         db.session.commit()
         flash(f"✅ Damaged Reel {reel.reel_number} conditionally issued!", "success")
@@ -688,12 +622,8 @@ def issue_reel(id):
         old_weight = reel.current_weight
         reel.status = 'Issued'
         db.session.add(ReelHistory(
-            reel_id=reel.id,
-            usage_type='Issued to Production',
-            weight_before=old_weight,
-            weight_after=0.0,
-            doc_number=doc_num if doc_num else 'Manual Dispatch',
-            remarks="Manual Dispatch"
+            reel_id=reel.id, usage_type='Issued to Production', weight_before=old_weight, weight_after=0.0,
+            doc_number=doc_num if doc_num else 'Manual Dispatch', remarks="Manual Dispatch"
         ))
         db.session.commit()
         flash(f"✅ Reel {reel.reel_number} successfully Dispatched!", "success")
@@ -712,12 +642,7 @@ def viscor_issue():
     end_date = request.args.get('end_date')
     
     history_query = ReelHistory.query.filter(
-        ReelHistory.usage_type.in_([
-            'Transferred for Verification', 
-            'Returned to Packwell', 
-            'Viscor Return Accepted', 
-            'Packwell Return Accepted'
-        ])
+        ReelHistory.usage_type.in_(['Transferred for Verification', 'Returned to Packwell', 'Viscor Return Accepted', 'Packwell Return Accepted'])
     )
     
     if start_date and end_date:
@@ -725,18 +650,10 @@ def viscor_issue():
             s_date = datetime.strptime(start_date, '%Y-%m-%d')
             e_date = datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1)
             history_query = history_query.filter(ReelHistory.timestamp >= s_date, ReelHistory.timestamp < e_date)
-        except Exception:
-            pass
+        except Exception: pass
             
     transfer_history = history_query.order_by(ReelHistory.timestamp.desc()).all()
-    return render_template('viscor_issue.html', 
-                           reels=viscor_reels, 
-                           packwell_reels=packwell_reels, 
-                           packwell_returns=packwell_returns, 
-                           transfer_history=transfer_history,
-                           start_date=start_date or '',
-                           end_date=end_date or '',
-                           user_role=user_role)
+    return render_template('viscor_issue.html', reels=viscor_reels, packwell_reels=packwell_reels, packwell_returns=packwell_returns, transfer_history=transfer_history, start_date=start_date or '', end_date=end_date or '', user_role=user_role)
 
 @app.route('/accept_return/<int:id>', methods=['POST'])
 def accept_return(id):
@@ -751,12 +668,8 @@ def accept_return(id):
     reel.status = 'Used' if reel.current_weight < reel.weight_kg else 'Full'
     
     db.session.add(ReelHistory(
-        reel_id=reel.id,
-        usage_type='Packwell Return Accepted',
-        weight_before=reel.current_weight,
-        weight_after=reel.current_weight,
-        doc_number='Accepted',
-        remarks=f'Accepted at {new_loc} by Packwell'
+        reel_id=reel.id, usage_type='Packwell Return Accepted', weight_before=reel.current_weight,
+        weight_after=reel.current_weight, doc_number='Accepted', remarks=f'Accepted at {new_loc} by Packwell'
     ))
     db.session.commit()
     flash(f"✅ Reel {reel.reel_number} Accepted & Moved to Active Stock!", "success")
@@ -772,12 +685,8 @@ def accept_viscor(id):
     reel.status = 'Used' if reel.current_weight < reel.weight_kg else 'Full'
     
     db.session.add(ReelHistory(
-        reel_id=reel.id,
-        usage_type='Viscor Return Accepted',
-        weight_before=reel.current_weight,
-        weight_after=reel.current_weight,
-        doc_number='Accepted',
-        remarks='Verified & Accepted at Viscor Lanka'
+        reel_id=reel.id, usage_type='Viscor Return Accepted', weight_before=reel.current_weight,
+        weight_after=reel.current_weight, doc_number='Accepted', remarks='Verified & Accepted at Viscor Lanka'
     ))
     db.session.commit()
     flash(f"✅ Reel {reel.reel_number} Verified & Accepted at Viscor!", "success")
@@ -817,11 +726,8 @@ def partial_return(id):
         reel.sr_request_id = None
         
         db.session.add(ReelHistory(
-            reel_id=reel.id,
-            usage_type='Partial Return',
-            weight_before=old_w,  
-            weight_after=new_w,
-            remarks="Returned from production floor"
+            reel_id=reel.id, usage_type='Partial Return', weight_before=old_w,  
+            weight_after=new_w, remarks="Returned from production floor"
         ))
         db.session.commit()
         flash(f"↩️ Reel {reel.reel_number} is back in Active Stock.", "success")
@@ -834,7 +740,6 @@ def partial_return(id):
 def issued_stock():
     if 'role' not in session: return redirect(url_for('login'))
     reels = apply_location_filter(Reel.query, Reel).filter(Reel.status.in_(['Issued', 'SR_Requested'])).order_by(Reel.id.desc()).all()
-    
     logs_query = ReelHistory.query.join(Reel).filter(ReelHistory.usage_type == 'Issued to Production')
     logs_query = apply_location_filter(logs_query, Reel)
     manual_issue_logs = logs_query.order_by(ReelHistory.timestamp.desc()).all()
@@ -843,7 +748,6 @@ def issued_stock():
 @app.route('/finished_usage_stock')
 def finished_usage_stock():
     if 'role' not in session: return redirect(url_for('login'))
-    
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
     
@@ -856,8 +760,7 @@ def finished_usage_stock():
             s_date = datetime.strptime(start_date, '%Y-%m-%d')
             e_date = datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1)
             usage_logs_query = usage_logs_query.filter(ReelHistory.timestamp >= s_date, ReelHistory.timestamp < e_date)
-        except Exception:
-            pass
+        except Exception: pass
             
     finished_reels = finished_reels_query.order_by(Reel.id.desc()).all()
     usage_logs = usage_logs_query.order_by(ReelHistory.timestamp.desc()).all()
@@ -865,14 +768,7 @@ def finished_usage_stock():
     total_finished_weight = sum([r.weight_kg for r in finished_reels])
     total_used_weight_log = sum([(l.weight_before - l.weight_after) for l in usage_logs if l.weight_before is not None and l.weight_after is not None])
     
-    return render_template('finished_usage_stock.html', 
-                           finished_reels=finished_reels,
-                           usage_logs=usage_logs,
-                           total_finished_weight=round(total_finished_weight, 2),
-                           total_used_weight_log=round(total_used_weight_log, 2),
-                           start_date=start_date or '',
-                           end_date=end_date or '',
-                           user_role=get_user_role())
+    return render_template('finished_usage_stock.html', finished_reels=finished_reels, usage_logs=usage_logs, total_finished_weight=round(total_finished_weight, 2), total_used_weight_log=round(total_used_weight_log, 2), start_date=start_date or '', end_date=end_date or '', user_role=get_user_role())
 
 @app.route('/update_finished_sr/<int:id>', methods=['POST'])
 def update_finished_sr(id):
@@ -883,7 +779,6 @@ def update_finished_sr(id):
         
     reel = Reel.query.get_or_404(id)
     new_sr = request.form.get('sr_number')
-    
     if reel.history:
         reel.history[-1].doc_number = new_sr
         db.session.commit()
@@ -895,18 +790,13 @@ def update_finished_sr(id):
 @app.route('/damage_sell_stock')
 def damage_sell_stock():
     if 'role' not in session: return redirect(url_for('login'))
-    
     damaged_reels = apply_location_filter(Reel.query, Reel).filter_by(status='Damaged').all()
     sold_reels = apply_location_filter(Reel.query, Reel).filter_by(status='Sold').all()
     
     cond_logs = ReelHistory.query.join(Reel).filter(ReelHistory.usage_type == 'Conditional Issue (Damaged)')
     cond_logs = apply_location_filter(cond_logs, Reel).order_by(ReelHistory.timestamp.desc()).all()
     
-    return render_template('damage_sell_stock.html', 
-                           damaged_reels=damaged_reels, 
-                           sold_reels=sold_reels, 
-                           cond_logs=cond_logs, 
-                           user_role=get_user_role())
+    return render_template('damage_sell_stock.html', damaged_reels=damaged_reels, sold_reels=sold_reels, cond_logs=cond_logs, user_role=get_user_role())
 
 @app.route('/reset_db_now')
 def reset_db_now():
@@ -924,24 +814,46 @@ def reset_db_now():
     else:
         return "❌ Access Denied: Unauthorized Reset Attempt.", 403
 
+# Fixed implementation with complete POST handler to save to database.
 @app.route('/add_product', methods=['GET', 'POST'])
 def add_product():
     if 'role' not in session: return redirect(url_for('login'))
+    user_role = get_user_role()
+    
     if request.method == 'POST':
-        c_name = request.form['customer_name'].strip()
-        p_name = request.form['product_name'].strip()
-        c_size = request.form['cartoon_size'].strip()
-        
-        existing = CustomerProduct.query.filter_by(
-            customer_name=c_name, product_name=p_name, cartoon_size=c_size
-        ).first()
-        
-        if existing:
-            flash(f"⚠️ This Product ({p_name}) already exists!", "warning")
-            return redirect(url_for('add_product'))
+        try:
+            c_id = request.form.get('customer_id', '').strip()
+            c_name = request.form.get('customer_name', '').strip()
+            c_address = request.form.get('address', '').strip()
+            p_code = request.form.get('product_code', '').strip()
+            p_name = request.form.get('product_name', '').strip()
+            c_size = request.form.get('cartoon_size', '').strip()
+            position = request.form.get('position', '').strip()
+            flute = request.form.get('flute', '').strip()
+            ply = safe_int(request.form.get('ply', 3))
             
-        all_reels = Reel.query.all() 
-        return render_template('add_stock_2.html', user_role=user_role, reels=all_reels)
+            existing = CustomerProduct.query.filter_by(
+                customer_name=c_name, product_name=p_name, cartoon_size=c_size
+            ).first()
+            
+            if existing:
+                flash(f"⚠️ This Product ({p_name}) already exists!", "warning")
+                return redirect(url_for('add_product'))
+                
+            new_prod = CustomerProduct(
+                customer_id=c_id, customer_name=c_name, customer_address=c_address,
+                product_code=p_code, product_name=p_name, cartoon_size=c_size,
+                position=position, flute=flute, ply=ply
+            )
+            db.session.add(new_prod)
+            db.session.commit()
+            flash("✅ Product Registered Successfully!", "success")
+        except Exception as e:
+            db.session.rollback()
+            flash(f"❌ Error adding product: {str(e)}", "danger")
+        return redirect(url_for('add_product'))
+
+    return render_template('add_product.html', user_role=user_role)
 
 def calculate_reel_size(length, width, height, position, ply):
     if position.lower() == 'internal':
@@ -957,12 +869,7 @@ def calculate_reel_size(length, width, height, position, ply):
         req_size = base_1_ups * ups
         for std in standard_sizes:
             if std >= req_size:
-                options.append({
-                    'ups': ups,
-                    'required_size': round(req_size, 2),
-                    'suggested_reel': std,
-                    'wastage': round(std - req_size, 2)
-                })
+                options.append({'ups': ups, 'required_size': round(req_size, 2), 'suggested_reel': std, 'wastage': round(std - req_size, 2)})
                 break
     options.sort(key=lambda x: x['wastage'])
     return options
@@ -1010,7 +917,6 @@ def get_product_info():
         w = dims[1] if len(dims) > 1 else 20.0
         h = dims[2] if len(dims) > 2 else 10.0
         
-        # Calculate standard suggestions
         options = []
         base_1_ups = (w + 0.4) + (h + 0.3) + 2 if product.ply == 3 else w + h + 2
         for ups in range(1, 6):
@@ -1034,14 +940,11 @@ def check_stock_detailed():
     for idx, mat in enumerate(materials):
         gsm = int(mat.get('gsm', 0))
         name = mat.get('name', '')
-        layer_role = f"L{idx+1}" # L1=Top, L2=Corru, L3=Bottom
+        layer_role = f"L{idx+1}" 
         
-        # Calculate required weight
         calc_weight = (size * sheet_length * (gsm / 10000.0) * qty) / 1000.0
-        if idx == 1: # L2 is Corrugated
-            calc_weight *= 1.5
+        if idx == 1: calc_weight *= 1.5
             
-        # Check active stock matching same size and name
         active_reels = Reel.query.filter(
             Reel.size_cm == size, Reel.material_name == name, Reel.gsm == gsm, Reel.status.in_(['Full', 'Used'])
         ).all()
@@ -1055,9 +958,7 @@ def check_stock_detailed():
             'required_weight': round(calc_weight, 2), 'available_stock': round(available_stock, 2), 'shortage': round(shortage, 2)
         })
         
-    # Full list of papers for combo replacements
     papers_data = db.session.query(Reel.material_name).filter(Reel.status.in_(['Full', 'Used'])).distinct().all()
-    
     return jsonify({'results': results, 'all_papers': [p.material_name for p in papers_data]})
 
 @app.route('/api/save_programme_plan', methods=['POST'])
@@ -1092,7 +993,6 @@ def get_saved_plans():
 # WEBSOCKET FOR EMERGENCY TRANSFER REQUESTS
 @socketio.on('send_reel_request_packwell')
 def handle_packwell_request(data):
-    # Triggers sound alert to dataop2 and super2
     emit('receive_packwell_alert', data, broadcast=True)
 
 @app.route('/api/execute_packwell_transfer', methods=['POST'])
@@ -1101,7 +1001,6 @@ def execute_packwell_transfer():
     size = float(data.get('size'))
     paper_name = data.get('name')
     
-    # Find any active Packwell reel matching definitions to auto-verify transfer
     reel = Reel.query.filter(
         Reel.size_cm == size, Reel.material_name == paper_name,
         Reel.store_location.like('Packwell%'), Reel.status.in_(['Full', 'Used'])
@@ -1110,7 +1009,7 @@ def execute_packwell_transfer():
     if reel:
         old_w = reel.current_weight
         reel.status = 'Pending_Verify'
-        reel.store_location = 'Viscor Lanka' # Transferring location structure
+        reel.store_location = 'Viscor Lanka' 
         
         db.session.add(ReelHistory(
             reel_id=reel.id, usage_type='Transferred for Verification',
