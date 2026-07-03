@@ -880,8 +880,15 @@ def calculate_reel_size(length, width, height, position, ply):
 
 @app.route('/programme_plan')
 def programme_plan():
-    if 'role' not in session: return redirect(url_for('login'))
-    return render_template('programme_plan.html', user_role=get_user_role())
+    # 1. පලමුව දත්ත ටික Database එකෙන් ලබා ගන්න (ඔබේ query එක මෙහි තිබිය යුතුය)
+    full_reels = Stock.query.filter_by(status='full').all() # මෙය උදාහරණයකි
+    used_reels = Stock.query.filter_by(status='used').all() # මෙය උදාහරණයකි
+
+    # 2. දැන් render_template කරන විට ඒ දත්ත දෙකම එකතු කරන්න
+    return render_template('programme_plan.html', 
+                           user_role=get_user_role(), 
+                           full_reels=full_reels, 
+                           used_reels=used_reels)
 
 # API ENDPOINTS FOR PRODUCTS
 @app.route('/api/get_products', methods=['GET'])
