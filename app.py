@@ -940,22 +940,8 @@ def add_product():
             flash(f"⚠️ This Product ({p_name}) already exists!", "warning")
             return redirect(url_for('add_product'))
             
-        new_prod = CustomerProduct(
-            customer_id = request.form['customer_id'],
-            customer_name = c_name,
-            customer_address = request.form['address'],
-            product_code = request.form['product_code'],
-            product_name = p_name,
-            cartoon_size = c_size,
-            position = request.form['position'],
-            flute = request.form['flute'],
-            ply = int(request.form['ply'])
-        )
-        db.session.add(new_prod)
-        db.session.commit()
-        flash('✅ New Product Added Successfully!', 'success')
-        return redirect(url_for('add_product'))
-    return render_template('add_product.html', user_role=get_user_role())
+        all_reels = Reel.query.all() 
+        return render_template('add_stock_2.html', user_role=user_role, reels=all_reels)
 
 def calculate_reel_size(length, width, height, position, ply):
     if position.lower() == 'internal':
