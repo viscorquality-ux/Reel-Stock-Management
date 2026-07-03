@@ -814,7 +814,6 @@ def reset_db_now():
     else:
         return "❌ Access Denied: Unauthorized Reset Attempt.", 403
 
-# Fixed implementation with complete POST handler to save to database.
 @app.route('/add_product', methods=['GET', 'POST'])
 def add_product():
     if 'role' not in session: return redirect(url_for('login'))
@@ -855,22 +854,27 @@ def add_product():
 
     return render_template('add_product.html', user_role=user_role)
 
+# UPDATE: Reel Size calculation logic to add trimming allowance (+2) only once per formula
 def calculate_reel_size(length, width, height, position, ply):
-    if position.lower() == 'internal':
-        if ply == 3: base_1_ups = (width + 0.4) + (height + 0.3) + 2
-        elif ply == 5: base_1_ups = (width + 0.8) + (height + 0.3) + 2
-        else: base_1_ups = width + height + 2
-    else:
-        base_1_ups = width + height + 2
-
     standard_sizes = list(range(75, 155, 5))
     options = []
+    
     for ups in range(1, 6):
-        req_size = base_1_ups * ups
+        if position.lower() == 'internal':
+            if ply == 3:
+                req_size = ((width + 0.4) + (height + 0.3)) * ups + 2
+            elif ply == 5:
+                req_size = ((width + 0.8) + (height + 0.3)) * ups + 2
+            else:
+                req_size = (width + height) * ups + 2
+        else:
+            req_size = (width + height) * ups + 2
+            
         for std in standard_sizes:
             if std >= req_size:
                 options.append({'ups': ups, 'required_size': round(req_size, 2), 'suggested_reel': std, 'wastage': round(std - req_size, 2)})
                 break
+                
     options.sort(key=lambda x: x['wastage'])
     return options
 
@@ -906,11 +910,13 @@ def update_product():
         return jsonify({'success': True})
     return jsonify({'success': False, 'message': 'Product not found'})
 
+# UPDATE: API Reel size calculation matching the same +2 isolated logic
 @app.route('/api/get_product_info', methods=['GET'])
 def get_product_info():
     customer_id = request.args.get('customer_id')
     product_code = request.args.get('product_code')
     product = CustomerProduct.query.filter_by(customer_id=customer_id, product_code=product_code).first() 
+    
     if product:
         dims = [float(x) for x in re.findall(r'\d+\.?\d*', product.cartoon_size)]
         l = dims[0] if len(dims) > 0 else 30.0
@@ -918,13 +924,22 @@ def get_product_info():
         h = dims[2] if len(dims) > 2 else 10.0
         
         options = []
-        base_1_ups = (w + 0.4) + (h + 0.3) + 2 if product.ply == 3 else w + h + 2
         for ups in range(1, 6):
-            req_size = base_1_ups * ups
+            if product.position.lower() == 'internal':
+                if product.ply == 3:
+                    req_size = ((w + 0.4) + (h + 0.3)) * ups + 2
+                elif product.ply == 5:
+                    req_size = ((w + 0.8) + (h + 0.3)) * ups + 2
+                else:
+                    req_size = (w + h) * ups + 2
+            else: # external
+                req_size = (w + h) * ups + 2
+                
             for std in range(75, 155, 5):
                 if std >= req_size:
                     options.append({'ups': ups, 'required_size': round(req_size, 2), 'suggested_reel': std, 'wastage': round(std - req_size, 2)})
                     break
+                    
         return jsonify({"success": True, "customer_name": product.customer_name, "product_name": product.product_name, "cartoon_size": product.cartoon_size, "ply": product.ply, "flute": product.flute, "position": product.position, "options": options})
     return jsonify({"success": False, "message": "Product not found"})
 
@@ -973,20 +988,38 @@ def save_programme_plan():
     db.session.commit()
     return jsonify({'success': True})
 
+# UPDATE: Accept start/end date for history filtering
 @app.route('/api/get_saved_plans')
 def get_saved_plans():
-    plans = ProgrammePlan.query.order_by(ProgrammePlan.created_at.desc()).all()
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    
+    query = ProgrammePlan.query
+    if start_date and end_date:
+        try:
+            s_date = datetime.strptime(start_date, '%Y-%m-%d')
+            e_date = datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1)
+            query = query.filter(ProgrammePlan.created_at >= s_date, ProgrammePlan.created_at < e_date)
+        except Exception: pass
+
+    plans = query.order_by(ProgrammePlan.created_at.desc()).all()
+    
     result = {}
     for p in plans:
         size = str(p.selected_reel_size)
         if size not in result: result[size] = []
         prod = CustomerProduct.query.filter_by(customer_id=p.customer_id, product_code=p.product_code).first()
         c_name = prod.customer_name if prod else "Unknown"
+        
+        # Format Date to display in Table
+        date_str = p.created_at.strftime('%Y-%m-%d %I:%M %p') if p.created_at else ""
+        
         result[size].append({
             'id': p.id, 'po_no': p.po_no, 'customer_id': p.customer_id, 'customer_name': c_name,
             'product_code': p.product_code, 'ups': p.selected_ups, 'ply': prod.ply if prod else 3,
             'remarks': f"{prod.position} / Flute: {prod.flute}" if prod else "",
-            'materials': json.loads(p.materials_json) if p.materials_json else []
+            'materials': json.loads(p.materials_json) if p.materials_json else [],
+            'created_at': date_str
         })
     return jsonify(result)
 
