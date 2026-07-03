@@ -29,21 +29,6 @@
 
     <div class="container-fluid px-4">
         
-        <!-- SECTION 1: CUSTOMER PRODUCT TABLE VIEW & INLINE EDITING ENGINE -->
-        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
-    <table class="table table-striped table-hover align-middle mb-0 text-center" id="masterProductsTable">
-        <thead class="table-secondary" style="position: sticky; top: 0;">
-            <tr>
-                <th>Cust ID</th><th>Customer Name</th><th>Product Code</th><th>Product Name</th>
-                <th>Box Dimensions</th><th>Position</th><th>Flute Type</th><th>Ply</th><th>Action</th>
-            </tr>
-        </thead>
-        <tbody id="masterProductsBody">
-            <!-- JS හරහා දත්ත පෙන්වීමේදී input වෙනුවට span සහ edit mode පාවිච්චි කරන්න -->
-        </tbody>
-    </table>
-</div>
-
         <!-- SECTION 2: PROGRAMME GENERATION FORM -->
         <div class="row">
             <div class="col-xl-4 col-md-5">
@@ -100,7 +85,7 @@
                                         <th>Layer Target</th><th>Paper Name Designation</th><th>GSM Spec</th><th>Stock Match Status</th><th>Needed Weight (kg)</th><th>Warehouse Balance (kg)</th><th>Shortage Status</th><th>Actions</th>
                                     </tr>
                                 </thead>
-                                id <tbody id="detailedStockBody"></tbody>
+                                <tbody id="detailedStockBody"></tbody>
                             </table>
                         </div>
                     </div>
@@ -115,7 +100,7 @@
         </div>
     </div>
 
-    <!-- REEL REQUEST INCOMING NOTIFICATION MODAL (Sound alerts targeted here) -->
+    <!-- REEL REQUEST INCOMING NOTIFICATION MODAL -->
     <div class="modal fade" id="incomingRequestModal" data-bs-backdrop="static" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-danger border-3">
@@ -146,7 +131,6 @@
         let activeTransferPayload = null;
         let notificationModalInstance = new bootstrap.Modal(document.getElementById('incomingRequestModal'));
 
-        // Listen for standard background events
         socket.on('receive_packwell_alert', function(data) {
             document.getElementById('alertSound').play().catch(()=>{});
             if(currentRole === 'dataop2' || currentRole === 'super2' || currentRole === 'admin') {
@@ -170,33 +154,6 @@
                 });
             }
         });
-
-        // Initialize Product Configurations Registry View
-        function loadProductsMasterRegistry() {
-    fetch('/api/get_products').then(r=>r.json()).then(data => {
-        let html = '';
-        data.forEach(p => {
-            html += `<tr id="row_${p.id}">
-                <td><span class="view-mode">${p.customer_id}</span><input type="text" class="edit-mode form-control" value="${p.customer_id}" style="display:none"></td>
-                <!-- අනෙකුත් තීරු සඳහාත් මෙලෙසම span (view) සහ input (edit) සාදන්න -->
-                <td><button class="btn btn-sm btn-warning" onclick="toggleEdit(${p.id})">Edit</button></td>
-            </tr>`;
-        });
-        document.getElementById('masterProductsBody').innerHTML = html;
-    });
-}
-
-        function saveProductRowInline(id) {
-            const payload = {
-                id: id, customer_id: document.getElementById(`c_id_${id}`).value, customer_name: document.getElementById(`c_nam_${id}`).value,
-                product_code: document.getElementById(`p_cod_${id}`).value, product_name: document.getElementById(`p_nam_${id}`).value,
-                cartoon_size: document.getElementById(`c_siz_${id}`).value, position: document.getElementById(`pos_${id}`).value,
-                flute: document.getElementById(`flu_${id}`).value, ply: document.getElementById(`ply_${id}`).value
-            };
-            fetch('/api/update_product', {
-                method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
-            }).then(r=>r.json()).then(res => { if(res.success) alert('Product master record updated successfully.'); else alert(res.message); });
-        }
 
         function searchMasterProduct() {
             const cid = document.getElementById('customer_id').value.trim();
@@ -256,11 +213,9 @@
             triggerStockWeightAudit();
         }
 
-        // MATRIX COMBINATION STOCK VERIFICATION AND AUTOMATED SHORTAGE ENGINE
         function triggerStockWeightAudit() {
             if(!selectedReelSize) return;
             
-            // Sheet Length formulation parameter identity: ((W + L) * 2)
             let parsedSheetLength = (globalBoxWidth + globalBoxLength) * 2;
             let currentQty = parseInt(document.getElementById('manual_qty').value) || 0;
             
@@ -318,7 +273,6 @@
             });
         }
 
-        // SECTION 4 - SEVEN COLUMN RUNTIME SPECIFICATION RE-INDEX IMPLEMENTATION
         function renderRuntimePlansTable() {
             fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
                 let html = '';
@@ -337,7 +291,6 @@
                                 <tbody>`;
                     
                     plans.forEach(p => {
-                        // Formula: Reel Size * ((Width + Length)*2) -> rendered purely as markup
                         let sheetSizeCalculatedFormula = `${size} cm &times; [Cut length]`;
                         let combinationSpecsString = p.materials.map((m,i)=> `L${i+1}: ${m.gsm} - ${m.name}`).join('<br>');
                         
@@ -359,7 +312,6 @@
         }
 
         document.addEventListener("DOMContentLoaded", function() {
-            loadProductsMasterRegistry();
             renderRuntimePlansTable();
         });
     </script>
