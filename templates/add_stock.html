@@ -137,6 +137,23 @@
             </form>
         </div>
     </div>
+    <div class="container mt-4">
+    <div class="card shadow border-0">
+        <div class="card-header bg-dark text-white">Stock Availability Dashboard</div>
+        <div class="card-body p-0" style="max-height: 400px; overflow-y: auto;">
+            <table class="table table-striped">
+                <thead class="table-light sticky-top">
+                    <tr><th>Reel Number</th><th>Material</th><th>Current Weight (kg)</th><th>Location</th></tr>
+                </thead>
+                <tbody>
+                    {% for reel in reels %}
+                    <tr><td>{{ reel.reel_number }}</td><td>{{ reel.material_name }}</td><td>{{ reel.current_weight }}</td><td>{{ reel.store_location }}</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
     {% endif %}
 </div>
 <script>
