@@ -100,13 +100,20 @@ class ProgrammePlan(db.Model):
     product_code = db.Column(db.String(50), nullable=False)
     selected_reel_size = db.Column(db.Float, nullable=False)
     selected_ups = db.Column(db.Integer, nullable=False)
-    materials_json = db.Column(db.Text, nullable=True)  # Fix: Added missing column
+    materials_json = db.Column(db.Text, nullable=True)
     status = db.Column(db.String(50), default='Draft') 
     created_by = db.Column(db.String(50), nullable=False)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(colombo_tz))
 
 with app.app_context():
     db.create_all()
+    # FIX: Attempt to safely add the missing materials_json column to the existing table
+    try:
+        db.session.execute(text("ALTER TABLE programme_plan ADD COLUMN materials_json TEXT;"))
+        db.session.commit()
+    except Exception:
+        # If the column already exists or another error occurs, ignore and continue
+        db.session.rollback()
     
 @app.template_filter('datetimeformat')
 def datetimeformat(value, format='%Y-%m-%d %I:%M %p'):
@@ -1023,7 +1030,6 @@ def api_check_stock():
         'papers': papers_list
     })
 
-# ** FIX: Updated save_programme_plan with Exception Handling & Validation **
 @app.route('/api/save_programme_plan', methods=['POST'])
 def save_programme_plan():
     try:
@@ -1092,5 +1098,4 @@ def handle_reel_approve(data):
     }, broadcast=True)
     
 if __name__ == '__main__':
-    socketio.run(app, debug=True, host='0.0.0.0', port=5000)
     socketio.run(app, debug=True, host='0.0.0.0', port=5000)
