@@ -72,26 +72,7 @@
             
             <div class="tab-pane fade show active" id="live-planning" role="tabpanel" aria-labelledby="live-planning-tab">
                 
-                <div class="card mb-4 no-print">
-                    <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
-                        <span class="fw-bold text-secondary"><i class="bi bi-table me-1 text-primary"></i> Master Customer Product Registry Reference Matrix</span>
-                        <span class="badge bg-light text-dark border">Scrollable View</span>
-                    </div>
-                    <div class="card-body p-0">
-                        <div class="table-responsive" style="max-height: 250px; overflow-y: auto;">
-                            <table class="table table-striped table-hover align-middle mb-0 text-center" id="masterProductsTable">
-                                <thead class="table-dark" style="position: sticky; top: 0; z-index: 10;">
-                                    <tr>
-                                        <th>Cust ID</th><th>Customer Name</th><th>Product Code</th><th>Product Name</th>
-                                        <th>Box Dimensions</th><th>Position</th><th>Flute Type</th><th>Ply</th><th class="no-print">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="masterProductsBody" class="small">
-                                    </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
+                <!-- Master Customer Product Registry Reference Matrix table එක මෙතනින් ඉවත් කර ඇත -->
 
                 <div class="row">
                     <div class="col-xl-4 col-md-5 no-print">
@@ -175,7 +156,7 @@
                         <button class="btn btn-xs btn-light fw-bold py-1 px-3 no-print rounded-pill" onclick="window.print()"><i class="bi bi-printer-fill me-1"></i> Print Entire Dashboard</button>
                     </div>
                     <div class="card-body p-4 bg-light-subtle" id="savedPlansWrapperContainer">
-                        </div>
+                    </div>
                 </div>
 
             </div>
@@ -235,7 +216,17 @@
         let activeTransferPayload = null;
         let notificationModalInstance = new bootstrap.Modal(document.getElementById('incomingRequestModal'));
 
-        // PAPER NAME TO TYPE SPECIFIC MAPPING MATRIX
+        // Active Stock Registry එකේ දැනට පවතින දත්තයන් JavaScript Array එකක් ලෙස ලබා ගැනීම
+        const activeReels = [
+            {% for reel in full_reels + used_reels %}
+            {
+                type: {{ reel.reel_type|tojson if reel.reel_type else ""|tojson }},
+                name: {{ reel.material_name|tojson if reel.material_name else ""|tojson }}
+            },
+            {% endfor %}
+        ];
+
+        // Backup static fallback mapping (Active Stock එකේ දත්ත නොමැති අවස්ථාවක භාවිතයට)
         const paperTypeMapping = {
             "Test Liner(T)": ["TSLNY", "TIDB", "TLINER", "T-LITE"],
             "Medium(C)": ["CSLNY", "CAL", "MEDIUM", "CORRUGATED"],
@@ -268,27 +259,6 @@
                 });
             }
         });
-
-        // Load Products Master View
-        function loadProductsMasterRegistry() {
-            fetch('/api/get_products').then(r=>r.json()).then(data => {
-                let html = '';
-                data.forEach(p => {
-                    html += `<tr id="row_${p.id}">
-                        <td>${p.customer_id}</td>
-                        <td class="fw-semibold text-start">${p.customer_name}</td>
-                        <td><span class="badge bg-light text-dark">${p.product_code}</span></td>
-                        <td class="text-start">${p.product_name}</td>
-                        <td class="font-monospace">${p.cartoon_size}</td>
-                        <td>${p.position || 'N/A'}</td>
-                        <td><span class="badge bg-info-subtle text-info fw-bold">${p.flute}</span></td>
-                        <td><span class="badge bg-secondary">${p.ply} Ply</span></td>
-                        <td class="no-print"><button class="btn btn-sm btn-outline-warning py-0" onclick="alert('Inline matrix redirect enabled code structure active.')">Edit</button></td>
-                    </tr>`;
-                });
-                document.getElementById('masterProductsBody').innerHTML = html;
-            });
-        }
 
         function searchMasterProduct() {
             const cid = document.getElementById('customer_id').value.trim();
@@ -324,7 +294,7 @@
             buildCombinationCustomizerRows();
         }
 
-        // PAPER TYPE CHANGE FILTER ACTION CONTROLLER
+        // PAPER TYPE CHANGE FILTER ACTION CONTROLLER (Active Reels Registry එකෙන් පෙරා Drop Down එක සෑදීම)
         function filterPaperNamesByLayerType(layerIndex) {
             const typeSelect = document.getElementById(`layer-type-${layerIndex}`);
             const nameSelect = document.getElementById(`layer-name-${layerIndex}`);
@@ -333,14 +303,34 @@
             const selectedType = typeSelect.value;
             nameSelect.innerHTML = '';
             
-            if (paperTypeMapping[selectedType]) {
-                paperTypeMapping[selectedType].forEach(name => {
-                    let opt = document.createElement('option');
-                    opt.value = name;
-                    opt.textContent = name;
-                    nameSelect.appendChild(opt);
-                });
+            let filteredNames = new Set();
+            
+            // Active Stock එකෙන් අදාල Type එකට ගැලපෙන Paper Names සෙවීම
+            activeReels.forEach(reel => {
+                let rType = reel.type ? reel.type.toLowerCase().trim() : "";
+                let sType = selectedType.toLowerCase().trim();
+                
+                // (T), (C) වැනි කොටස් ඉවත් කර මූලික නම සාදෘශ්‍ය කර බැලීම
+                let cleanSType = sType.split('(')[0].trim(); 
+                
+                if (rType === sType || rType.includes(cleanSType) || sType.includes(rType)) {
+                    filteredNames.add(reel.name);
+                }
+            });
+            
+            // කිසිදු දත්තයක් Active stock එකේ නැතිනම් static fallback එක යොදාගැනීම
+            if (filteredNames.size === 0 && paperTypeMapping[selectedType]) {
+                paperTypeMapping[selectedType].forEach(name => filteredNames.add(name));
             }
+            
+            // Dropdown එක සාදා අගයන් ඇතුලත් කිරීම
+            filteredNames.forEach(name => {
+                let opt = document.createElement('option');
+                opt.value = name;
+                opt.textContent = name;
+                nameSelect.appendChild(opt);
+            });
+            
             triggerStockWeightAudit();
         }
 
@@ -370,14 +360,14 @@
                         <div class="col-md-5 col-12">
                             <label class="form-label text-muted small fw-semibold mb-1">Designated Paper Name</label>
                             <select id="layer-name-${i}" class="form-select form-select-sm layer-name fw-bold text-primary" onchange="triggerStockWeightAudit()">
-                                </select>
+                            </select>
                         </div>
                     </div>
                 </div>`;
             }
             document.getElementById('dynamicComboRowsContainer').innerHTML = html;
             
-            // Populating initialization array logic index loop
+            // මුලින්ම Dropdowns සියල්ල default filter කර පිරවීම
             for(let i = 1; i <= targetPly; i++) {
                 filterPaperNamesByLayerType(i);
             }
@@ -456,10 +446,8 @@
             });
         }
 
-        // ROW SPECIFIC PRINT SIZE BAND FUNCTION ENGINE
         function printSelectedBand(bandId) {
             let printContents = document.getElementById(bandId).outerHTML;
-            let originalContents = document.body.innerHTML;
             
             let printWindow = window.open('', '_blank', 'width=900,height=650');
             printWindow.document.write(`
@@ -484,7 +472,6 @@
             printWindow.document.close();
         }
 
-        // RENDER LIVE DASHBOARD (WITH CORRECTED CALCULATED CUT LENGTH & PRINT OPERATION EXTRACTION)
         function renderRuntimePlansTable() {
             fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
                 let html = '';
@@ -512,7 +499,6 @@
                                 <tbody>`;
                     
                     plans.forEach(p => {
-                        // FIX: Calculate and evaluate cut length dynamic parameter safely instead of static [Cut length] string 
                         let dynamicCutLength = p.cut_length ? p.cut_length : "N/A";
                         let sheetSizeCalculatedFormula = `${size} cm &times; ${dynamicCutLength} cm`;
                         let combinationSpecsString = p.materials.map((m,i)=> `L${i+1}: ${m.gsm} - ${m.name}`).join('<br>');
@@ -539,7 +525,6 @@
             });
         }
 
-        // HISTORY AUDIT LOGS RETRIEVAL GENERATOR (MINI TAB CONTROLLER LOGIC)
         function loadHistoryLogs() {
             const tableBody = document.getElementById('historyLogsTableBody');
             tableBody.innerHTML = `<tr><td colspan="7" class="py-4"><div class="spinner-border spinner-border-sm text-primary"></div> Fetching history trail...</td></tr>`;
@@ -572,7 +557,6 @@
         }
 
         document.addEventListener("DOMContentLoaded", function() {
-            loadProductsMasterRegistry();
             renderRuntimePlansTable();
         });
     </script>
