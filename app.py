@@ -979,17 +979,107 @@ def check_stock_detailed():
     papers_data = db.session.query(Reel.material_name).filter(Reel.status.in_(['Full', 'Used'])).distinct().all()
     return jsonify({'results': results, 'all_papers': [p.material_name for p in papers_data]})
 
+# --- AUTO SR REQUEST GENERATION FEATURE INCLUDED HERE ---
 @app.route('/api/save_programme_plan', methods=['POST'])
 def save_programme_plan():
     data = request.json
+    po_no = data.get('po_no')
+    customer_id = data.get('customer_id')
+    product_code = data.get('product_code')
+    size = safe_float(data.get('selected_reel_size'))
+    ups = safe_int(data.get('selected_ups'))
+    qty = safe_int(data.get('qty', 0))
+    sheet_length = safe_float(data.get('sheet_length', 0))
+    materials = data.get('materials', [])
+    
+    # 1. Programme Plan එක Save කිරීම
     new_plan = ProgrammePlan(
-        po_no=data.get('po_no'), customer_id=data.get('customer_id'), product_code=data.get('product_code'),
-        selected_reel_size=safe_float(data.get('selected_reel_size')), selected_ups=safe_int(data.get('selected_ups')),
-        materials_json=json.dumps(data.get('materials', [])), created_by=session.get('username', 'System')
+        po_no=po_no, customer_id=customer_id, product_code=product_code,
+        selected_reel_size=size, selected_ups=ups,
+        materials_json=json.dumps(materials), created_by=session.get('username', 'System')
     )
     db.session.add(new_plan)
+    
+    # 2. Product එක හරහා Cut Length සහ Flute ලබාගැනීම
+    prod = CustomerProduct.query.filter_by(customer_id=customer_id, product_code=product_code).first()
+    cut_length = 0
+    flute = ""
+    if prod and prod.cartoon_size:
+        dims = [float(x) for x in re.findall(r'\d+\.?\d*', prod.cartoon_size)]
+        l = dims[0] if len(dims) > 0 else 0
+        w = dims[1] if len(dims) > 1 else 0
+        cut_length = ((w + l) * 2) + 6
+        flute = prod.flute
+        
+    board_w = size / 100.0 if size else 0.0
+    board_l = cut_length / 100.0 if cut_length else 0.0
+    
+    # 3. සියලුම Layers වල Stock Availability පරික්ෂා කිරීම
+    all_available = True
+    layer_data = []
+    
+    for idx, mat in enumerate(materials):
+        gsm = safe_int(mat.get('gsm', 0))
+        name = mat.get('name', '')
+        
+        # Component Type එක තීරණය කිරීම (Top, Corru, Bottom)
+        if idx == 0:
+            comp_type = 'Top'
+        elif idx == len(materials) - 1:
+            comp_type = 'Bottom'
+        else:
+            comp_type = 'Corru'
+        
+        calc_weight = (size * sheet_length * (gsm / 10000.0) * qty) / 1000.0
+        if idx == 1:  # Corru Flute එක සඳහා
+            calc_weight *= 1.5
+            
+        active_reels = Reel.query.filter(
+            Reel.size_cm == size, Reel.material_name == name, Reel.gsm == gsm, Reel.status.in_(['Full', 'Used'])
+        ).all()
+        available_stock = sum([r.current_weight for r in active_reels])
+        
+        # එක Layer එකක් හෝ Shortage නම්, Auto SR සෑදීම නවතී
+        if available_stock < calc_weight:
+            all_available = False
+            
+        layer_data.append({
+            'gsm': gsm,
+            'name': name,
+            'weight': calc_weight,
+            'comp_type': comp_type
+        })
+        
+    # 4. Stock අදාළ ප්‍රමාණයට පවතී නම්, ස්වයංක්‍රීයව SR Request Generate කිරීම
+    if all_available and len(layer_data) > 0 and qty > 0:
+        role = get_user_role()
+        prefix = get_sr_prefix(role)
+        base_sr_num = f"{prefix}-AUTO-{datetime.now(colombo_tz).strftime('%Y%m%d%H%M')}-{random.randint(10,99)}"
+        
+        for idx, lw in enumerate(layer_data):
+            comp_sr_num = base_sr_num if len(layer_data) == 1 else f"{base_sr_num}-L{idx+1}"
+            
+            new_sr = SRRequest(
+                sr_number=comp_sr_num,
+                po_number=po_no,
+                reel_size=size,
+                gsm=lw['gsm'],
+                material_name=lw['name'],
+                qty=qty,
+                calculated_weight=round(lw['weight'], 2),
+                total_weight=round(lw['weight'], 2),
+                board_width=board_w,
+                board_length=board_l,
+                cartoon_amount=ups,
+                component_type=lw['comp_type'],
+                flute_type=flute,
+                excess_weight=0.0,
+                status='Pending'
+            )
+            db.session.add(new_sr)
+            
     db.session.commit()
-    return jsonify({'success': True})
+    return jsonify({'success': True, 'sr_auto_created': all_available})
 
 @app.route('/api/get_saved_plans')
 def get_saved_plans():
