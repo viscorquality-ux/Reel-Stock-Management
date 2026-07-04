@@ -103,8 +103,8 @@ class ProgrammePlan(db.Model):
     qty = db.Column(db.Integer, default=0) # Newly Added Qty Tracker
     materials_json = db.Column(db.Text, nullable=True)
     status = db.Column(db.String(50), default='Draft') # Now handles standard Draft, Live Planning, Board Plant etc.
-    board_plant_form = db.Column(db.String(255), nullable=True) # JSON stored Form info
-    printer_form = db.Column(db.String(255), nullable=True)     # JSON stored Form info
+    board_plant_form = db.Column(db.Text, nullable=True) # JSON stored Form info
+    printer_form = db.Column(db.Text, nullable=True)     # JSON stored Form info
     created_by = db.Column(db.String(50), nullable=False)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(colombo_tz))
 
@@ -122,8 +122,8 @@ with app.app_context():
 
     add_column_if_not_exists("programme_plan", "materials_json", "TEXT")
     add_column_if_not_exists("programme_plan", "qty", "INT DEFAULT 0")
-    add_column_if_not_exists("programme_plan", "board_plant_form", "VARCHAR(255)")
-    add_column_if_not_exists("programme_plan", "printer_form", "VARCHAR(255)")
+    add_column_if_not_exists("programme_plan", "board_plant_form", "Text")
+    add_column_if_not_exists("programme_plan", "printer_form", "Text")
     
 @app.template_filter('datetimeformat')
 def datetimeformat(value, format='%Y-%m-%d %I:%M %p'):
