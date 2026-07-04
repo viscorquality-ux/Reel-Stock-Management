@@ -124,8 +124,6 @@ with app.app_context():
     add_column_if_not_exists("programme_plan", "qty", "INT DEFAULT 0")
     add_column_if_not_exists("programme_plan", "board_plant_form", "VARCHAR(255)")
     add_column_if_not_exists("programme_plan", "printer_form", "VARCHAR(255)")
-        except Exception:
-            db.session.rollback()
     
 @app.template_filter('datetimeformat')
 def datetimeformat(value, format='%Y-%m-%d %I:%M %p'):
