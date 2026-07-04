@@ -100,30 +100,46 @@ class ProgrammePlan(db.Model):
     product_code = db.Column(db.String(50), nullable=False)
     selected_reel_size = db.Column(db.Float, nullable=False)
     selected_ups = db.Column(db.Integer, nullable=False)
-    qty = db.Column(db.Integer, default=0) # Newly Added Qty Tracker
-    materials_json = db.Column(db.Text, nullable=True)
-    status = db.Column(db.String(50), default='Draft') # Now handles standard Draft, Live Planning, Board Plant etc.
-    board_plant_form = db.Column(db.Text, nullable=True) # JSON stored Form info
-    printer_form = db.Column(db.Text, nullable=True)     # JSON stored Form info
+    qty = db.Column(db.Integer, default=0) 
+    materials_json = db.Column(db.Text(length=4294967295), nullable=True) # Upgraded Text Limit
+    status = db.Column(db.String(50), default='Draft') 
+    board_plant_form = db.Column(db.Text(length=4294967295), nullable=True) # Upgraded Text Limit
+    printer_form = db.Column(db.Text(length=4294967295), nullable=True) # Upgraded Text Limit
     created_by = db.Column(db.String(50), nullable=False)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(colombo_tz))
 
 with app.app_context():
     db.create_all()
+    
     def add_column_if_not_exists(table, column, col_type):
         try:
-            # MySQL සඳහා නිවැරදි Query එක
             db.session.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}"))
             db.session.commit()
             print(f"Added column {column} to {table}")
         except Exception:
             db.session.rollback()
             print(f"Column {column} already exists or error occurred.")
+            
+    # Function explicitly created to fix the "Data too long" Error in existing databases
+    def upgrade_column_to_longtext(table, column):
+        try:
+            db.session.execute(text(f"ALTER TABLE {table} MODIFY COLUMN {column} LONGTEXT"))
+            db.session.commit()
+            print(f"Successfully upgraded {column} in {table} to LONGTEXT")
+        except Exception as e:
+            db.session.rollback()
+            print(f"Failed to upgrade column {column}: {e}")
 
-    add_column_if_not_exists("programme_plan", "materials_json", "TEXT")
+    # Add columns if they don't exist
+    add_column_if_not_exists("programme_plan", "materials_json", "LONGTEXT")
     add_column_if_not_exists("programme_plan", "qty", "INT DEFAULT 0")
-    add_column_if_not_exists("programme_plan", "board_plant_form", "TEXT")
-    add_column_if_not_exists("programme_plan", "printer_form", "TEXT")
+    add_column_if_not_exists("programme_plan", "board_plant_form", "LONGTEXT")
+    add_column_if_not_exists("programme_plan", "printer_form", "LONGTEXT")
+    
+    # FORCE upgrade existing columns to LONGTEXT to prevent error 1406
+    upgrade_column_to_longtext("programme_plan", "materials_json")
+    upgrade_column_to_longtext("programme_plan", "board_plant_form")
+    upgrade_column_to_longtext("programme_plan", "printer_form")
     
 @app.template_filter('datetimeformat')
 def datetimeformat(value, format='%Y-%m-%d %I:%M %p'):
