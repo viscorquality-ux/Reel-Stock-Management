@@ -110,7 +110,7 @@ class ProgrammePlan(db.Model):
 
 with app.app_context():
     db.create_all()
-   def add_column_if_not_exists(table, column, col_type):
+    def add_column_if_not_exists(table, column, col_type):
         try:
             # MySQL සඳහා නිවැරදි Query එක
             db.session.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}"))
