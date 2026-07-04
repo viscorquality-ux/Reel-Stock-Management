@@ -110,17 +110,20 @@ class ProgrammePlan(db.Model):
 
 with app.app_context():
     db.create_all()
-    try:
-        db.session.execute(text("ALTER TABLE programme_plan ADD COLUMN materials_json TEXT;"))
-        db.session.commit()
-    except Exception:
-        db.session.rollback()
-    try:
-        # Dynamic alter execution for new columns without losing old data
-        db.session.execute(text("ALTER TABLE programme_plan ADD COLUMN qty INT DEFAULT 0;"))
-        db.session.execute(text("ALTER TABLE programme_plan ADD COLUMN board_plant_form VARCHAR(255);"))
-        db.session.execute(text("ALTER TABLE programme_plan ADD COLUMN printer_form VARCHAR(255);"))
-        db.session.commit()
+   def add_column_if_not_exists(table, column, col_type):
+        try:
+            # MySQL සඳහා නිවැරදි Query එක
+            db.session.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}"))
+            db.session.commit()
+            print(f"Added column {column} to {table}")
+        except Exception:
+            db.session.rollback()
+            print(f"Column {column} already exists or error occurred.")
+
+    add_column_if_not_exists("programme_plan", "materials_json", "TEXT")
+    add_column_if_not_exists("programme_plan", "qty", "INT DEFAULT 0")
+    add_column_if_not_exists("programme_plan", "board_plant_form", "VARCHAR(255)")
+    add_column_if_not_exists("programme_plan", "printer_form", "VARCHAR(255)")
     except Exception:
         db.session.rollback()
     
