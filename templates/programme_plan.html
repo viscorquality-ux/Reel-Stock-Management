@@ -108,7 +108,7 @@
                                 
                                 <div class="mb-4 mt-3 p-3 bg-white rounded-3 border">
                                     <label class="form-label fw-bold text-danger mb-1 small"><i class="bi bi-calculator me-1"></i> Manual Target Output Qty (Pcs):</label>
-                                    <input type="number" id="manual_qty" class="form-control form-control-lg border-danger fw-bold text-center" value="1000" oninput="triggerStockWeightAudit()">
+                                    <input type="number" id="manual_qty" class="form-control form-control-lg border-danger fw-bold text-center" placeholder="Enter Target Qty" oninput="triggerStockWeightAudit()">
                                 </div>
                                 <button class="btn btn-success w-100 fw-bold py-2.5 shadow rounded-2 text-uppercase" onclick="dispatchSavePlan()">
                                     <i class="bi bi-save me-1"></i> Save Finished Programme Plan
@@ -407,6 +407,13 @@
 
         // --- NEW AUTO SR GENERATION DATA SUBMISSION SCRIPT ---
         function dispatchSavePlan() {
+            let qtyInput = document.getElementById('manual_qty').value;
+            if (!qtyInput || parseInt(qtyInput) <= 0) {
+                alert("⚠️ කරුණාකර SR එක Auto create වීමට පෙර අවශ්‍ය Quantity (Qty) ප්‍රමාණය ඇතුළත් කරන්න.");
+                document.getElementById('manual_qty').focus();
+                return;
+            }
+
             let materialsArray = [];
             document.querySelectorAll('.layer-row').forEach(row => {
                 materialsArray.push({ 
@@ -424,7 +431,7 @@
                 product_code: document.getElementById('product_code').value.trim(), 
                 selected_reel_size: selectedReelSize,
                 selected_ups: activePlanSuggestedUps, 
-                qty: parseInt(document.getElementById('manual_qty').value) || 0,
+                qty: parseInt(qtyInput) || 0,
                 sheet_length: parsedSheetLength,
                 materials: materialsArray
             };
@@ -507,7 +514,7 @@
                                 <td class="fw-bold bg-light text-danger font-monospace">${sheetSizeCalculatedFormula}</td>
                                 <td><span class="badge bg-secondary">${p.ply} Ply</span></td>
                                 <td class="text-start ps-2 font-monospace" style="font-size: 0.82rem;">${combinationSpecsString}</td>
-                                <td><input type="number" class="form-control form-control-sm mx-auto text-center border-primary fw-bold" style="max-width:90px;" value="1000"></td>
+                                <td><input type="number" class="form-control form-control-sm mx-auto text-center border-primary fw-bold" style="max-width:90px;" placeholder="Qty"></td>
                                 <td class="text-muted text-start" style="font-size:0.82rem;">${p.remarks || 'N/A'}</td>
                                 <td class="no-print">
                                     <button class="btn btn-sm btn-outline-secondary px-2 py-0" title="Print Row Matrix Option" onclick="alert('Row specific document view parsed for PO: ${p.po_no}')">
