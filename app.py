@@ -122,8 +122,8 @@ with app.app_context():
 
     add_column_if_not_exists("programme_plan", "materials_json", "TEXT")
     add_column_if_not_exists("programme_plan", "qty", "INT DEFAULT 0")
-    add_column_if_not_exists("programme_plan", "board_plant_form", "Text")
-    add_column_if_not_exists("programme_plan", "printer_form", "Text")
+    add_column_if_not_exists("programme_plan", "board_plant_form", "TEXT")
+    add_column_if_not_exists("programme_plan", "printer_form", "TEXT")
     
 @app.template_filter('datetimeformat')
 def datetimeformat(value, format='%Y-%m-%d %I:%M %p'):
