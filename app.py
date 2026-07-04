@@ -3,6 +3,8 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text, func
 from flask_socketio import SocketIO, emit
 from datetime import datetime, timedelta
+from flask_migrate import Migrate
+migrate = Migrate(app, db)
 import pytz
 import random
 import re
