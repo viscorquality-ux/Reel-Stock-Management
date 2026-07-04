@@ -107,11 +107,16 @@ class ProgrammePlan(db.Model):
 
 with app.app_context():
     db.create_all()
-    try:
-        db.session.execute(text("ALTER TABLE programme_plan ADD COLUMN materials_json TEXT;"))
-        db.session.commit()
-    except Exception:
-        db.session.rollback()
+    # Safely add new columns if they don't exist
+    try: db.session.execute(text("ALTER TABLE programme_plan ADD COLUMN materials_json TEXT;"))
+    except: pass
+    try: db.session.execute(text("ALTER TABLE programme_plan ADD COLUMN qty INTEGER DEFAULT 0;"))
+    except: pass
+    try: db.session.execute(text("ALTER TABLE programme_plan ADD COLUMN stage VARCHAR(50) DEFAULT 'Live';"))
+    except: pass
+    try: db.session.execute(text("ALTER TABLE programme_plan ADD COLUMN job_card_data TEXT;"))
+    except: pass
+    db.session.commit()
     
 @app.template_filter('datetimeformat')
 def datetimeformat(value, format='%Y-%m-%d %I:%M %p'):
@@ -1089,25 +1094,23 @@ def save_programme_plan():
 
 @app.route('/api/get_saved_plans')
 def get_saved_plans():
-    start_date = request.args.get('start_date')
-    end_date = request.args.get('end_date')
+    plans = ProgrammePlan.query.order_by(ProgrammePlan.created_at.desc()).all()
     
-    query = ProgrammePlan.query
-    if start_date and end_date:
-        try:
-            s_date = datetime.strptime(start_date, '%Y-%m-%d')
-            e_date = datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1)
-            query = query.filter(ProgrammePlan.created_at >= s_date, ProgrammePlan.created_at < e_date)
-        except Exception: pass
-
-    plans = query.order_by(ProgrammePlan.created_at.desc()).all()
+    # We will group by stage first, then by size
+    result = {
+        'Live': {}, 'Board Plant': {}, 'Printers': {}, 'Die Cut': {}, 'Gluers': {}, 'Finished Goods': {}
+    }
     
-    result = {}
     for p in plans:
+        stage = p.stage if p.stage in result else 'Live'
         size = str(p.selected_reel_size)
-        if size not in result: result[size] = []
+        
+        if size not in result[stage]: 
+            result[stage][size] = []
+            
         prod = CustomerProduct.query.filter_by(customer_id=p.customer_id, product_code=p.product_code).first()
         c_name = prod.customer_name if prod else "Unknown"
+        p_name = prod.product_name if prod else "Unknown"
         
         cut_length = 0
         if prod and prod.cartoon_size:
@@ -1118,13 +1121,18 @@ def get_saved_plans():
             
         date_str = p.created_at.strftime('%Y-%m-%d %I:%M %p') if p.created_at else ""
         
-        result[size].append({
-            'id': p.id, 'po_no': p.po_no, 'customer_id': p.customer_id, 'customer_name': c_name,
+        job_data = {}
+        if p.job_card_data:
+            try: job_data = json.loads(p.job_card_data)
+            except: pass
+
+        result[stage][size].append({
+            'id': p.id, 'po_no': p.po_no, 'customer_id': p.customer_id, 'customer_name': c_name, 'product_name': p_name,
             'product_code': p.product_code, 'ups': p.selected_ups, 'ply': prod.ply if prod else 3,
             'remarks': f"{prod.position} / Flute: {prod.flute}" if prod else "",
             'materials': json.loads(p.materials_json) if p.materials_json else [],
-            'created_at': date_str,
-            'cut_length': cut_length
+            'created_at': date_str, 'cut_length': cut_length, 'qty': p.qty,
+            'job_data': job_data
         })
     return jsonify(result)
 
@@ -1157,6 +1165,34 @@ def execute_packwell_transfer():
         db.session.commit()
         return jsonify({'success': True, 'reel_number': reel.reel_number})
     return jsonify({'success': False, 'message': 'No matching active reels found in Packwell Stock.'})
-    
+
+@app.route('/api/update_plan_qty', methods=['POST'])
+def update_plan_qty():
+    data = request.json
+    plan = ProgrammePlan.query.get(data.get('id'))
+    if plan:
+        plan.qty = safe_int(data.get('qty'))
+        db.session.commit()
+        return jsonify({'success': True})
+    return jsonify({'success': False})
+
+@app.route('/api/transfer_plan_stage', methods=['POST'])
+def transfer_plan_stage():
+    data = request.json
+    plan = ProgrammePlan.query.get(data.get('id'))
+    if plan:
+        plan.stage = data.get('stage')
+        # Also save job card data if provided during transfer
+        if 'job_card_data' in data:
+            current_data = {}
+            if plan.job_card_data:
+                try: current_data = json.loads(plan.job_card_data)
+                except: pass
+            current_data.update(data.get('job_card_data'))
+            plan.job_card_data = json.dumps(current_data)
+            
+        db.session.commit()
+        return jsonify({'success': True})
+    return jsonify({'success': False})    
 if __name__ == '__main__':
     socketio.run(app, debug=True, host='0.0.0.0', port=5000)
