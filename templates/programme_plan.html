@@ -593,43 +593,62 @@
 
             let formHtml = `
             <div class="card card-body bg-white m-3 border-secondary text-start">
-                <h5 class="border-bottom pb-2 text-primary fw-bold">BOARD PLANT & QUALITY CHECK FORM</h5>
+                <h5 class="border-bottom pb-2 text-primary fw-bold text-center">BOARD PLANT & QUALITY CHECK FORM</h5>
                 <form id="form_bp_${id}" onsubmit="submitBoardPlant(event, ${id})">
+                    
+                    <!-- Modified Header Row -->
+                    <div class="row g-2 mb-4 bg-light p-3 rounded border border-secondary-subtle">
+                        <div class="col-md-4 text-center">
+                            <span class="small text-muted fw-bold d-block text-uppercase">PO No</span>
+                            <span class="fw-bold text-primary fs-5">${plan.po_no}</span>
+                            <input type="hidden" name="po_no" value="${plan.po_no}">
+                        </div>
+                        <div class="col-md-5 text-center border-start border-end">
+                            <span class="small text-muted fw-bold d-block text-uppercase">Customer / Product Name</span>
+                            <span class="fw-bold text-dark fs-6">${plan.customer_name} - ${plan.product_name}</span>
+                            <input type="hidden" name="cust_prod" value="${plan.customer_name} - ${plan.product_name}">
+                        </div>
+                        <div class="col-md-3 text-center">
+                            <span class="small text-muted fw-bold d-block text-uppercase">Programme Qty</span>
+                            <span class="fw-bold text-danger fs-5">${plan.qty}</span>
+                            <input type="hidden" name="qty" value="${plan.qty}">
+                        </div>
+                    </div>
+
                     <div class="row g-2 mb-3">
-                        <div class="col-md-3"><label class="small fw-bold">PO No</label><input type="text" class="form-control bg-light" value="${plan.po_no}" readonly name="po_no"></div>
-                        <div class="col-md-6"><label class="small fw-bold">Customer & Product Name</label><input type="text" class="form-control bg-light" value="${plan.customer_name} - ${plan.product_name}" readonly name="cust_prod"></div>
-                        <div class="col-md-3"><label class="small fw-bold">Qty</label><input type="number" class="form-control bg-light" value="${plan.qty}" readonly name="qty"></div>
+                        <div class="col-md-3"><label class="small fw-bold">Serial No</label><input type="text" class="form-control" required name="serial_no"></div>
+                        <div class="col-md-3"><label class="small fw-bold">Slit Size</label><input type="text" class="form-control" required name="slit_size"></div>
+                        <div class="col-md-3"><label class="small fw-bold">Cut Length</label><input type="text" class="form-control" required name="cut_length"></div>
+                        <div class="col-md-3"><label class="small fw-bold">Pass/Fail</label><select class="form-select" required name="pass_fail"><option value="Pass">Pass</option><option value="Fail">Fail</option></select></div>
                     </div>
                     <div class="row g-2 mb-3">
-                        <div class="col-md-2"><label class="small fw-bold">Serial No</label><input type="text" class="form-control" required name="serial_no"></div>
-                        <div class="col-md-2"><label class="small fw-bold">Slit Size</label><input type="text" class="form-control" required name="slit_size"></div>
-                        <div class="col-md-2"><label class="small fw-bold">Cut Length</label><input type="text" class="form-control" required name="cut_length"></div>
-                        <div class="col-md-2"><label class="small fw-bold">Pass/Fail</label><select class="form-select" required name="pass_fail"><option value="Pass">Pass</option><option value="Fail">Fail</option></select></div>
-                    </div>
-                    <div class="row g-2 mb-3">
-                        <div class="col-md-3"><label class="small fw-bold">Date</label><input type="date" class="form-control" required name="bp_date"></div>
-                        <div class="col-md-3"><label class="small fw-bold">Counter Qty</label><input type="number" class="form-control" required name="counter_qty"></div>
-                        <div class="col-md-3"><label class="small fw-bold">Add Qty Feed</label><input type="number" class="form-control" required name="add_qty"></div>
+                        <div class="col-md-4"><label class="small fw-bold">Date</label><input type="date" class="form-control" required name="bp_date"></div>
+                        <div class="col-md-4"><label class="small fw-bold">Counter Qty</label><input type="number" class="form-control" required name="counter_qty"></div>
+                        <div class="col-md-4"><label class="small fw-bold">Add Qty Feed</label><input type="number" class="form-control" required name="add_qty"></div>
                     </div>
                     <div class="row g-2 mb-4">
-                        <div class="col-md-2"><label class="small fw-bold">Excess</label><input type="number" class="form-control" required name="excess"></div>
-                        <div class="col-md-2"><label class="small fw-bold">Damaged Qty</label><input type="number" class="form-control" required name="damaged"></div>
-                        <div class="col-md-2"><label class="small fw-bold">C: Hand Sign</label><input type="text" class="form-control" required name="sign"></div>
+                        <div class="col-md-4"><label class="small fw-bold">Excess</label><input type="number" class="form-control" required name="excess"></div>
+                        <div class="col-md-4"><label class="small fw-bold">Damaged Qty</label><input type="number" class="form-control" required name="damaged"></div>
+                        <div class="col-md-4"><label class="small fw-bold">C: Hand Sign</label><input type="text" class="form-control" required name="sign"></div>
                     </div>
-                    <h6 class="text-secondary fw-bold border-bottom pb-1">Quality Check Section</h6>
+                    
+                    <h6 class="text-secondary fw-bold border-bottom pb-1 mt-4">Quality Check Section</h6>
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-4"><label class="small fw-bold">Measurement</label><select class="form-select" required name="qc_measurement"><option value="INT">INT</option><option value="EXT">EXT</option><option value="Flap_overlap">Flap_overlap</option><option value="F-F_EXT">F-F_EXT</option></select></div>
+                        <div class="col-md-4"><label class="small fw-bold">Caliper/Thickness (mm)</label><input type="text" class="form-control" required name="qc_caliper"></div>
+                        <div class="col-md-4"><label class="small fw-bold">Paper_Combination</label><select class="form-select" required name="qc_combination"><option value="WL">WL</option><option value="WKL">WKL</option><option value="KL">KL</option><option value="BL">BL</option></select></div>
+                    </div>
                     <div class="row g-2 mb-4">
-                        <div class="col-md-3"><label class="small fw-bold">Measurement</label><select class="form-select" required name="qc_measurement"><option value="INT">INT<option value="EXT">EXT<option value="Flap_overlap">Flap_overlap<option value="F-F_EXT">F-F_EXT</option></select></div>
-                        <div class="col-md-3"><label class="small fw-bold">Caliper/Thickness (mm)</label><input type="text" class="form-control" required name="qc_caliper"></div>
-                        <div class="col-md-3"><label class="small fw-bold">Paper_Combination</label><select class="form-select" required name="qc_combination"><option value="WL">WL</option><option value="WKL">WKL<option value="KL">KL<option value="BL">BL</option></select></div>
-                        <div class="col-md-3"><label class="small fw-bold">Visual Defects</label><select class="form-select" required name="qc_flute"><option value="B">B</option><option value="C">C<option value="BC">BC<option value="N">N</option></select></div>
-                        <div class="col-md-3"><label class="small fw-bold">Visual Defects</label><select class="form-select" required name="qc_creasing"><option value="Flat">Flat</option><option value="M-M">M-M<option value="Double">Double</option></select></div>
-                        <div class="col-md-3"><label class="small fw-bold">Visual Defects</label><select class="form-select" required name="qc_visual"><option value="None">None</option><option value="Found">Found</option></select></div>
+                        <div class="col-md-3"><label class="small fw-bold">Visual Defects (Flute)</label><select class="form-select" required name="qc_flute"><option value="B">B</option><option value="C">C</option><option value="BC">BC</option><option value="N">N</option></select></div>
+                        <div class="col-md-3"><label class="small fw-bold">Visual Defects (Creasing)</label><select class="form-select" required name="qc_creasing"><option value="Flat">Flat</option><option value="M-M">M-M</option><option value="Double">Double</option></select></div>
+                        <div class="col-md-3"><label class="small fw-bold">Visual Defects (Visual)</label><select class="form-select" required name="qc_visual"><option value="None">None</option><option value="Found">Found</option></select></div>
                         <div class="col-md-3"><label class="small fw-bold">QC Approval</label><select class="form-select" required name="qc_app"><option value="Approved">Approved</option><option value="Rejected">Rejected</option></select></div>
                     </div>
+                    
                     <input type="hidden" name="target_tab" id="target_tab_${id}">
-                    <div class="d-flex justify-content-end gap-2">
-                        <button type="button" class="btn btn-primary fw-bold" onclick="document.getElementById('target_tab_${id}').value='Printers'; document.getElementById('form_bp_${id}').requestSubmit();">Save & Transfer to Printers</button>
-                        <button type="button" class="btn btn-warning fw-bold" onclick="document.getElementById('target_tab_${id}').value='Die Cut'; document.getElementById('form_bp_${id}').requestSubmit();">Save & Transfer to Die Cut & Semi Auto</button>
+                    <div class="d-flex justify-content-end gap-2 mt-3">
+                        <button type="button" class="btn btn-primary fw-bold px-4" onclick="document.getElementById('target_tab_${id}').value='Printers'; document.getElementById('form_bp_${id}').requestSubmit();">Save & Transfer to Printers</button>
+                        <button type="button" class="btn btn-warning fw-bold px-4" onclick="document.getElementById('target_tab_${id}').value='Die Cut'; document.getElementById('form_bp_${id}').requestSubmit();">Save & Transfer to Die Cut & Semi Auto</button>
                     </div>
                 </form>
             </div>`;
@@ -692,16 +711,16 @@
             <div class="card card-body bg-white m-3 border-secondary text-start">
                 <h5 class="border-bottom pb-2 text-success fw-bold">PRINTERS & QUALITY CHECK FORM</h5>
                 <form id="form_print_${id}" onsubmit="submitPrinter(event, ${id})">
-                    <div class="row g-2 mb-3">
+                    <div class="row g-2 mb-3 mt-2">
                         <div class="col-md-3"><label class="small fw-bold">ZK1224 (U/P)</label><select class="form-select" name="pr_ZK1224(U/P)" required><option value="Yes">Yes</option><option value="No">No</option></select></div>
                         <div class="col-md-3"><label class="small fw-bold">TCY</label><select class="form-select" name="pr_TCY" required><option value="Yes">Yes</option><option value="No">No</option></select></div>
                         <div class="col-md-3"><label class="small fw-bold">PS 500 NL</label><select class="form-select" name="pr_PS500nl" required><option value="Yes">Yes</option><option value="No">No</option></select></div>
                         <div class="col-md-3"><label class="small fw-bold">Pass/Fail</label><select class="form-select" name="pr_pass" required><option value="Pass">Pass</option><option value="Fail">Fail</option></select></div>
                     </div>
                     <div class="row g-2 mb-3">
-                        <div class="col-md-3"><label class="small fw-bold">Plant Board Counter Qty</label><input type="text" class="form-control" required name="pr_plant"></div>
-                        <div class="col-md-3"><label class="small fw-bold">Slot BDs Counter Qty(Ctns)</label><input type="text" class="form-control" required name="pr_slot"></div>
-                        <div class="col-md-3"><label class="small fw-bold">Slot BDs Add Qty Feed</label><input type="number" class="form-control" required name="pr_addqty"></div>
+                        <div class="col-md-4"><label class="small fw-bold">Plant Board Counter Qty</label><input type="text" class="form-control" required name="pr_plant"></div>
+                        <div class="col-md-4"><label class="small fw-bold">Slot BDs Counter Qty(Ctns)</label><input type="text" class="form-control" required name="pr_slot"></div>
+                        <div class="col-md-4"><label class="small fw-bold">Slot BDs Add Qty Feed</label><input type="number" class="form-control" required name="pr_addqty"></div>
                     </div>
                     <div class="row g-2 mb-4">
                         <div class="col-md-3"><label class="small fw-bold">Slot BDs Excess</label><input type="number" class="form-control" required name="pr_excess"></div>
@@ -711,27 +730,30 @@
                     </div>
                     <h6 class="text-secondary fw-bold border-bottom pb-1">Printers QC Section</h6>
                     <div class="row g-2 mb-4">
-                       <div class="col-md-3"><label class="small fw-bold">Measurement</label><select class="form-select" required name="qc_measurement"><option value="INT">INT<option value="EXT">EXT<option value="Flap_overlap">Flap_overlap<option value="F-F_EXT">F-F_EXT</option></select></div>
+                       <div class="col-md-3"><label class="small fw-bold">Measurement</label><select class="form-select" required name="qc_measurement"><option value="INT">INT</option><option value="EXT">EXT</option><option value="Flap_overlap">Flap_overlap</option><option value="F-F_EXT">F-F_EXT</option></select></div>
                         <div class="col-md-3"><label class="small fw-bold">Caliper/Thickness (mm)</label><input type="text" class="form-control" required name="qc_caliper"></div>
-                        <div class="col-md-3"><label class="small fw-bold">Paper_Combination</label><select class="form-select" required name="qc_combination"><option value="WL">WL</option><option value="WKL">WKL<option value="KL">KL<option value="BL">BL</option></select></div>
-                        <div class="col-md-3"><label class="small fw-bold">Visual Defects</label><select class="form-select" required name="qc_flute"><option value="B">B</option><option value="C">C<option value="BC">BC<option value="N">N</option></select></div>
-                        <div class="col-md-3"><label class="small fw-bold">Visual Defects</label><select class="form-select" required name="qc_creasing"><option value="Flat">Flat</option><option value="M-M">M-M<option value="Double">Double</option></select></div>
-                        <div class="col-md-3"><label class="small fw-bold">Visual Defects</label><select class="form-select" required name="qc_visual"><option value="None">None</option><option value="Found">Found</option></select></div>
+                        <div class="col-md-3"><label class="small fw-bold">Paper_Combination</label><select class="form-select" required name="qc_combination"><option value="WL">WL</option><option value="WKL">WKL</option><option value="KL">KL</option><option value="BL">BL</option></select></div>
+                        <div class="col-md-3"><label class="small fw-bold">Visual Defects (Flute)</label><select class="form-select" required name="qc_flute"><option value="B">B</option><option value="C">C</option><option value="BC">BC</option><option value="N">N</option></select></div>
+                        <div class="col-md-3"><label class="small fw-bold">Visual Defects (Creasing)</label><select class="form-select" required name="qc_creasing"><option value="Flat">Flat</option><option value="M-M">M-M</option><option value="Double">Double</option></select></div>
+                        <div class="col-md-3"><label class="small fw-bold">Visual Defects (Visual)</label><select class="form-select" required name="qc_visual"><option value="None">None</option><option value="Found">Found</option></select></div>
                         <div class="col-md-3"><label class="small fw-bold">QC Approval</label><select class="form-select" required name="qc_app"><option value="Approved">Approved</option><option value="Rejected">Rejected</option></select></div>
                     </div>
-                    <h7 class="text-secondary fw-bold border-bottom pb-1">Sample/Art Work Details</h7>
                     
-                    <form>
-                        <label><input type="checkbox" name="Sample No" value="1"> Sample No </label><br>
-                        <label><input type="checkbox" name="Code No" value="2"> Code No</label><br>
-                        <label><input type="checkbox" name="Printing Details" value="3"> Printing Details</label><br>
-                        <label><input type="checkbox" name="Colours" value="4"> Colours </label><br>
-                        <label><input type="checkbox" name="Measurement" value="5"> Measurement </label><br>
-                    </form>
+                    <h6 class="text-secondary fw-bold border-bottom pb-1 mt-3">Sample/Art Work Details</h6>
+                    <!-- Fixed Nested Form Bug & Added Option 1 -->
+                    <div class="mb-4">
+                        <div class="form-check mb-1"><input class="form-check-input" type="checkbox" name="sample_no" value="1" id="c_sample_${id}"><label class="form-check-label" for="c_sample_${id}">Sample No</label></div>
+                        <div class="form-check mb-1"><input class="form-check-input" type="checkbox" name="code_no" value="2" id="c_code_${id}"><label class="form-check-label" for="c_code_${id}">Code No</label></div>
+                        <div class="form-check mb-1"><input class="form-check-input" type="checkbox" name="printing_details" value="3" id="c_print_${id}"><label class="form-check-label" for="c_print_${id}">Printing Details</label></div>
+                        <div class="form-check mb-1"><input class="form-check-input" type="checkbox" name="colours" value="4" id="c_color_${id}"><label class="form-check-label" for="c_color_${id}">Colours</label></div>
+                        <div class="form-check mb-1"><input class="form-check-input" type="checkbox" name="measurement" value="5" id="c_measure_${id}"><label class="form-check-label" for="c_measure_${id}">Measurement</label></div>
+                        <div class="form-check mb-1"><input class="form-check-input" type="checkbox" name="option_1" value="6" id="c_option1_${id}"><label class="form-check-label fw-bold text-primary" for="c_option1_${id}">Option 1</label></div>
+                    </div>
+                    
                     <input type="hidden" name="target_tab" id="target_tab_pr_${id}">
-                    <div class="d-flex justify-content-end gap-2">
-                        <button type="button" class="btn btn-primary fw-bold" onclick="document.getElementById('target_tab_pr_${id}').value='Gluer'; document.getElementById('form_print_${id}').requestSubmit();">Save & Transfer to Gluer</button>
-                        <button type="button" class="btn btn-warning fw-bold" onclick="document.getElementById('target_tab_pr_${id}').value='Die Cut'; document.getElementById('form_print_${id}').requestSubmit();">Save & Transfer to Die Cut & Semi Auto</button>
+                    <div class="d-flex justify-content-end gap-2 mt-3">
+                        <button type="button" class="btn btn-primary fw-bold px-4" onclick="document.getElementById('target_tab_pr_${id}').value='Gluer'; document.getElementById('form_print_${id}').requestSubmit();">Save & Transfer to Gluer</button>
+                        <button type="button" class="btn btn-warning fw-bold px-4" onclick="document.getElementById('target_tab_pr_${id}').value='Die Cut'; document.getElementById('form_print_${id}').requestSubmit();">Save & Transfer to Die Cut & Semi Auto</button>
                     </div>
                 </form>
             </div>`;
