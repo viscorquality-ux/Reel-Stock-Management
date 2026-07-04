@@ -1054,10 +1054,16 @@ def save_programme_plan():
     if all_available and len(layer_data) > 0 and qty > 0:
         role = get_user_role()
         prefix = get_sr_prefix(role)
-        base_sr_num = f"{prefix}-AUTO-{datetime.now(colombo_tz).strftime('%Y%m%d%H%M')}-{random.randint(10,99)}"
+        # මෙහි Auto යන වචනය ඉවත් කර ඇත
+        base_sr_num = f"{prefix}-{datetime.now(colombo_tz).strftime('%Y%m%d%H%M')}-{random.randint(10,99)}"
         
         for idx, lw in enumerate(layer_data):
             comp_sr_num = base_sr_num if len(layer_data) == 1 else f"{base_sr_num}-L{idx+1}"
+            
+            # Excess Weight එක Calculation කිරීම (Quantity එක මත පදනම් වූ Weight එකෙන් 5%)
+            calc_weight = lw['weight']
+            excess = calc_weight * 0.05
+            total_w = calc_weight + excess
             
             new_sr = SRRequest(
                 sr_number=comp_sr_num,
@@ -1066,14 +1072,14 @@ def save_programme_plan():
                 gsm=lw['gsm'],
                 material_name=lw['name'],
                 qty=qty,
-                calculated_weight=round(lw['weight'], 2),
-                total_weight=round(lw['weight'], 2),
+                calculated_weight=round(calc_weight, 2),
+                total_weight=round(total_w, 2),
                 board_width=board_w,
                 board_length=board_l,
                 cartoon_amount=ups,
                 component_type=lw['comp_type'],
                 flute_type=flute,
-                excess_weight=0.0,
+                excess_weight=round(excess, 2),
                 status='Pending'
             )
             db.session.add(new_sr)
