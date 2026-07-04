@@ -100,23 +100,29 @@ class ProgrammePlan(db.Model):
     product_code = db.Column(db.String(50), nullable=False)
     selected_reel_size = db.Column(db.Float, nullable=False)
     selected_ups = db.Column(db.Integer, nullable=False)
+    qty = db.Column(db.Integer, default=0) # Newly Added Qty Tracker
     materials_json = db.Column(db.Text, nullable=True)
-    status = db.Column(db.String(50), default='Draft') 
+    status = db.Column(db.String(50), default='Draft') # Now handles standard Draft, Live Planning, Board Plant etc.
+    board_plant_form = db.Column(db.Text, nullable=True) # JSON stored Form info
+    printer_form = db.Column(db.Text, nullable=True)     # JSON stored Form info
     created_by = db.Column(db.String(50), nullable=False)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(colombo_tz))
 
 with app.app_context():
     db.create_all()
-    # Safely add new columns if they don't exist
-    try: db.session.execute(text("ALTER TABLE programme_plan ADD COLUMN materials_json TEXT;"))
-    except: pass
-    try: db.session.execute(text("ALTER TABLE programme_plan ADD COLUMN qty INTEGER DEFAULT 0;"))
-    except: pass
-    try: db.session.execute(text("ALTER TABLE programme_plan ADD COLUMN stage VARCHAR(50) DEFAULT 'Live';"))
-    except: pass
-    try: db.session.execute(text("ALTER TABLE programme_plan ADD COLUMN job_card_data TEXT;"))
-    except: pass
-    db.session.commit()
+    try:
+        db.session.execute(text("ALTER TABLE programme_plan ADD COLUMN materials_json TEXT;"))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+    try:
+        # Dynamic alter execution for new columns without losing old data
+        db.session.execute(text("ALTER TABLE programme_plan ADD COLUMN qty INT DEFAULT 0;"))
+        db.session.execute(text("ALTER TABLE programme_plan ADD COLUMN board_plant_form TEXT;"))
+        db.session.execute(text("ALTER TABLE programme_plan ADD COLUMN printer_form TEXT;"))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
     
 @app.template_filter('datetimeformat')
 def datetimeformat(value, format='%Y-%m-%d %I:%M %p'):
@@ -984,7 +990,31 @@ def check_stock_detailed():
     papers_data = db.session.query(Reel.material_name).filter(Reel.status.in_(['Full', 'Used'])).distinct().all()
     return jsonify({'results': results, 'all_papers': [p.material_name for p in papers_data]})
 
-# --- AUTO SR REQUEST GENERATION FEATURE INCLUDED HERE ---
+# API ENDPOINTS FOR UPDATING QTY AND TRANSFERRING PLANS
+@app.route('/api/update_plan_qty', methods=['POST'])
+def update_plan_qty():
+    data = request.json
+    plan = ProgrammePlan.query.get(data.get('id'))
+    if plan:
+        plan.qty = int(data.get('qty', 0))
+        db.session.commit()
+        return jsonify({'success': True})
+    return jsonify({'success': False})
+
+@app.route('/api/transfer_plan', methods=['POST'])
+def transfer_plan():
+    data = request.json
+    plan = ProgrammePlan.query.get(data.get('id'))
+    if plan:
+        plan.status = data.get('status')
+        if 'board_plant_form' in data:
+            plan.board_plant_form = json.dumps(data.get('board_plant_form'))
+        if 'printer_form' in data:
+            plan.printer_form = json.dumps(data.get('printer_form'))
+        db.session.commit()
+        return jsonify({'success': True})
+    return jsonify({'success': False})
+
 @app.route('/api/save_programme_plan', methods=['POST'])
 def save_programme_plan():
     data = request.json
@@ -997,15 +1027,13 @@ def save_programme_plan():
     sheet_length = safe_float(data.get('sheet_length', 0))
     materials = data.get('materials', [])
     
-    # 1. Programme Plan එක Save කිරීම
     new_plan = ProgrammePlan(
         po_no=po_no, customer_id=customer_id, product_code=product_code,
-        selected_reel_size=size, selected_ups=ups,
-        materials_json=json.dumps(materials), created_by=session.get('username', 'System')
+        selected_reel_size=size, selected_ups=ups, qty=qty,
+        materials_json=json.dumps(materials), status='Live Planning', created_by=session.get('username', 'System')
     )
     db.session.add(new_plan)
     
-    # 2. Product එක හරහා Cut Length සහ Flute ලබාගැනීම
     prod = CustomerProduct.query.filter_by(customer_id=customer_id, product_code=product_code).first()
     cut_length = 0
     flute = ""
@@ -1019,73 +1047,44 @@ def save_programme_plan():
     board_w = size / 100.0 if size else 0.0
     board_l = cut_length / 100.0 if cut_length else 0.0
     
-    # 3. සියලුම Layers වල Stock Availability පරික්ෂා කිරීම
     all_available = True
     layer_data = []
     
     for idx, mat in enumerate(materials):
         gsm = safe_int(mat.get('gsm', 0))
         name = mat.get('name', '')
-        
-        # Component Type එක තීරණය කිරීම (Top, Corru, Bottom)
-        if idx == 0:
-            comp_type = 'Top'
-        elif idx == len(materials) - 1:
-            comp_type = 'Bottom'
-        else:
-            comp_type = 'Corru'
+        if idx == 0: comp_type = 'Top'
+        elif idx == len(materials) - 1: comp_type = 'Bottom'
+        else: comp_type = 'Corru'
         
         calc_weight = (size * sheet_length * (gsm / 10000.0) * qty) / 1000.0
-        if idx == 1:  # Corru Flute එක සඳහා
-            calc_weight *= 1.5
+        if idx == 1: calc_weight *= 1.5
             
         active_reels = Reel.query.filter(
             Reel.size_cm == size, Reel.material_name == name, Reel.gsm == gsm, Reel.status.in_(['Full', 'Used'])
         ).all()
         available_stock = sum([r.current_weight for r in active_reels])
         
-        # එක Layer එකක් හෝ Shortage නම්, Auto SR සෑදීම නවතී
-        if available_stock < calc_weight:
-            all_available = False
+        if available_stock < calc_weight: all_available = False
             
-        layer_data.append({
-            'gsm': gsm,
-            'name': name,
-            'weight': calc_weight,
-            'comp_type': comp_type
-        })
+        layer_data.append({ 'gsm': gsm, 'name': name, 'weight': calc_weight, 'comp_type': comp_type })
         
-    # 4. Stock අදාළ ප්‍රමාණයට පවතී නම්, ස්වයංක්‍රීයව SR Request Generate කිරීම
     if all_available and len(layer_data) > 0 and qty > 0:
         role = get_user_role()
         prefix = get_sr_prefix(role)
-        # මෙහි Auto යන වචනය ඉවත් කර ඇත
         base_sr_num = f"{prefix}-{datetime.now(colombo_tz).strftime('%Y%m%d%H%M')}-{random.randint(10,99)}"
         
         for idx, lw in enumerate(layer_data):
             comp_sr_num = base_sr_num if len(layer_data) == 1 else f"{base_sr_num}-L{idx+1}"
-            
-            # Excess Weight එක Calculation කිරීම (Quantity එක මත පදනම් වූ Weight එකෙන් 5%)
             calc_weight = lw['weight']
             excess = calc_weight * 0.05
             total_w = calc_weight + excess
             
             new_sr = SRRequest(
-                sr_number=comp_sr_num,
-                po_number=po_no,
-                reel_size=size,
-                gsm=lw['gsm'],
-                material_name=lw['name'],
-                qty=qty,
-                calculated_weight=round(calc_weight, 2),
-                total_weight=round(total_w, 2),
-                board_width=board_w,
-                board_length=board_l,
-                cartoon_amount=ups,
-                component_type=lw['comp_type'],
-                flute_type=flute,
-                excess_weight=round(excess, 2),
-                status='Pending'
+                sr_number=comp_sr_num, po_number=po_no, reel_size=size, gsm=lw['gsm'], material_name=lw['name'],
+                qty=qty, calculated_weight=round(calc_weight, 2), total_weight=round(total_w, 2), board_width=board_w,
+                board_length=board_l, cartoon_amount=ups, component_type=lw['comp_type'], flute_type=flute,
+                excess_weight=round(excess, 2), status='Pending'
             )
             db.session.add(new_sr)
             
@@ -1094,20 +1093,23 @@ def save_programme_plan():
 
 @app.route('/api/get_saved_plans')
 def get_saved_plans():
-    plans = ProgrammePlan.query.order_by(ProgrammePlan.created_at.desc()).all()
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
     
-    # We will group by stage first, then by size
-    result = {
-        'Live': {}, 'Board Plant': {}, 'Printers': {}, 'Die Cut': {}, 'Gluers': {}, 'Finished Goods': {}
-    }
+    query = ProgrammePlan.query
+    if start_date and end_date:
+        try:
+            s_date = datetime.strptime(start_date, '%Y-%m-%d')
+            e_date = datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1)
+            query = query.filter(ProgrammePlan.created_at >= s_date, ProgrammePlan.created_at < e_date)
+        except Exception: pass
+
+    plans = query.order_by(ProgrammePlan.created_at.desc()).all()
     
+    result = {}
     for p in plans:
-        stage = p.stage if p.stage in result else 'Live'
         size = str(p.selected_reel_size)
-        
-        if size not in result[stage]: 
-            result[stage][size] = []
-            
+        if size not in result: result[size] = []
         prod = CustomerProduct.query.filter_by(customer_id=p.customer_id, product_code=p.product_code).first()
         c_name = prod.customer_name if prod else "Unknown"
         p_name = prod.product_name if prod else "Unknown"
@@ -1121,18 +1123,15 @@ def get_saved_plans():
             
         date_str = p.created_at.strftime('%Y-%m-%d %I:%M %p') if p.created_at else ""
         
-        job_data = {}
-        if p.job_card_data:
-            try: job_data = json.loads(p.job_card_data)
-            except: pass
-
-        result[stage][size].append({
-            'id': p.id, 'po_no': p.po_no, 'customer_id': p.customer_id, 'customer_name': c_name, 'product_name': p_name,
-            'product_code': p.product_code, 'ups': p.selected_ups, 'ply': prod.ply if prod else 3,
+        result[size].append({
+            'id': p.id, 'po_no': p.po_no, 'customer_id': p.customer_id, 'customer_name': c_name,
+            'product_code': p.product_code, 'product_name': p_name, 'ups': p.selected_ups, 'ply': prod.ply if prod else 3,
             'remarks': f"{prod.position} / Flute: {prod.flute}" if prod else "",
             'materials': json.loads(p.materials_json) if p.materials_json else [],
-            'created_at': date_str, 'cut_length': cut_length, 'qty': p.qty,
-            'job_data': job_data
+            'created_at': date_str, 'cut_length': cut_length,
+            'status': p.status if p.status else 'Live Planning', 'qty': p.qty,
+            'board_plant_form': json.loads(p.board_plant_form) if p.board_plant_form else None,
+            'printer_form': json.loads(p.printer_form) if p.printer_form else None
         })
     return jsonify(result)
 
@@ -1165,34 +1164,6 @@ def execute_packwell_transfer():
         db.session.commit()
         return jsonify({'success': True, 'reel_number': reel.reel_number})
     return jsonify({'success': False, 'message': 'No matching active reels found in Packwell Stock.'})
-
-@app.route('/api/update_plan_qty', methods=['POST'])
-def update_plan_qty():
-    data = request.json
-    plan = ProgrammePlan.query.get(data.get('id'))
-    if plan:
-        plan.qty = safe_int(data.get('qty'))
-        db.session.commit()
-        return jsonify({'success': True})
-    return jsonify({'success': False})
-
-@app.route('/api/transfer_plan_stage', methods=['POST'])
-def transfer_plan_stage():
-    data = request.json
-    plan = ProgrammePlan.query.get(data.get('id'))
-    if plan:
-        plan.stage = data.get('stage')
-        # Also save job card data if provided during transfer
-        if 'job_card_data' in data:
-            current_data = {}
-            if plan.job_card_data:
-                try: current_data = json.loads(plan.job_card_data)
-                except: pass
-            current_data.update(data.get('job_card_data'))
-            plan.job_card_data = json.dumps(current_data)
-            
-        db.session.commit()
-        return jsonify({'success': True})
-    return jsonify({'success': False})    
+    
 if __name__ == '__main__':
     socketio.run(app, debug=True, host='0.0.0.0', port=5000)
