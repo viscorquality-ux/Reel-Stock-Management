@@ -118,8 +118,8 @@ with app.app_context():
     try:
         # Dynamic alter execution for new columns without losing old data
         db.session.execute(text("ALTER TABLE programme_plan ADD COLUMN qty INT DEFAULT 0;"))
-        db.session.execute(text("ALTER TABLE programme_plan ADD COLUMN board_plant_form TEXT;"))
-        db.session.execute(text("ALTER TABLE programme_plan ADD COLUMN printer_form TEXT;"))
+        db.session.execute(text("ALTER TABLE programme_plan ADD COLUMN board_plant_form VARCHAR(255);"))
+        db.session.execute(text("ALTER TABLE programme_plan ADD COLUMN printer_form VARCHAR(255);"))
         db.session.commit()
     except Exception:
         db.session.rollback()
