@@ -4,7 +4,6 @@ from sqlalchemy import text, func
 from flask_socketio import SocketIO, emit
 from datetime import datetime, timedelta
 from flask_migrate import Migrate
-migrate = Migrate(app, db)
 import pytz
 import random
 import re
@@ -26,6 +25,7 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
 }
 db = SQLAlchemy(app)
 colombo_tz = pytz.timezone('Asia/Colombo')
+migrate = Migrate(app, db)
 
 class SmartRole(str):
     def __eq__(self, other):
