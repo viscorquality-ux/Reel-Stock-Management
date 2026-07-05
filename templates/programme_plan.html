@@ -93,7 +93,6 @@
         </ul>
 
         <div class="tab-content" id="planningTabsContent">
-            <!-- LIVE PLANNING TAB -->
             <div class="tab-pane fade show active" id="live-planning" role="tabpanel" aria-labelledby="live-planning-tab">
                 <div class="row">
                     <div class="col-xl-4 col-md-5 no-print">
@@ -180,7 +179,6 @@
                 </div>
             </div>
 
-            <!-- OTHER STAGES TAB -->
             <div class="tab-pane fade" id="generic-tab-content" role="tabpanel">
                 <div class="card shadow-sm border-0 mb-5 mt-3">
                     <div class="card-header bg-dark text-white fw-bold py-3">
@@ -191,7 +189,6 @@
                 </div>
             </div>
 
-            <!-- HISTORY TAB -->
             <div class="tab-pane fade" id="history-logs" role="tabpanel" aria-labelledby="history-tab">
                 <div class="card shadow-sm border-0 mb-5">
                     <div class="card-header bg-dark text-white fw-bold py-3 d-flex justify-content-between align-items-center">
@@ -221,7 +218,6 @@
         </div>
     </div>
 
-    <!-- Modals for Viewing Attachment Data -->
     <div class="modal fade" id="viewAttachmentModal" tabindex="-1">
       <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -230,8 +226,7 @@
             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body" id="attachmentModalBody">
-             <!-- Inserted Dynamically -->
-          </div>
+             </div>
         </div>
       </div>
     </div>
@@ -246,6 +241,7 @@
         let activePlanSuggestedUps = 1;
         const currentRole = document.getElementById('loggedRole').innerText.trim().toLowerCase();
         let globalAllPlans = {};
+        let uiPriorities = { bpTabs: {}, printerRows: {} }; // Added to keep track of manually entered priorities
 
         const activeReels = [
             {% for reel in full_reels + used_reels %}
@@ -267,6 +263,7 @@
             if(row) row.style.display = 'none';
         }
 
+        // Kept for backward compatibility, though Priority is now handled by number inputs
         function toggleTabPriority(event, el) {
             event.stopPropagation(); // prevent triggering tab change
             if (el.classList.contains('text-warning') || el.classList.contains('bi-star-fill')) {
@@ -658,12 +655,13 @@
                     
                     hasAnyRecords = true;
                     let safeSize = size.toString().replace('.', '_');
+                    let priorityVal = uiPriorities.bpTabs[safeSize] || '';
                     
                     navHtml += `
                     <li class="nav-item" role="presentation">
                         <button class="nav-link ${first?'active':''} fw-bold border mb-2 me-2 d-flex align-items-center shadow-sm" id="bp-tab-${safeSize}" data-bs-toggle="pill" data-bs-target="#bp-content-${safeSize}" type="button" role="tab">
                             Size: ${size} cm
-                            <i class="bi bi-star text-secondary ms-2" style="cursor:pointer; transition: 0.2s;" onclick="toggleTabPriority(event, this)" title="Mark Priority"></i>
+                            <input type="number" class="form-control form-control-sm ms-2 p-0 text-center" style="width: 45px; height: 25px; font-size: 0.85rem;" min="1" placeholder="Pri" onclick="event.stopPropagation()" onchange="uiPriorities.bpTabs['${safeSize}'] = this.value" value="${priorityVal}" title="Set Priority (1, 2, 3...)">
                         </button>
                     </li>`;
 
@@ -733,8 +731,8 @@
 
             let formHtml = `
             <div class="card card-body bg-white m-3 border-secondary text-start shadow-sm position-relative">
-                <button type="button" class="btn-close position-absolute top-0 end-0 m-3" style="z-index: 10;" aria-label="Close" onclick="closeFormRow('job_card_row_${id}')"></button>
-                <h5 class="border-bottom pb-2 text-primary fw-bold text-center">BOARD PLANT & QUALITY CHECK FORM</h5>
+                <button type="button" class="btn btn-danger btn-sm position-absolute top-0 end-0 m-2 px-3 shadow-sm fw-bold" style="z-index: 10; border-radius: 6px;" aria-label="Close" onclick="closeFormRow('job_card_row_${id}')"><i class="bi bi-x-lg me-1"></i> Close</button>
+                <h5 class="border-bottom pb-2 text-primary fw-bold text-center mt-2">BOARD PLANT & QUALITY CHECK FORM</h5>
                 <form id="form_bp_${id}" onsubmit="submitBoardPlant(event, ${id})">
                     
                     <div class="row g-2 mb-4 bg-light p-3 rounded border border-secondary-subtle">
@@ -830,9 +828,15 @@
             document.getElementById('generic-tab-title').innerHTML = "<i class='bi bi-printer'></i> Printers Stage";
             fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
                 globalAllPlans = data;
+                
+                // Enhanced Search Bar UI
                 let html = `
-                <div class="mb-3 d-flex justify-content-end">
-                    <input type="text" id="printersSearch" class="form-control form-control-sm w-25 border-info" placeholder="Search PO No..." onkeyup="filterByPONo('printersTable', 'printersSearch', 1)">
+                <div class="mb-3 d-flex justify-content-between align-items-center">
+                    <span class="text-secondary fw-bold"><i class="bi bi-funnel"></i> Filter Job Cards</span>
+                    <div class="input-group shadow-sm w-25">
+                        <span class="input-group-text bg-info text-white border-info"><i class="bi bi-search"></i></span>
+                        <input type="text" id="printersSearch" class="form-control border-info" placeholder="Search PO No..." onkeyup="filterByPONo('printersTable', 'printersSearch', 1)">
+                    </div>
                 </div>
                 <table id="printersTable" class="table table-bordered table-striped align-middle text-center mb-0">
                     <thead class="table-dark small">
@@ -852,9 +856,12 @@
                     plans.filter(p => p.status === 'Printers').forEach(p => {
                         hasRecords = true;
                         let formStr = p.board_plant_form ? encodeURIComponent(JSON.stringify(p.board_plant_form)) : '';
+                        let rowPriority = uiPriorities.printerRows[p.id] || '';
                         html += `
                         <tr>
-                            <td onclick="toggleRowPriority(this)" style="cursor:pointer;"><i class="bi bi-star text-secondary fs-5" title="Mark Priority"></i></td>
+                            <td onclick="event.stopPropagation()">
+                                <input type="number" class="form-control form-control-sm mx-auto text-center" style="width: 55px; font-size: 0.85rem;" min="1" placeholder="#" onchange="uiPriorities.printerRows['${p.id}'] = this.value" value="${rowPriority}" title="Priority (1, 2, 3...)">
+                            </td>
                             <td class="fw-bold">${p.po_no}</td>
                             <td>${p.customer_name} - ${p.product_name}</td>
                             <td>${p.qty}</td>
@@ -962,8 +969,8 @@
 
             let formHtml = `
             <div class="card card-body bg-white m-3 border-secondary text-start shadow-sm position-relative">
-                <button type="button" class="btn-close position-absolute top-0 end-0 m-3" style="z-index: 10;" aria-label="Close" onclick="closeFormRow('print_card_row_${id}')"></button>
-                <h5 class="border-bottom pb-2 text-success fw-bold">PRINTERS & QUALITY CHECK FORM</h5>
+                <button type="button" class="btn btn-danger btn-sm position-absolute top-0 end-0 m-2 px-3 shadow-sm fw-bold" style="z-index: 10; border-radius: 6px;" aria-label="Close" onclick="closeFormRow('print_card_row_${id}')"><i class="bi bi-x-lg me-1"></i> Close</button>
+                <h5 class="border-bottom pb-2 text-success fw-bold mt-2">PRINTERS & QUALITY CHECK FORM</h5>
                 <form id="form_print_${id}" onsubmit="submitPrinter(event, ${id})">
                     <div class="row g-2 mb-3 mt-2">
                         <div class="col-md-3"><label class="small fw-bold">ZK1224 (U/P)</label><select class="form-select" name="pr_ZK1224(U/P)" required><option value="Yes">Yes</option><option value="No">No</option></select></div>
