@@ -414,7 +414,11 @@
         function saveQty(id) {
             let input = document.getElementById(`qty_input_${id}`);
             let val = input.value;
-            if(!val) return;
+            if(!val || val <= 0) {
+                alert("⚠️ Please enter a valid Qty before saving.");
+                input.focus();
+                return;
+            }
             fetch('/api/update_plan_qty', {
                 method: 'POST', headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({id: id, qty: val})
@@ -429,11 +433,27 @@
                 }
             });
         }
+
         function editQty(id) {
             document.getElementById(`qty_input_${id}`).style.display = 'inline-block';
             document.getElementById(`qty_display_${id}`).style.display = 'none';
             document.getElementById(`btn_save_qty_${id}`).style.display = 'inline-block';
             document.getElementById(`btn_edit_qty_${id}`).style.display = 'none';
+        }
+
+        // Qty Validation before transfer
+        function validateAndTransferToBP(id) {
+            let displayQty = document.getElementById(`qty_display_${id}`).innerText;
+            let inputQty = document.getElementById(`qty_input_${id}`).value;
+            let finalQty = parseInt(displayQty) || parseInt(inputQty);
+
+            if (!finalQty || finalQty <= 0) {
+                alert("⚠️ Qty (Quantity) Input is Mandatory! Please enter and save the quantity before transferring.");
+                editQty(id);
+                document.getElementById(`qty_input_${id}`).focus();
+                return;
+            }
+            transferPlan(id, 'Board Plant');
         }
 
         // ---------- TRANSFER / STAGES LOGIC ----------
@@ -473,7 +493,6 @@
         }
 
         function printSelectedBand(bandId) {
-            // Ensure inputs copy values to attributes before print
             document.getElementById(bandId).querySelectorAll('input[type="number"]').forEach(el => { el.setAttribute('value', el.value); });
             let printContents = document.getElementById(bandId).outerHTML;
             let printWindow = window.open('', '_blank', 'width=900,height=650');
@@ -553,7 +572,7 @@
                                     <button class="btn btn-sm btn-outline-secondary px-2 py-0 me-1" title="Print Option" onclick="printRowSpecific('${p.po_no}', '${p.customer_name}', '${p.product_name}', '${size}', '${p.cut_length}', document.getElementById('qty_display_${p.id}').innerText)">
                                         <i class="bi bi-printer"></i>
                                     </button>
-                                    <button class="btn btn-sm btn-primary px-2 py-0 fw-bold" onclick="transferPlan(${p.id}, 'Board Plant')">Transfer Board Plant</button>
+                                    <button class="btn btn-sm btn-primary px-2 py-0 fw-bold" onclick="validateAndTransferToBP(${p.id})">Transfer Board Plant</button>
                                 </td>
                             </tr>`;
                     });
@@ -567,21 +586,56 @@
         function renderBoardPlantTable() {
             document.getElementById('generic-tab-title').innerHTML = "<i class='bi bi-tools'></i> Board Plant Stage";
             fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
-                let html = `<table class="table table-bordered table-striped align-middle text-center mb-0"><thead class="table-dark small">
-                    <tr><th>PO No</th><th>Customer</th><th>Size</th><th>Qty</th><th>Action</th></tr></thead><tbody>`;
-                let hasRecords = false;
+                globalAllPlans = data;
+                let containerHtml = '';
+                let hasAnyRecords = false;
+
+                // Group by Reel Size Block
                 for (const [size, plans] of Object.entries(data)) {
-                    plans.filter(p => p.status === 'Board Plant').forEach(p => {
-                        hasRecords = true;
-                        html += `<tr>
-                            <td class="fw-bold">${p.po_no}</td><td>${p.customer_name}</td><td>${size} cm</td><td>${p.qty}</td>
+                    let bpPlans = plans.filter(p => p.status === 'Board Plant');
+                    if (bpPlans.length === 0) continue;
+                    
+                    hasAnyRecords = true;
+                    containerHtml += `
+                    <div class="card mb-4 border border-secondary-subtle shadow-sm">
+                        <div class="card-header bg-secondary text-white fw-bold py-2">
+                            <i class="bi bi-layers me-2"></i> Reel Size Band: ${size} cm
+                        </div>
+                        <div class="card-body p-0 table-responsive">
+                            <table class="table table-bordered table-striped align-middle text-center mb-0">
+                                <thead class="table-dark small">
+                                    <tr>
+                                        <th>PO No</th>
+                                        <th>Customer</th>
+                                        <th>Full Sheet Size</th>
+                                        <th>Qty</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                    `;
+
+                    bpPlans.forEach(p => {
+                        // Displaying Full Sheet Size dynamically
+                        let sheetSizeCalculated = `${size} cm &times; ${p.cut_length || 'N/A'} cm`;
+                        
+                        containerHtml += `
+                        <tr>
+                            <td class="fw-bold text-primary">${p.po_no}</td>
+                            <td>${p.customer_name}</td>
+                            <td class="fw-bold text-danger font-monospace">${sheetSizeCalculated}</td>
+                            <td><span class="badge bg-secondary fs-6">${p.qty}</span></td>
                             <td><button class="btn btn-sm btn-success fw-bold" onclick="showBoardPlantForm(${p.id})">Create a Job Card</button></td>
                         </tr>
-                        <tr id="job_card_row_${p.id}" style="display:none;"><td colspan="5" class="p-0 border-0" id="job_card_container_${p.id}"></td></tr>`;
+                        <tr id="job_card_row_${p.id}" style="display:none;">
+                            <td colspan="5" class="p-0 border-0" id="job_card_container_${p.id}"></td>
+                        </tr>`;
                     });
+
+                    containerHtml += `</tbody></table></div></div>`;
                 }
-                html += `</tbody></table>`;
-                document.getElementById('generic-stage-container').innerHTML = hasRecords ? html : "<p class='text-muted'>No jobs in Board Plant.</p>";
+
+                document.getElementById('generic-stage-container').innerHTML = hasAnyRecords ? containerHtml : "<p class='text-muted p-3'>No jobs currently in Board Plant.</p>";
             });
         }
 
@@ -591,12 +645,23 @@
             for (const key in globalAllPlans) { let f = globalAllPlans[key].find(x => x.id === id); if(f) plan = f; }
             if(!plan) return;
 
+            // Generate Reel details HTML rows mapping up to 5 rows
+            let reelRowsHtml = '';
+            for(let i=1; i<=5; i++) {
+                let matName = (plan.materials && plan.materials[i-1]) ? plan.materials[i-1].name : '';
+                reelRowsHtml += `
+                <tr>
+                    <td class="fw-bold">${i}</td>
+                    <td><input type="text" class="form-control form-control-sm border-secondary" name="reel_no_${i}" placeholder="Enter Reel No (Manual)"></td>
+                    <td><input type="text" class="form-control form-control-sm bg-light text-primary fw-bold" name="reel_name_${i}" value="${matName}" readonly></td>
+                </tr>`;
+            }
+
             let formHtml = `
-            <div class="card card-body bg-white m-3 border-secondary text-start">
+            <div class="card card-body bg-white m-3 border-secondary text-start shadow-sm">
                 <h5 class="border-bottom pb-2 text-primary fw-bold text-center">BOARD PLANT & QUALITY CHECK FORM</h5>
                 <form id="form_bp_${id}" onsubmit="submitBoardPlant(event, ${id})">
                     
-                    <!-- Modified Header Row -->
                     <div class="row g-2 mb-4 bg-light p-3 rounded border border-secondary-subtle">
                         <div class="col-md-4 text-center">
                             <span class="small text-muted fw-bold d-block text-uppercase">PO No</span>
@@ -615,6 +680,7 @@
                         </div>
                     </div>
 
+                    <h6 class="text-secondary fw-bold border-bottom pb-1">Production Details</h6>
                     <div class="row g-2 mb-3">
                         <div class="col-md-3"><label class="small fw-bold">Serial No</label><input type="text" class="form-control" required name="serial_no"></div>
                         <div class="col-md-3"><label class="small fw-bold">Slit Size</label><input type="text" class="form-control" required name="slit_size"></div>
@@ -626,12 +692,31 @@
                         <div class="col-md-4"><label class="small fw-bold">Counter Qty</label><input type="number" class="form-control" required name="counter_qty"></div>
                         <div class="col-md-4"><label class="small fw-bold">Add Qty Feed</label><input type="number" class="form-control" required name="add_qty"></div>
                     </div>
-                    <div class="row g-2 mb-4">
+                    <div class="row g-2 mb-3">
                         <div class="col-md-4"><label class="small fw-bold">Excess</label><input type="number" class="form-control" required name="excess"></div>
                         <div class="col-md-4"><label class="small fw-bold">Damaged Qty</label><input type="number" class="form-control" required name="damaged"></div>
                         <div class="col-md-4"><label class="small fw-bold">C: Hand Sign</label><input type="text" class="form-control" required name="sign"></div>
                     </div>
+                    <div class="row g-2 mb-4">
+                        <div class="col-12"><label class="small fw-bold">Remark</label><textarea class="form-control" name="remark" rows="2" placeholder="Enter any extra remarks..."></textarea></div>
+                    </div>
                     
+                    <h6 class="text-secondary fw-bold border-bottom pb-1 mt-4">Paper Reel Details</h6>
+                    <div class="table-responsive mb-4">
+                        <table class="table table-sm table-bordered text-center align-middle mb-0">
+                            <thead class="table-light small">
+                                <tr>
+                                    <th style="width: 10%;">#</th>
+                                    <th style="width: 45%;">Reel No (Manual Input)</th>
+                                    <th style="width: 45%;">Reel Name (Auto Fill)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${reelRowsHtml}
+                            </tbody>
+                        </table>
+                    </div>
+
                     <h6 class="text-secondary fw-bold border-bottom pb-1 mt-4">Quality Check Section</h6>
                     <div class="row g-2 mb-3">
                         <div class="col-md-4"><label class="small fw-bold">Measurement</label><select class="form-select" required name="qc_measurement"><option value="INT">INT</option><option value="EXT">EXT</option><option value="Flap_overlap">Flap_overlap</option><option value="F-F_EXT">F-F_EXT</option></select></div>
@@ -692,11 +777,83 @@
         function viewAttachment(jsonStr) {
             if(!jsonStr) { alert("No attachment data."); return; }
             let data = JSON.parse(decodeURIComponent(jsonStr));
-            let html = `<table class="table table-sm table-bordered">`;
-            for(const [key, val] of Object.entries(data)) {
-                if(key !== 'target_tab') html += `<tr><th class="bg-light w-50">${key.replace('_', ' ').toUpperCase()}</th><td>${val}</td></tr>`;
+            
+            // Highly formatted layout for Modal (Mimicking standard physical Job Card forms)
+            let reelRowsHtml = '';
+            for(let i=1; i<=5; i++) {
+                let rNo = data[`reel_no_${i}`] || '';
+                let rName = data[`reel_name_${i}`] || '';
+                if (!rNo && !rName) continue; // Skip totally empty rows in the read-only view
+                reelRowsHtml += `<tr><td>${i}</td><td>${rNo}</td><td class="fw-bold">${rName}</td></tr>`;
             }
-            html += `</table>`;
+
+            let html = `
+            <div class="container-fluid print-friendly">
+                <h4 class="text-center mb-4 text-decoration-underline fw-bold">BOARD PLANT & QUALITY CHECK FORM</h4>
+                
+                <div class="row mb-3 border border-2 p-2 bg-light shadow-sm rounded">
+                    <div class="col-4 text-center border-end"><strong>PO No:</strong> <br><span class="fs-5 text-primary fw-bold">${data.po_no || '-'}</span></div>
+                    <div class="col-5 text-center border-end"><strong>Customer/Product:</strong> <br><span class="fs-6">${data.cust_prod || '-'}</span></div>
+                    <div class="col-3 text-center"><strong>Qty:</strong> <br><span class="fs-5 text-danger fw-bold">${data.qty || '-'}</span></div>
+                </div>
+
+                <h6 class="fw-bold mt-4 border-bottom border-dark pb-1 text-secondary"><i class="bi bi-box me-1"></i> Production Details</h6>
+                <table class="table table-sm table-bordered mb-4">
+                    <tr>
+                        <th class="bg-light w-25">Serial No</th><td>${data.serial_no || '-'}</td>
+                        <th class="bg-light w-25">Slit Size</th><td>${data.slit_size || '-'}</td>
+                    </tr>
+                    <tr>
+                        <th class="bg-light">Cut Length</th><td>${data.cut_length || '-'}</td>
+                        <th class="bg-light">Pass/Fail</th><td><span class="badge ${data.pass_fail==='Pass'?'bg-success':'bg-danger'}">${data.pass_fail || '-'}</span></td>
+                    </tr>
+                    <tr>
+                        <th class="bg-light">Date</th><td>${data.bp_date || '-'}</td>
+                        <th class="bg-light">Counter Qty</th><td>${data.counter_qty || '-'}</td>
+                    </tr>
+                    <tr>
+                        <th class="bg-light">Add Qty Feed</th><td>${data.add_qty || '-'}</td>
+                        <th class="bg-light">Excess</th><td>${data.excess || '-'}</td>
+                    </tr>
+                    <tr>
+                        <th class="bg-light">Damaged Qty</th><td>${data.damaged || '-'}</td>
+                        <th class="bg-light">C: Hand Sign</th><td>${data.sign || '-'}</td>
+                    </tr>
+                    <tr>
+                        <th class="bg-light">Remark</th><td colspan="3" class="text-danger fw-semibold">${data.remark || 'N/A'}</td>
+                    </tr>
+                </table>
+
+                <h6 class="fw-bold mt-4 border-bottom border-dark pb-1 text-secondary"><i class="bi bi-distribute-vertical me-1"></i> Paper Reel Details</h6>
+                <table class="table table-sm table-bordered text-center mb-4">
+                    <thead class="table-dark small">
+                        <tr><th>#</th><th>Reel No</th><th>Reel Name</th></tr>
+                    </thead>
+                    <tbody>
+                        ${reelRowsHtml || '<tr><td colspan="3" class="text-muted">No reel details provided.</td></tr>'}
+                    </tbody>
+                </table>
+
+                <h6 class="fw-bold mt-4 border-bottom border-dark pb-1 text-secondary"><i class="bi bi-patch-check me-1"></i> Quality Check Section</h6>
+                <table class="table table-sm table-bordered">
+                    <tr>
+                        <th class="bg-light w-25">Measurement</th><td>${data.qc_measurement || '-'}</td>
+                        <th class="bg-light w-25">Caliper (mm)</th><td>${data.qc_caliper || '-'}</td>
+                    </tr>
+                    <tr>
+                        <th class="bg-light">Combination</th><td>${data.qc_combination || '-'}</td>
+                        <th class="bg-light">Flute Defects</th><td>${data.qc_flute || '-'}</td>
+                    </tr>
+                    <tr>
+                        <th class="bg-light">Creasing Defects</th><td>${data.qc_creasing || '-'}</td>
+                        <th class="bg-light">Visual Defects</th><td>${data.qc_visual || '-'}</td>
+                    </tr>
+                    <tr>
+                        <th class="bg-light">QC Approval</th><td colspan="3"><span class="badge ${data.qc_app==='Approved'?'bg-success':'bg-danger'}">${data.qc_app || '-'}</span></td>
+                    </tr>
+                </table>
+            </div>`;
+            
             document.getElementById('attachmentModalBody').innerHTML = html;
             new bootstrap.Modal(document.getElementById('viewAttachmentModal')).show();
         }
@@ -708,7 +865,7 @@
             if(!plan) return;
 
             let formHtml = `
-            <div class="card card-body bg-white m-3 border-secondary text-start">
+            <div class="card card-body bg-white m-3 border-secondary text-start shadow-sm">
                 <h5 class="border-bottom pb-2 text-success fw-bold">PRINTERS & QUALITY CHECK FORM</h5>
                 <form id="form_print_${id}" onsubmit="submitPrinter(event, ${id})">
                     <div class="row g-2 mb-3 mt-2">
