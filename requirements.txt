@@ -10,3 +10,4 @@ Flask-SocketIO
 eventlet
 gevent
 greenlet
+flask-migrate
