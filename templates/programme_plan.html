@@ -889,7 +889,7 @@
                 if (!rNo && !rName) continue; 
                 reelRowsHtml += `<tr><td>${i}</td><td>${rNo}</td><td class="fw-bold">${rName}</td></tr>`;
             }
-
+			const bpProdKeys = ['Serial No', 'Slit Size', 'Cut Length','Pass/Fail','Date','Counter Qty','Add Qty Feed','Excess','Damaged Qty','C: Hand Sign','Remark','Measurement','Caliper','Combination','Flute Defects',''];
             let html = `
             <div class="container-fluid print-friendly">
                 <h4 class="text-center mb-4 text-decoration-underline fw-bold">BOARD PLANT & QUALITY CHECK FORM</h4>
@@ -1222,6 +1222,7 @@ function viewGluerAttachment(id) {
     let bpQcHtml = buildTwoColumnTable(bpForm, bpQcKeys);
 
     // --- Printer Form Data සැකසීම ---
+	
     let modifiedPrinterForm = {...printerForm};
     
     // Sample/Artwork අගයන් "OK" ලෙස සැකසීම
