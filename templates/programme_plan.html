@@ -972,10 +972,11 @@
                 <button type="button" class="btn btn-danger btn-sm position-absolute top-0 end-0 m-2 px-3 shadow-sm fw-bold" style="z-index: 10; border-radius: 6px;" aria-label="Close" onclick="closeFormRow('print_card_row_${id}')"><i class="bi bi-x-lg me-1"></i> Close</button>
                 <h5 class="border-bottom pb-2 text-success fw-bold mt-2">PRINTERS & QUALITY CHECK FORM</h5>
                 <form id="form_print_${id}" onsubmit="submitPrinter(event, ${id})">
-                    <div class="row g-2 mb-3 mt-2">
-                        <div class="col-md-3"><label class="small fw-bold">ZK1224 (U/P)</label><select class="form-select" name="pr_ZK1224(U/P)" required><option value="Yes">Yes</option><option value="No">No</option></select></div>
-                        <div class="col-md-3"><label class="small fw-bold">TCY</label><select class="form-select" name="pr_TCY" required><option value="Yes">Yes</option><option value="No">No</option></select></div>
-                        <div class="col-md-3"><label class="small fw-bold">PS 500 NL</label><select class="form-select" name="pr_PS500nl" required><option value="Yes">Yes</option><option value="No">No</option></select></div>
+                    <div class="d-flex gap-3 mt-1 p-2 border rounded bg-light">
+                        <div class="form-check"><input class="form-check-input" type="checkbox" name="gluer_select" value="1" id="g1_${id}"><label class="form-check-label fw-semibold" for="g1_${id}">Glure 1</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" name="gluer_select" value="2" id="g2_${id}"><label class="form-check-label fw-semibold" for="g2_${id}">Glure 2</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" name="gluer_select" value="3" id="g3_${id}"><label class="form-check-label fw-semibold" for="g3_${id}">Glure 3</label></div>
+                    </div>
                         <div class="col-md-3"><label class="small fw-bold">Pass/Fail</label><select class="form-select" name="pr_pass" required><option value="Pass">Pass</option><option value="Fail">Fail</option></select></div>
                     </div>
                     <div class="row g-2 mb-3">
