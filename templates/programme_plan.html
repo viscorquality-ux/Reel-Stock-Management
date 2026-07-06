@@ -1172,6 +1172,12 @@ function viewGluerAttachment(id) {
     // යතුරු වචන (Keys) වල ඇති pr_ සහ qc_ ඉවත් කර, යටි ඉරි (underscores) වෙනුවට හිස්තැන් තබන Function එක
     const formatKey = (k) => k.replace(/^pr_/, '').replace(/^qc_/, '').replace(/_/g, ' ');
 
+    // Quality Check එකට අදාළ දත්ත හඳුනාගැනීමේ Function එක (qc_ වලින් පටන් ගන්නා දත්ත සහ sample/artwork දත්ත)
+    const isQcKey = (k) => {
+        let lowerK = k.toLowerCase();
+        return lowerK.startsWith('qc_') || lowerK.includes('sample') || lowerK.includes('art_work') || lowerK.includes('artwork');
+    };
+
     // Table Columns දෙකකට දත්ත සකසන පොදු Function එක
     const buildTwoColumnTable = (dataObj, keys) => {
         if(keys.length === 0) return `<tr><td colspan="4" class="text-center text-muted">No details available.</td></tr>`;
@@ -1194,8 +1200,8 @@ function viewGluerAttachment(id) {
         return html;
     };
 
-    // 1. Board Plant Details (Quality Check සහ Reels හැර)
-    let bpProdKeys = Object.keys(bpForm).filter(k => !k.startsWith('qc_') && !k.startsWith('reel_') && !['po_no', 'cust_prod', 'qty', 'target_tab'].includes(k));
+    // 1. Board Plant Details (Quality Check, Sample/Artwork සහ Reels හැර)
+    let bpProdKeys = Object.keys(bpForm).filter(k => !isQcKey(k) && !k.startsWith('reel_') && !['po_no', 'cust_prod', 'qty', 'target_tab'].includes(k));
     let bpRowsHtml = buildTwoColumnTable(bpForm, bpProdKeys);
 
     // 2. Paper Reel Details
@@ -1209,16 +1215,16 @@ function viewGluerAttachment(id) {
     }
     if(!reelRowsHtml) reelRowsHtml = '<tr><td colspan="3" class="text-muted text-center">No reel details provided.</td></tr>';
 
-    // 3. Board Plant QC Details (qc_ වලින් පටන් ගන්නා දත්ත පමණක්)
-    let bpQcKeys = Object.keys(bpForm).filter(k => k.startsWith('qc_'));
+    // 3. Board Plant QC Details (qc_ දත්ත සහ sample/artwork දත්ත පමණක්)
+    let bpQcKeys = Object.keys(bpForm).filter(k => isQcKey(k));
     let bpQcHtml = buildTwoColumnTable(bpForm, bpQcKeys);
 
-    // 4. Printer Production Details (Quality Check හැර අනෙකුත් දත්ත)
-    let prProdKeys = Object.keys(printerForm).filter(k => !k.startsWith('qc_') && !['po_no', 'cust_prod', 'qty', 'target_tab', 'gluer_select', 'gluer_selected'].includes(k));
+    // 4. Printer Production Details (Quality Check සහ Sample/Artwork හැර අනෙකුත් දත්ත)
+    let prProdKeys = Object.keys(printerForm).filter(k => !isQcKey(k) && !['po_no', 'cust_prod', 'qty', 'target_tab', 'gluer_select', 'gluer_selected'].includes(k));
     let prRowsHtml = buildTwoColumnTable(printerForm, prProdKeys);
 
-    // 5. Printer QC Details (qc_ වලින් පටන් ගන්නා දත්ත පමණක්)
-    let prQcKeys = Object.keys(printerForm).filter(k => k.startsWith('qc_'));
+    // 5. Printer QC Details (qc_ දත්ත සහ sample/artwork දත්ත පමණක්)
+    let prQcKeys = Object.keys(printerForm).filter(k => isQcKey(k));
     let prQcHtml = buildTwoColumnTable(printerForm, prQcKeys);
 
     // සම්පූර්ණ HTML එක සෑදීම
