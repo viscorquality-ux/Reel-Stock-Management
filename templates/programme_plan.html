@@ -1169,14 +1169,17 @@ function viewGluerAttachment(id) {
     let bpForm = plan.board_plant_form || {};
     let printerForm = plan.printer_form || {};
 
+    // Modal එකේ Title එක වෙනස් කිරීම
+    let modalTitle = document.querySelector('#viewAttachmentModal .modal-title');
+    if (modalTitle) {
+        modalTitle.innerText = 'Online Production Order Form';
+    }
+
     // යතුරු වචන (Keys) වල ඇති pr_ සහ qc_ ඉවත් කර, යටි ඉරි (underscores) වෙනුවට හිස්තැන් තබන Function එක
     const formatKey = (k) => k.replace(/^pr_/, '').replace(/^qc_/, '').replace(/_/g, ' ');
 
-    // Quality Check එකට අදාළ දත්ත හඳුනාගැනීමේ Function එක (qc_ වලින් පටන් ගන්නා දත්ත සහ sample/artwork දත්ත)
-    const isQcKey = (k) => {
-        let lowerK = k.toLowerCase();
-        return lowerK.startsWith('qc_') || lowerK.includes('sample') || lowerK.includes('art_work') || lowerK.includes('artwork');
-    };
+    // Printer Form එකේ ඇති Sample / Art Work details වල Keys
+    const artworkKeys = ['sample_no', 'code_no', 'printing_details', 'colours', 'measurement'];
 
     // Table Columns දෙකකට දත්ත සකසන පොදු Function එක
     const buildTwoColumnTable = (dataObj, keys) => {
@@ -1188,10 +1191,10 @@ function viewGluerAttachment(id) {
             let key2 = keys[i+1];
             
             html += `<tr>`;
-            html += `<th class="bg-light w-25 text-capitalize">${formatKey(key1)}</th><td class="w-25">${val1}</td>`;
+            html += `<th class="bg-light w-25 text-capitalize">${formatKey(key1)}</th><td class="w-25 text-dark fw-semibold">${val1}</td>`;
             if (key2) {
                 let val2 = dataObj[key2] || '-';
-                html += `<th class="bg-light w-25 text-capitalize">${formatKey(key2)}</th><td class="w-25">${val2}</td>`;
+                html += `<th class="bg-light w-25 text-capitalize">${formatKey(key2)}</th><td class="w-25 text-dark fw-semibold">${val2}</td>`;
             } else {
                 html += `<th class="bg-light w-25"></th><td class="w-25"></td>`;
             }
@@ -1200,11 +1203,11 @@ function viewGluerAttachment(id) {
         return html;
     };
 
-    // 1. Board Plant Details (Quality Check, Sample/Artwork සහ Reels හැර)
-    let bpProdKeys = Object.keys(bpForm).filter(k => !isQcKey(k) && !k.startsWith('reel_') && !['po_no', 'cust_prod', 'qty', 'target_tab'].includes(k));
+    // 1. Board Plant Details 
+    let bpProdKeys = Object.keys(bpForm).filter(k => !k.startsWith('qc_') && !k.startsWith('reel_') && !['po_no', 'cust_prod', 'qty', 'target_tab'].includes(k));
     let bpRowsHtml = buildTwoColumnTable(bpForm, bpProdKeys);
 
-    // 2. Paper Reel Details
+    // 2. Paper Reel Details (Board Plant එකෙන් එන දත්ත පමණි)
     let reelRowsHtml = '';
     for(let i=1; i<=5; i++) {
         let rNo = bpForm[`reel_no_${i}`] || '';
@@ -1215,22 +1218,50 @@ function viewGluerAttachment(id) {
     }
     if(!reelRowsHtml) reelRowsHtml = '<tr><td colspan="3" class="text-muted text-center">No reel details provided.</td></tr>';
 
-    // 3. Board Plant QC Details (qc_ දත්ත සහ sample/artwork දත්ත පමණක්)
-    let bpQcKeys = Object.keys(bpForm).filter(k => isQcKey(k));
+    // 3. Board Plant QC Details
+    let bpQcKeys = Object.keys(bpForm).filter(k => k.startsWith('qc_'));
     let bpQcHtml = buildTwoColumnTable(bpForm, bpQcKeys);
 
-    // 4. Printer Production Details (Quality Check සහ Sample/Artwork හැර අනෙකුත් දත්ත)
-    let prProdKeys = Object.keys(printerForm).filter(k => !isQcKey(k) && !['po_no', 'cust_prod', 'qty', 'target_tab', 'gluer_select', 'gluer_selected'].includes(k));
-    let prRowsHtml = buildTwoColumnTable(printerForm, prProdKeys);
+    // --- Printer Form Data සැකසීම ---
+    let modifiedPrinterForm = {...printerForm};
+    
+    // Sample/Artwork අගයන් "OK" ලෙස සැකසීම
+    artworkKeys.forEach(k => {
+        if (modifiedPrinterForm[k]) modifiedPrinterForm[k] = 'OK';
+    });
 
-    // 5. Printer QC Details (qc_ දත්ත සහ sample/artwork දත්ත පමණක්)
-    let prQcKeys = Object.keys(printerForm).filter(k => isQcKey(k));
-    let prQcHtml = buildTwoColumnTable(printerForm, prQcKeys);
+    // Printer Machine 1,2,3 අගයන් Full Name එකට හැරවීම (Yes කියන එක පමණක් පෙන්වීමට)
+    let machineNames = {'1': 'PS500NL', '2': 'TCY', '3': 'ZK1224'};
+    let selectedMachine = modifiedPrinterForm['printer_select'];
+    
+    if (selectedMachine && machineNames[selectedMachine]) {
+        modifiedPrinterForm['selected_printer_machine'] = machineNames[selectedMachine];
+    } else {
+        // Multi-select වී ඇත්නම් හෝ Array එකක් නම්
+        let selectedArr = [];
+        if (Array.isArray(selectedMachine)) {
+            selectedMachine.forEach(val => { if(machineNames[val]) selectedArr.push(machineNames[val]) });
+        } else if (typeof selectedMachine === 'string') {
+            if(machineNames[selectedMachine]) selectedArr.push(machineNames[selectedMachine]);
+        }
+        modifiedPrinterForm['selected_printer_machine'] = selectedArr.length > 0 ? selectedArr.join(', ') : 'Not Selected';
+    }
+
+    // 4. Printer Production Details
+    let prProdKeys = Object.keys(modifiedPrinterForm).filter(k => !k.startsWith('qc_') && !artworkKeys.includes(k) && !['po_no', 'cust_prod', 'qty', 'target_tab', 'gluer_select', 'gluer_selected', 'printer_select', 'selected_printer_machine'].includes(k));
+    
+    // Selected Machine එක Production Details වල මුලටම එකතු කිරීම
+    prProdKeys.unshift('selected_printer_machine');
+    let prRowsHtml = buildTwoColumnTable(modifiedPrinterForm, prProdKeys);
+
+    // 5. Printer QC Details (qc_ දත්ත සහ Artwork දත්ත පමණක්)
+    let prQcKeys = Object.keys(modifiedPrinterForm).filter(k => k.startsWith('qc_') || artworkKeys.includes(k));
+    let prQcHtml = buildTwoColumnTable(modifiedPrinterForm, prQcKeys);
 
     // සම්පූර්ණ HTML එක සෑදීම
     let html = `
     <div id="gluerPrintableDocument" class="container-fluid print-friendly">
-        <h4 class="text-center mb-4 text-decoration-underline fw-bold">PRODUCTION JOB TICKET - GLUER</h4>
+        <h4 class="text-center mb-4 text-decoration-underline fw-bold text-uppercase">ONLINE PRODUCTION ORDER FORM</h4>
         
         <!-- Header Info Box -->
         <div class="row mb-3 border border-2 p-2 bg-light shadow-sm rounded">
@@ -1274,27 +1305,13 @@ function viewGluerAttachment(id) {
             </tbody>
         </table>
 
-        <!-- Section 5: Printing Quality Check -->
-        <h6 class="fw-bold mt-4 border-bottom border-dark pb-1 text-secondary"><i class="bi bi-patch-check me-1"></i> Printing Quality Check</h6>
+        <!-- Section 5: Printing Quality Check & Artwork -->
+        <h6 class="fw-bold mt-4 border-bottom border-dark pb-1 text-secondary"><i class="bi bi-patch-check me-1"></i> Printing Quality Check & Artwork Details</h6>
         <table class="table table-sm table-bordered mb-4">
             <tbody>
                 ${prQcHtml}
             </tbody>
         </table>
-
-        <!-- Section 6: Signatures -->
-        <h6 class="fw-bold mt-4 border-bottom border-dark pb-1 text-secondary"><i class="bi bi-pen me-1"></i> Signatures</h6>
-        <div class="row mt-5 mb-2 text-center fw-bold text-secondary" style="font-size: 0.9rem;">
-            <div class="col-4">
-                <div class="border-top border-dark mx-3 pt-1">Prepared By (Print Dept.)</div>
-            </div>
-            <div class="col-4">
-                <div class="border-top border-dark mx-3 pt-1">Gluer Stage Supervisor</div>
-            </div>
-            <div class="col-4">
-                <div class="border-top border-dark mx-3 pt-1">QC Approval</div>
-            </div>
-        </div>
     </div>`;
 
     // Modal එකට දත්ත යැවීම
