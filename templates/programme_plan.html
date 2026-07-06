@@ -1168,60 +1168,60 @@ function viewGluerAttachment(id) {
 
     let bpForm = plan.board_plant_form || {};
     let printerForm = plan.printer_form || {};
-    
-    // Find unidentical data from Printers Stage
-    let printerUniqueData = {};
-    for (let key in printerForm) {
-        if (bpForm[key] !== printerForm[key]) {
-            printerUniqueData[key] = printerForm[key];
-        }
-    }
 
-    // 1. Board Plant Data Table Rows (2 columns per row)
-    let bpKeys = Object.keys(bpForm);
-    let bpRowsHtml = '';
-    for (let i = 0; i < bpKeys.length; i += 2) {
-        let key1 = bpKeys[i];
-        let val1 = bpForm[key1] || '-';
-        let key2 = bpKeys[i+1];
-        
-        bpRowsHtml += `<tr>`;
-        bpRowsHtml += `<th class="bg-light w-25 text-capitalize">${key1.replace(/_/g, ' ')}</th><td class="w-25">${val1}</td>`;
-        if (key2) {
-            let val2 = bpForm[key2] || '-';
-            bpRowsHtml += `<th class="bg-light w-25 text-capitalize">${key2.replace(/_/g, ' ')}</th><td class="w-25">${val2}</td>`;
-        } else {
-            bpRowsHtml += `<th class="bg-light w-25"></th><td class="w-25"></td>`;
-        }
-        bpRowsHtml += `</tr>`;
-    }
+    // යතුරු වචන (Keys) වල ඇති pr_ සහ qc_ ඉවත් කර, යටි ඉරි (underscores) වෙනුවට හිස්තැන් තබන Function එක
+    const formatKey = (k) => k.replace(/^pr_/, '').replace(/^qc_/, '').replace(/_/g, ' ');
 
-    // 2. Printing Data Table Rows (2 columns per row)
-    let prKeys = Object.keys(printerUniqueData);
-    let prRowsHtml = '';
-    if (prKeys.length > 0) {
-        prRowsHtml += `<table class="table table-sm table-bordered mb-4"><tbody>`;
-        for (let i = 0; i < prKeys.length; i += 2) {
-            let key1 = prKeys[i];
-            let val1 = printerUniqueData[key1] || '-';
-            let key2 = prKeys[i+1];
+    // Table Columns දෙකකට දත්ත සකසන පොදු Function එක
+    const buildTwoColumnTable = (dataObj, keys) => {
+        if(keys.length === 0) return `<tr><td colspan="4" class="text-center text-muted">No details available.</td></tr>`;
+        let html = '';
+        for (let i = 0; i < keys.length; i += 2) {
+            let key1 = keys[i];
+            let val1 = dataObj[key1] || '-';
+            let key2 = keys[i+1];
             
-            prRowsHtml += `<tr>`;
-            prRowsHtml += `<th class="bg-light w-25 text-capitalize">${key1.replace(/_/g, ' ')}</th><td class="w-25">${val1}</td>`;
+            html += `<tr>`;
+            html += `<th class="bg-light w-25 text-capitalize">${formatKey(key1)}</th><td class="w-25">${val1}</td>`;
             if (key2) {
-                let val2 = printerUniqueData[key2] || '-';
-                prRowsHtml += `<th class="bg-light w-25 text-capitalize">${key2.replace(/_/g, ' ')}</th><td class="w-25">${val2}</td>`;
+                let val2 = dataObj[key2] || '-';
+                html += `<th class="bg-light w-25 text-capitalize">${formatKey(key2)}</th><td class="w-25">${val2}</td>`;
             } else {
-                prRowsHtml += `<th class="bg-light w-25"></th><td class="w-25"></td>`;
+                html += `<th class="bg-light w-25"></th><td class="w-25"></td>`;
             }
-            prRowsHtml += `</tr>`;
+            html += `</tr>`;
         }
-        prRowsHtml += `</tbody></table>`;
-    } else {
-        prRowsHtml = `<div class="alert alert-secondary text-center py-2 mb-4" role="alert">No additional unique printing details found from Printers stage.</div>`;
-    }
+        return html;
+    };
 
-    // Build the Final HTML using Bootstrap Classes (matching your requested format)
+    // 1. Board Plant Details (Quality Check සහ Reels හැර)
+    let bpProdKeys = Object.keys(bpForm).filter(k => !k.startsWith('qc_') && !k.startsWith('reel_') && !['po_no', 'cust_prod', 'qty', 'target_tab'].includes(k));
+    let bpRowsHtml = buildTwoColumnTable(bpForm, bpProdKeys);
+
+    // 2. Paper Reel Details
+    let reelRowsHtml = '';
+    for(let i=1; i<=5; i++) {
+        let rNo = bpForm[`reel_no_${i}`] || '';
+        let rName = bpForm[`reel_name_${i}`] || '';
+        if (rNo || rName) {
+            reelRowsHtml += `<tr><td>${i}</td><td>${rNo}</td><td class="fw-bold">${rName}</td></tr>`;
+        }
+    }
+    if(!reelRowsHtml) reelRowsHtml = '<tr><td colspan="3" class="text-muted text-center">No reel details provided.</td></tr>';
+
+    // 3. Board Plant QC Details (qc_ වලින් පටන් ගන්නා දත්ත පමණක්)
+    let bpQcKeys = Object.keys(bpForm).filter(k => k.startsWith('qc_'));
+    let bpQcHtml = buildTwoColumnTable(bpForm, bpQcKeys);
+
+    // 4. Printer Production Details (Quality Check හැර අනෙකුත් දත්ත)
+    let prProdKeys = Object.keys(printerForm).filter(k => !k.startsWith('qc_') && !['po_no', 'cust_prod', 'qty', 'target_tab', 'gluer_select', 'gluer_selected'].includes(k));
+    let prRowsHtml = buildTwoColumnTable(printerForm, prProdKeys);
+
+    // 5. Printer QC Details (qc_ වලින් පටන් ගන්නා දත්ත පමණක්)
+    let prQcKeys = Object.keys(printerForm).filter(k => k.startsWith('qc_'));
+    let prQcHtml = buildTwoColumnTable(printerForm, prQcKeys);
+
+    // සම්පූර්ණ HTML එක සෑදීම
     let html = `
     <div id="gluerPrintableDocument" class="container-fluid print-friendly">
         <h4 class="text-center mb-4 text-decoration-underline fw-bold">PRODUCTION JOB TICKET - GLUER</h4>
@@ -1241,11 +1241,42 @@ function viewGluerAttachment(id) {
             </tbody>
         </table>
 
-        <!-- Section 2: Printing -->
-        <h6 class="fw-bold mt-4 border-bottom border-dark pb-1 text-secondary"><i class="bi bi-printer me-1"></i> Printing Production Details</h6>
-        ${prRowsHtml}
+        <!-- Section 2: Paper Reel Details -->
+        <h6 class="fw-bold mt-4 border-bottom border-dark pb-1 text-secondary"><i class="bi bi-distribute-vertical me-1"></i> Paper Reel Details</h6>
+        <table class="table table-sm table-bordered text-center mb-4">
+            <thead class="table-dark small">
+                <tr><th>#</th><th>Reel No</th><th>Reel Name</th></tr>
+            </thead>
+            <tbody>
+                ${reelRowsHtml}
+            </tbody>
+        </table>
 
-        <!-- Section 3: Signatures -->
+        <!-- Section 3: Board Plant Quality Check -->
+        <h6 class="fw-bold mt-4 border-bottom border-dark pb-1 text-secondary"><i class="bi bi-patch-check me-1"></i> Board Plant Quality Check</h6>
+        <table class="table table-sm table-bordered mb-4">
+            <tbody>
+                ${bpQcHtml}
+            </tbody>
+        </table>
+
+        <!-- Section 4: Printing Production -->
+        <h6 class="fw-bold mt-4 border-bottom border-dark pb-1 text-secondary"><i class="bi bi-printer me-1"></i> Printing Production Details</h6>
+        <table class="table table-sm table-bordered mb-4">
+            <tbody>
+                ${prRowsHtml}
+            </tbody>
+        </table>
+
+        <!-- Section 5: Printing Quality Check -->
+        <h6 class="fw-bold mt-4 border-bottom border-dark pb-1 text-secondary"><i class="bi bi-patch-check me-1"></i> Printing Quality Check</h6>
+        <table class="table table-sm table-bordered mb-4">
+            <tbody>
+                ${prQcHtml}
+            </tbody>
+        </table>
+
+        <!-- Section 6: Signatures -->
         <h6 class="fw-bold mt-4 border-bottom border-dark pb-1 text-secondary"><i class="bi bi-pen me-1"></i> Signatures</h6>
         <div class="row mt-5 mb-2 text-center fw-bold text-secondary" style="font-size: 0.9rem;">
             <div class="col-4">
@@ -1260,7 +1291,7 @@ function viewGluerAttachment(id) {
         </div>
     </div>`;
 
-    // Display in Modal
+    // Modal එකට දත්ත යැවීම
     let modalBody = document.getElementById('attachmentModalBody');
     if (modalBody) {
         modalBody.innerHTML = `
@@ -1274,7 +1305,6 @@ function viewGluerAttachment(id) {
         viewModal.show();
     }
 }
-
 function printGluerDocument() {
     let printContents = document.getElementById('gluerPrintableDocument').outerHTML;
     let printWindow = window.open('', '_blank', 'width=950,height=800');
