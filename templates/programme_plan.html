@@ -1176,82 +1176,85 @@ function viewGluerAttachment(id) {
         }
     }
 
-    // Build Professional Output HTML
-    let html = `
-    <div id="gluerPrintableDocument" style="padding: 30px; font-family: 'Segoe UI', Arial, sans-serif; background: #fff; color: #333; max-width: 850px; margin: auto; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+    // 1. Board Plant Data Table Rows (2 columns per row)
+    let bpKeys = Object.keys(bpForm);
+    let bpRowsHtml = '';
+    for (let i = 0; i < bpKeys.length; i += 2) {
+        let key1 = bpKeys[i];
+        let val1 = bpForm[key1] || '-';
+        let key2 = bpKeys[i+1];
         
-        <!-- Header Section -->
-        <div style="text-align: center; border-bottom: 3px solid #2c3e50; padding-bottom: 15px; margin-bottom: 25px;">
-            <h2 style="margin: 0; color: #2c3e50; font-weight: 800; letter-spacing: 1px; text-transform: uppercase;">Production Job Ticket</h2>
-            <p style="margin: 5px 0 0; font-size: 14px; color: #555; text-transform: uppercase; letter-spacing: 0.5px;">Integrated Document: Board Plant & Printing Stages</p>
-        </div>
+        bpRowsHtml += `<tr>`;
+        bpRowsHtml += `<th class="bg-light w-25 text-capitalize">${key1.replace(/_/g, ' ')}</th><td class="w-25">${val1}</td>`;
+        if (key2) {
+            let val2 = bpForm[key2] || '-';
+            bpRowsHtml += `<th class="bg-light w-25 text-capitalize">${key2.replace(/_/g, ' ')}</th><td class="w-25">${val2}</td>`;
+        } else {
+            bpRowsHtml += `<th class="bg-light w-25"></th><td class="w-25"></td>`;
+        }
+        bpRowsHtml += `</tr>`;
+    }
 
-        <!-- Job Summary Info -->
-        <table style="width: 100%; margin-bottom: 30px; font-size: 14px; border-collapse: collapse;">
-            <tr>
-                <td style="padding: 10px; border: 1px solid #ccc; background: #f8f9fa; font-weight: bold; width: 20%;">PO Number:</td>
-                <td style="padding: 10px; border: 1px solid #ccc; width: 30%; color: #d35400; font-weight: bold; font-size: 16px;">${plan.po_no}</td>
-                <td style="padding: 10px; border: 1px solid #ccc; background: #f8f9fa; font-weight: bold; width: 20%;">Customer:</td>
-                <td style="padding: 10px; border: 1px solid #ccc; width: 30%; font-weight: bold;">${plan.customer_name}</td>
-            </tr>
-            <tr>
-                <td style="padding: 10px; border: 1px solid #ccc; background: #f8f9fa; font-weight: bold;">Product:</td>
-                <td style="padding: 10px; border: 1px solid #ccc;">${plan.product_name}</td>
-                <td style="padding: 10px; border: 1px solid #ccc; background: #f8f9fa; font-weight: bold;">Order Qty:</td>
-                <td style="padding: 10px; border: 1px solid #ccc; font-weight: bold;">${plan.qty}</td>
-            </tr>
-        </table>
+    // 2. Printing Data Table Rows (2 columns per row)
+    let prKeys = Object.keys(printerUniqueData);
+    let prRowsHtml = '';
+    if (prKeys.length > 0) {
+        prRowsHtml += `<table class="table table-sm table-bordered mb-4"><tbody>`;
+        for (let i = 0; i < prKeys.length; i += 2) {
+            let key1 = prKeys[i];
+            let val1 = printerUniqueData[key1] || '-';
+            let key2 = prKeys[i+1];
+            
+            prRowsHtml += `<tr>`;
+            prRowsHtml += `<th class="bg-light w-25 text-capitalize">${key1.replace(/_/g, ' ')}</th><td class="w-25">${val1}</td>`;
+            if (key2) {
+                let val2 = printerUniqueData[key2] || '-';
+                prRowsHtml += `<th class="bg-light w-25 text-capitalize">${key2.replace(/_/g, ' ')}</th><td class="w-25">${val2}</td>`;
+            } else {
+                prRowsHtml += `<th class="bg-light w-25"></th><td class="w-25"></td>`;
+            }
+            prRowsHtml += `</tr>`;
+        }
+        prRowsHtml += `</tbody></table>`;
+    } else {
+        prRowsHtml = `<div class="alert alert-secondary text-center py-2 mb-4" role="alert">No additional unique printing details found from Printers stage.</div>`;
+    }
+
+    // Build the Final HTML using Bootstrap Classes (matching your requested format)
+    let html = `
+    <div id="gluerPrintableDocument" class="container-fluid print-friendly">
+        <h4 class="text-center mb-4 text-decoration-underline fw-bold">PRODUCTION JOB TICKET - GLUER</h4>
+        
+        <!-- Header Info Box -->
+        <div class="row mb-3 border border-2 p-2 bg-light shadow-sm rounded">
+            <div class="col-4 text-center border-end"><strong>PO No:</strong> <br><span class="fs-5 text-primary fw-bold">${plan.po_no || '-'}</span></div>
+            <div class="col-5 text-center border-end"><strong>Customer/Product:</strong> <br><span class="fs-6">${plan.customer_name} - ${plan.product_name}</span></div>
+            <div class="col-3 text-center"><strong>Qty:</strong> <br><span class="fs-5 text-danger fw-bold">${plan.qty || '-'}</span></div>
+        </div>
 
         <!-- Section 1: Board Plant -->
-        <div style="background: #2c3e50; color: #fff; padding: 10px 15px; font-weight: bold; font-size: 14px; margin-bottom: 10px; text-transform: uppercase; border-radius: 4px 4px 0 0;">
-            1. Board Plant Details
-        </div>
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 13px;">
-            <tbody>`;
-    
-    for (let key in bpForm) {
-        html += `<tr>
-            <td style="border: 1px solid #ddd; padding: 8px 12px; font-weight: 600; width: 40%; text-transform: capitalize; background-color: #fcfcfc; color: #555;">${key.replace(/_/g, ' ')}</td>
-            <td style="border: 1px solid #ddd; padding: 8px 12px; color: #000;">${bpForm[key]}</td>
-        </tr>`;
-    }
-    html += `</tbody></table>`;
+        <h6 class="fw-bold mt-4 border-bottom border-dark pb-1 text-secondary"><i class="bi bi-box me-1"></i> Board Plant Details</h6>
+        <table class="table table-sm table-bordered mb-4">
+            <tbody>
+                ${bpRowsHtml}
+            </tbody>
+        </table>
 
-    <!-- Section 2: Printing Details -->
-    html += `
-        <div style="background: #2c3e50; color: #fff; padding: 10px 15px; font-weight: bold; font-size: 14px; margin-bottom: 10px; text-transform: uppercase; border-radius: 4px 4px 0 0;">
-            2. Printing Production Details
-        </div>`;
-        
-    if (Object.keys(printerUniqueData).length > 0) {
-        html += `
-        <table style="width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 30px;">
-            <tbody>`;
-        for (let key in printerUniqueData) {
-            html += `<tr>
-                <td style="border: 1px solid #ddd; padding: 8px 12px; font-weight: 600; width: 40%; text-transform: capitalize; background-color: #fcfcfc; color: #555;">${key.replace(/_/g, ' ')}</td>
-                <td style="border: 1px solid #ddd; padding: 8px 12px; color: #000;">${printerUniqueData[key]}</td>
-            </tr>`;
-        }
-        html += `</tbody></table>`;
-    } else {
-        html += `<div style="padding: 15px; border: 1px dashed #ccc; text-align: center; color: #777; font-style: italic; margin-bottom: 30px; background: #fafafa;">No additional unique printing details found from Printers stage.</div>`;
-    }
+        <!-- Section 2: Printing -->
+        <h6 class="fw-bold mt-4 border-bottom border-dark pb-1 text-secondary"><i class="bi bi-printer me-1"></i> Printing Production Details</h6>
+        ${prRowsHtml}
 
-    <!-- Signatures Footer -->
-    html += `
-        <div style="margin-top: 40px; border-top: 2px solid #eee; padding-top: 30px; display: flex; justify-content: space-between; font-size: 12px; color: #444; font-weight: bold;">
-            <div style="text-align: center; width: 28%;">
-                <div style="border-bottom: 1px dashed #888; height: 30px; margin-bottom: 10px;"></div>
-                Prepared By (Print Dept.)
+        <!-- Section 3: Signatures -->
+        <h6 class="fw-bold mt-4 border-bottom border-dark pb-1 text-secondary"><i class="bi bi-pen me-1"></i> Signatures</h6>
+        <div class="row mt-5 mb-2 text-center fw-bold text-secondary" style="font-size: 0.9rem;">
+            <div class="col-4">
+                <div class="border-top border-dark mx-3 pt-1">Prepared By (Print Dept.)</div>
             </div>
-            <div style="text-align: center; width: 28%;">
-                <div style="border-bottom: 1px dashed #888; height: 30px; margin-bottom: 10px;"></div>
-                Gluer Stage Supervisor
+            <div class="col-4">
+                <div class="border-top border-dark mx-3 pt-1">Gluer Stage Supervisor</div>
             </div>
-            <div style="text-align: center; width: 28%;">
-                <div style="border-bottom: 1px dashed #888; height: 30px; margin-bottom: 10px;"></div>
-                QC Approval
+            <div class="col-4">
+                <div class="border-top border-dark mx-3 pt-1">QC Approval</div>
             </div>
         </div>
     </div>`;
@@ -1260,9 +1263,7 @@ function viewGluerAttachment(id) {
     let modalBody = document.getElementById('attachmentModalBody');
     if (modalBody) {
         modalBody.innerHTML = `
-            <div class="bg-light p-3 rounded">
-                ${html}
-            </div>
+            ${html}
             <div class="text-end mt-4 no-print border-top pt-3">
                 <button class="btn btn-secondary me-2" data-bs-dismiss="modal">Close</button>
                 <button class="btn btn-primary fw-bold px-4" onclick="printGluerDocument()"><i class="bi bi-printer me-2"></i> Print Document</button>
@@ -1276,30 +1277,23 @@ function viewGluerAttachment(id) {
 function printGluerDocument() {
     let printContents = document.getElementById('gluerPrintableDocument').outerHTML;
     let printWindow = window.open('', '_blank', 'width=950,height=800');
+    
+    // Inject Bootstrap CDN to the print window so classes like .row, .col-4, .bg-light works perfectly on print.
     printWindow.document.write(`
         <!DOCTYPE html>
         <html>
         <head>
             <title>Production Job Ticket - Gluer</title>
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
             <style>
-                body { 
-                    background: #f4f7f6; 
-                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-                    padding: 40px;
-                }
+                body { padding: 30px; font-family: Arial, sans-serif; }
                 @media print {
-                    body { padding: 0; background: #fff; }
-                    #gluerPrintableDocument { 
-                        box-shadow: none !important; 
-                        border: none !important; 
-                        max-width: 100% !important; 
-                        padding: 0 !important;
-                    }
-                    /* Ensure background colors print correctly */
-                    * {
-                        -webkit-print-color-adjust: exact !important;
-                        print-color-adjust: exact !important;
-                    }
+                    body { padding: 0; }
+                    .shadow-sm { box-shadow: none !important; }
+                    .bg-light { background-color: #f8f9fa !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                    .text-primary { color: #0d6efd !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                    .text-danger { color: #dc3545 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
                 }
             </style>
         </head>
@@ -1307,10 +1301,11 @@ function printGluerDocument() {
             ${printContents}
             <script>
                 window.onload = function() {
+                    // Timeout allows Bootstrap CSS to load before opening print dialog
                     setTimeout(() => { 
                         window.print(); 
                         window.close(); 
-                    }, 500);
+                    }, 800);
                 };
             <\/script>
         </body>
@@ -1318,7 +1313,6 @@ function printGluerDocument() {
     `);
     printWindow.document.close();
 }
-
         // --- Die Cut & Semi Auto Stage Render ---
         function renderDieCutSemiAutoTable() {
             document.getElementById('generic-tab-title').innerHTML = "<i class='bi bi-gear'></i> Die Cut & Semi Auto Stage";
