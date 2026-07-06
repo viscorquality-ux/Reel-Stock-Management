@@ -1276,7 +1276,7 @@ function viewGluerAttachment(id) {
                 <th class="bg-light">Combination</th><td>${pData.qc_combination || '-'}</td>
             </tr>
         </table>
-        <table class="table table-sm table-bordered mb-2">
+        <table class="table table-sm table-bordered mb-3">
             <tr>
                 <th class="bg-light">Flute Defects</th><td>${pData.qc_flute || '-'}</td>
                 <th class="bg-light">Creasing Defects</th><td>${pData.qc_creasing || '-'}</td>
@@ -1284,6 +1284,22 @@ function viewGluerAttachment(id) {
                 <th class="bg-light">QC Approval</th><td><span class="badge ${pData.qc_app==='Approved'?'bg-success':(pData.qc_app==='Rejected'?'bg-danger':'bg-secondary')}">${pData.qc_app || '-'}</span></td>
             </tr>
         </table>
+
+        <!-- ADDED: Sample / Art Work Details Section -->
+        <h6 class="fw-bold mt-3 pb-1 text-secondary"><i class="bi bi-palette me-1"></i> Sample / Art Work Details</h6>
+        <table class="table table-sm table-bordered mb-4">
+            <tr>
+                <th class="bg-light" style="width: 20%;">Sample No</th><td style="width: 13%;">${pData.sample_no ? '✔️ Yes' : '-'}</td>
+                <th class="bg-light" style="width: 20%;">Code No</th><td style="width: 13%;">${pData.code_no ? '✔️ Yes' : '-'}</td>
+                <th class="bg-light" style="width: 20%;">Printing Details</th><td style="width: 14%;">${pData.printing_details ? '✔️ Yes' : '-'}</td>
+            </tr>
+            <tr>
+                <th class="bg-light">Colours</th><td>${pData.colours ? '✔️ Yes' : '-'}</td>
+                <th class="bg-light">Measurement</th><td>${pData.measurement ? '✔️ Yes' : '-'}</td>
+                <th class="bg-light"></th><td></td>
+            </tr>
+        </table>
+
     </div>
     
     <div class="text-end mt-4 no-print border-top pt-3">
@@ -1298,7 +1314,6 @@ function viewGluerAttachment(id) {
         new bootstrap.Modal(document.getElementById('viewAttachmentModal')).show();
     }
 }
-
 
 // Print function එක (Bootstrap styles print window එකට load වන සේ සකසා ඇත)
 function printGluerDocument() {
