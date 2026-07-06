@@ -1176,47 +1176,96 @@ function viewGluerAttachment(id) {
         }
     }
 
-    // Build Output HTML
+    // Build Professional Output HTML
     let html = `
-    <div id="gluerPrintableDocument" style="padding: 20px; font-family: sans-serif; background: #fff; color: #000;">
-        <h4 style="text-align: center; text-transform: uppercase; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px;">Integrated Production Document</h4>
+    <div id="gluerPrintableDocument" style="padding: 30px; font-family: 'Segoe UI', Arial, sans-serif; background: #fff; color: #333; max-width: 850px; margin: auto; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
         
-        <h6 style="text-decoration: underline; font-weight: bold; font-size: 1.1rem;">Board Plant Details</h6>
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 0.95rem;">
+        <!-- Header Section -->
+        <div style="text-align: center; border-bottom: 3px solid #2c3e50; padding-bottom: 15px; margin-bottom: 25px;">
+            <h2 style="margin: 0; color: #2c3e50; font-weight: 800; letter-spacing: 1px; text-transform: uppercase;">Production Job Ticket</h2>
+            <p style="margin: 5px 0 0; font-size: 14px; color: #555; text-transform: uppercase; letter-spacing: 0.5px;">Integrated Document: Board Plant & Printing Stages</p>
+        </div>
+
+        <!-- Job Summary Info -->
+        <table style="width: 100%; margin-bottom: 30px; font-size: 14px; border-collapse: collapse;">
+            <tr>
+                <td style="padding: 10px; border: 1px solid #ccc; background: #f8f9fa; font-weight: bold; width: 20%;">PO Number:</td>
+                <td style="padding: 10px; border: 1px solid #ccc; width: 30%; color: #d35400; font-weight: bold; font-size: 16px;">${plan.po_no}</td>
+                <td style="padding: 10px; border: 1px solid #ccc; background: #f8f9fa; font-weight: bold; width: 20%;">Customer:</td>
+                <td style="padding: 10px; border: 1px solid #ccc; width: 30%; font-weight: bold;">${plan.customer_name}</td>
+            </tr>
+            <tr>
+                <td style="padding: 10px; border: 1px solid #ccc; background: #f8f9fa; font-weight: bold;">Product:</td>
+                <td style="padding: 10px; border: 1px solid #ccc;">${plan.product_name}</td>
+                <td style="padding: 10px; border: 1px solid #ccc; background: #f8f9fa; font-weight: bold;">Order Qty:</td>
+                <td style="padding: 10px; border: 1px solid #ccc; font-weight: bold;">${plan.qty}</td>
+            </tr>
+        </table>
+
+        <!-- Section 1: Board Plant -->
+        <div style="background: #2c3e50; color: #fff; padding: 10px 15px; font-weight: bold; font-size: 14px; margin-bottom: 10px; text-transform: uppercase; border-radius: 4px 4px 0 0;">
+            1. Board Plant Details
+        </div>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 13px;">
             <tbody>`;
     
     for (let key in bpForm) {
         html += `<tr>
-            <td style="border: 1px solid #000; padding: 6px 10px; font-weight: bold; width: 40%; text-transform: capitalize; background-color: #f8f9fa;">${key.replace(/_/g, ' ')}</td>
-            <td style="border: 1px solid #000; padding: 6px 10px;">${bpForm[key]}</td>
+            <td style="border: 1px solid #ddd; padding: 8px 12px; font-weight: 600; width: 40%; text-transform: capitalize; background-color: #fcfcfc; color: #555;">${key.replace(/_/g, ' ')}</td>
+            <td style="border: 1px solid #ddd; padding: 8px 12px; color: #000;">${bpForm[key]}</td>
         </tr>`;
     }
     html += `</tbody></table>`;
 
-    html += `<h6 style="text-decoration: underline; font-weight: bold; font-size: 1.1rem; margin-top: 15px;">Printing Production Details</h6>`;
+    <!-- Section 2: Printing Details -->
+    html += `
+        <div style="background: #2c3e50; color: #fff; padding: 10px 15px; font-weight: bold; font-size: 14px; margin-bottom: 10px; text-transform: uppercase; border-radius: 4px 4px 0 0;">
+            2. Printing Production Details
+        </div>`;
+        
     if (Object.keys(printerUniqueData).length > 0) {
         html += `
-        <table style="width: 100%; border-collapse: collapse; font-size: 0.95rem;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 30px;">
             <tbody>`;
         for (let key in printerUniqueData) {
             html += `<tr>
-                <td style="border: 1px solid #000; padding: 6px 10px; font-weight: bold; width: 40%; text-transform: capitalize; background-color: #f8f9fa;">${key.replace(/_/g, ' ')}</td>
-                <td style="border: 1px solid #000; padding: 6px 10px;">${printerUniqueData[key]}</td>
+                <td style="border: 1px solid #ddd; padding: 8px 12px; font-weight: 600; width: 40%; text-transform: capitalize; background-color: #fcfcfc; color: #555;">${key.replace(/_/g, ' ')}</td>
+                <td style="border: 1px solid #ddd; padding: 8px 12px; color: #000;">${printerUniqueData[key]}</td>
             </tr>`;
         }
         html += `</tbody></table>`;
     } else {
-        html += `<p style="font-style: italic; color: #555;">No additional unique printing details found from Printers stage.</p>`;
+        html += `<div style="padding: 15px; border: 1px dashed #ccc; text-align: center; color: #777; font-style: italic; margin-bottom: 30px; background: #fafafa;">No additional unique printing details found from Printers stage.</div>`;
     }
-    html += `</div>`;
+
+    <!-- Signatures Footer -->
+    html += `
+        <div style="margin-top: 40px; border-top: 2px solid #eee; padding-top: 30px; display: flex; justify-content: space-between; font-size: 12px; color: #444; font-weight: bold;">
+            <div style="text-align: center; width: 28%;">
+                <div style="border-bottom: 1px dashed #888; height: 30px; margin-bottom: 10px;"></div>
+                Prepared By (Print Dept.)
+            </div>
+            <div style="text-align: center; width: 28%;">
+                <div style="border-bottom: 1px dashed #888; height: 30px; margin-bottom: 10px;"></div>
+                Gluer Stage Supervisor
+            </div>
+            <div style="text-align: center; width: 28%;">
+                <div style="border-bottom: 1px dashed #888; height: 30px; margin-bottom: 10px;"></div>
+                QC Approval
+            </div>
+        </div>
+    </div>`;
 
     // Display in Modal
     let modalBody = document.getElementById('attachmentModalBody');
     if (modalBody) {
         modalBody.innerHTML = `
-            ${html}
+            <div class="bg-light p-3 rounded">
+                ${html}
+            </div>
             <div class="text-end mt-4 no-print border-top pt-3">
-                <button class="btn btn-primary fw-bold" onclick="printGluerDocument()"><i class="bi bi-printer"></i> Download / Print Document</button>
+                <button class="btn btn-secondary me-2" data-bs-dismiss="modal">Close</button>
+                <button class="btn btn-primary fw-bold px-4" onclick="printGluerDocument()"><i class="bi bi-printer me-2"></i> Print Document</button>
             </div>
         `;
         let viewModal = new bootstrap.Modal(document.getElementById('viewAttachmentModal'));
@@ -1226,20 +1275,44 @@ function viewGluerAttachment(id) {
 
 function printGluerDocument() {
     let printContents = document.getElementById('gluerPrintableDocument').outerHTML;
-    let printWindow = window.open('', '_blank', 'width=900,height=750');
+    let printWindow = window.open('', '_blank', 'width=950,height=800');
     printWindow.document.write(`
+        <!DOCTYPE html>
         <html>
         <head>
-            <title>Gluer Integrated Document</title>
+            <title>Production Job Ticket - Gluer</title>
             <style>
-                body { padding: 30px; background: #fff !important; font-family: sans-serif; }
-                table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-                th, td { border: 1px solid #000 !important; padding: 8px !important; text-align: left; }
+                body { 
+                    background: #f4f7f6; 
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+                    padding: 40px;
+                }
+                @media print {
+                    body { padding: 0; background: #fff; }
+                    #gluerPrintableDocument { 
+                        box-shadow: none !important; 
+                        border: none !important; 
+                        max-width: 100% !important; 
+                        padding: 0 !important;
+                    }
+                    /* Ensure background colors print correctly */
+                    * {
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                    }
+                }
             </style>
         </head>
         <body>
             ${printContents}
-            <script>setTimeout(() => { window.print(); window.close(); }, 500);<\/script>
+            <script>
+                window.onload = function() {
+                    setTimeout(() => { 
+                        window.print(); 
+                        window.close(); 
+                    }, 500);
+                };
+            <\/script>
         </body>
         </html>
     `);
