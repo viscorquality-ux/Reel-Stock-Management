@@ -1250,7 +1250,8 @@ function viewGluerAttachment(id) {
         <h6 class="fw-bold mt-2 pb-1 text-secondary"><i class="bi bi-printer me-1"></i> Printer Production Details</h6>
         <table class="table table-sm table-bordered mb-3">
             <tr>
-                <th class="bg-light" style="width: 20%;">Printers Used</th><td colspan="3">${pData.printer_select || 'Not Selected'}</td>
+                <th class="bg-light" style="width: 20%;">Printers Used</th>
+				<td colspan="3" class="fw-bold text-primary">${pData.printer_select ? pData.printer_select.toUpperCase() : 'Not Selected'}</td>
                 <th class="bg-light" style="width: 20%;">Pass/Fail</th><td><span class="badge ${pData.pr_pass==='Pass'?'bg-success': (pData.pr_pass==='Fail'?'bg-danger':'bg-secondary')}">${pData.pr_pass || '-'}</span></td>
             </tr>
             <tr>
