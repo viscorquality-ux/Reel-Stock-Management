@@ -1154,85 +1154,178 @@ function submitGluerForm(event, id) {
     });
 }
 
+// ==========================================
+// GLUER STAGE - ATTACHMENT VIEW (UPDATED FORMAT)
+// ==========================================
+
 function viewGluerAttachment(id) {
     let plan;
-    for (const key in globalAllPlans) { let f = globalAllPlans[key].find(x => x.id === id); if(f) plan = f; }
-    if(!plan) return;
+    for (const key in globalAllPlans) { 
+        let f = globalAllPlans[key].find(x => x.id === id); 
+        if(f) plan = f; 
+    }
+    if(!plan) { alert("No plan data found."); return; }
 
-    let bpForm = plan.board_plant_form || {};
-    let printerForm = plan.printer_form || {};
+    // දත්ත ලබාගැනීම
+    let data = plan.board_plant_form || {};
+    let pData = plan.printer_form || {};
     
-    // Find unidentical data from Printers Stage
-    let printerUniqueData = {};
-    for (let key in printerForm) {
-        if (bpForm[key] !== printerForm[key]) {
-            printerUniqueData[key] = printerForm[key];
-        }
+    // Reel Details සකස් කිරීම
+    let reelRowsHtml = '';
+    for(let i=1; i<=5; i++) {
+        let rNo = data[`reel_no_${i}`] || '';
+        let rName = data[`reel_name_${i}`] || '';
+        if (!rNo && !rName) continue;
+        reelRowsHtml += `<tr><td>${i}</td><td>${rNo}</td><td class="fw-bold">${rName}</td></tr>`;
     }
 
-    // Build Output HTML
+    // Board Plant සහ Printers Data එකම Format එකකට ගෙන ඒම
     let html = `
-    <div id="gluerPrintableDocument" style="padding: 20px; font-family: sans-serif; background: #fff; color: #000;">
-        <h4 style="text-align: center; text-transform: uppercase; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px;">Integrated Production Document</h4>
+    <div id="gluerPrintableDocument" class="container-fluid print-friendly">
+        <h4 class="text-center mb-4 text-decoration-underline fw-bold">INTEGRATED PRODUCTION DOCUMENT</h4>
         
-        <h6 style="text-decoration: underline; font-weight: bold; font-size: 1.1rem;">Board Plant Details</h6>
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 0.95rem;">
-            <tbody>`;
+        <!-- Header Section -->
+        <div class="row mb-3 border border-2 p-2 bg-light shadow-sm rounded">
+            <div class="col-4 text-center border-end"><strong>PO No:</strong> <br><span class="fs-5 text-primary fw-bold">${plan.po_no || '-'}</span></div>
+            <div class="col-4 text-center border-end"><strong>Customer/Product:</strong> <br><span class="fs-6">${plan.customer_name} - ${plan.product_name}</span></div>
+            <div class="col-4 text-center"><strong>Qty:</strong> <br><span class="fs-5 text-danger fw-bold">${plan.qty || '-'}</span></div>
+        </div>
+
+        <!-- 1. BOARD PLANT SECTION -->
+        <h5 class="mt-4 mb-3 text-primary fw-bold border-bottom pb-1">1. BOARD PLANT STAGE</h5>
+        
+        <h6 class="fw-bold mt-2 pb-1 text-secondary"><i class="bi bi-box me-1"></i> Production Details</h6>
+        <table class="table table-sm table-bordered mb-3">
+            <tr>
+                <th class="bg-light">Serial No</th><td>${data.serial_no || '-'}</td>
+                <th class="bg-light">Slit Size</th><td>${data.slit_size || '-'}</td>
+                <th class="bg-light">Cut Length</th><td>${data.cut_length || '-'}</td>
+                <th class="bg-light">Pass/Fail</th><td><span class="badge ${data.pass_fail==='Pass'?'bg-success':'bg-danger'}">${data.pass_fail || '-'}</span></td>
+            </tr>
+            <tr>
+                <th class="bg-light">Date</th><td>${data.bp_date || '-'}</td>
+                <th class="bg-light">Counter Qty</th><td>${data.counter_qty || '-'}</td>
+                <th class="bg-light">Add Qty Feed</th><td colspan="3">${data.add_qty || '-'}</td>
+            </tr>
+            <tr>
+                <th class="bg-light">Excess</th><td>${data.excess || '-'}</td>
+                <th class="bg-light">Damaged Qty</th><td>${data.damaged || '-'}</td>
+                <th class="bg-light">C: Hand EPF No</th><td colspan="3">${data['EPF No'] || '-'}</td>
+            </tr>
+            <tr>
+                <th class="bg-light">Remark</th><td colspan="7" class="text-danger fw-semibold">${data.remark || 'N/A'}</td>
+            </tr>
+        </table>
+
+        <h6 class="fw-bold mt-3 pb-1 text-secondary"><i class="bi bi-distribute-vertical me-1"></i> Paper Reel Details</h6>
+        <table class="table table-sm table-bordered text-center mb-3">
+            <thead class="table-dark small">
+                <tr><th>#</th><th>Reel No</th><th>Reel Name</th></tr>
+            </thead>
+            <tbody>
+                ${reelRowsHtml || '<tr><td colspan="3" class="text-muted">No reel details provided.</td></tr>'}
+            </tbody>
+        </table>
+
+        <h6 class="fw-bold mt-3 pb-1 text-secondary"><i class="bi bi-patch-check me-1"></i> BP Quality Check Section</h6>
+        <table class="table table-sm table-bordered mb-2">
+            <tr>
+                <th class="bg-light">Measurement</th><td>${data.qc_measurement || '-'}</td>
+                <th class="bg-light">Caliper (mm)</th><td>${data.qc_caliper || '-'}</td>
+                <th class="bg-light">Combination</th><td>${data.qc_combination || '-'}</td>
+            </tr>
+        </table>
+        <table class="table table-sm table-bordered mb-4 border-bottom border-dark">
+            <tr>
+                <th class="bg-light">Flute Defects</th><td>${data.qc_flute || '-'}</td>
+                <th class="bg-light">Creasing Defects</th><td>${data.qc_creasing || '-'}</td>
+                <th class="bg-light">Visual Defects</th><td>${data.qc_visual || '-'}</td>
+                <th class="bg-light">QC Approval</th><td><span class="badge ${data.qc_app==='Approved'?'bg-success':'bg-danger'}">${data.qc_app || '-'}</span></td>
+            </tr>
+        </table>
+
+        <!-- 2. PRINTERS SECTION -->
+        <h5 class="mt-4 mb-3 text-success fw-bold border-bottom pb-1">2. PRINTERS STAGE</h5>
+        
+        <h6 class="fw-bold mt-2 pb-1 text-secondary"><i class="bi bi-printer me-1"></i> Printer Production Details</h6>
+        <table class="table table-sm table-bordered mb-3">
+            <tr>
+                <th class="bg-light" style="width: 20%;">Printers Used</th><td colspan="3">${pData.printer_select || 'Not Selected'}</td>
+                <th class="bg-light" style="width: 20%;">Pass/Fail</th><td><span class="badge ${pData.pr_pass==='Pass'?'bg-success': (pData.pr_pass==='Fail'?'bg-danger':'bg-secondary')}">${pData.pr_pass || '-'}</span></td>
+            </tr>
+            <tr>
+                <th class="bg-light">Plant BD Counter</th><td>${pData.pr_plant || '-'}</td>
+                <th class="bg-light">Slot BD Counter</th><td>${pData.pr_slot || '-'}</td>
+                <th class="bg-light">Add Qty Feed</th><td>${pData.pr_addqty || '-'}</td>
+            </tr>
+            <tr>
+                <th class="bg-light">Slot BDs Excess</th><td>${pData.pr_excess || '-'}</td>
+                <th class="bg-light">Damaged Qty</th><td>${pData.pr_damaged || '-'}</td>
+                <th class="bg-light">Finished Qty</th><td>${pData.pr_fin || '-'}</td>
+            </tr>
+            <tr>
+                <th class="bg-light">Balance Qty</th><td colspan="5" class="text-danger fw-bold">${pData.pr_bal || '-'}</td>
+            </tr>
+        </table>
+
+        <h6 class="fw-bold mt-3 pb-1 text-secondary"><i class="bi bi-patch-check me-1"></i> Printer Quality Check Section</h6>
+        <table class="table table-sm table-bordered mb-2">
+            <tr>
+                <th class="bg-light">Measurement</th><td>${pData.qc_measurement || '-'}</td>
+                <th class="bg-light">Caliper (mm)</th><td>${pData.qc_caliper || '-'}</td>
+                <th class="bg-light">Combination</th><td>${pData.qc_combination || '-'}</td>
+            </tr>
+        </table>
+        <table class="table table-sm table-bordered mb-2">
+            <tr>
+                <th class="bg-light">Flute Defects</th><td>${pData.qc_flute || '-'}</td>
+                <th class="bg-light">Creasing Defects</th><td>${pData.qc_creasing || '-'}</td>
+                <th class="bg-light">Visual Defects</th><td>${pData.qc_visual || '-'}</td>
+                <th class="bg-light">QC Approval</th><td><span class="badge ${pData.qc_app==='Approved'?'bg-success':(pData.qc_app==='Rejected'?'bg-danger':'bg-secondary')}">${pData.qc_app || '-'}</span></td>
+            </tr>
+        </table>
+    </div>
     
-    for (let key in bpForm) {
-        html += `<tr>
-            <td style="border: 1px solid #000; padding: 6px 10px; font-weight: bold; width: 40%; text-transform: capitalize; background-color: #f8f9fa;">${key.replace(/_/g, ' ')}</td>
-            <td style="border: 1px solid #000; padding: 6px 10px;">${bpForm[key]}</td>
-        </tr>`;
-    }
-    html += `</tbody></table>`;
+    <div class="text-end mt-4 no-print border-top pt-3">
+        <button class="btn btn-primary fw-bold" onclick="printGluerDocument()"><i class="bi bi-printer"></i> Download / Print Document</button>
+    </div>
+    `;
 
-    html += `<h6 style="text-decoration: underline; font-weight: bold; font-size: 1.1rem; margin-top: 15px;">Printing Production Details</h6>`;
-    if (Object.keys(printerUniqueData).length > 0) {
-        html += `
-        <table style="width: 100%; border-collapse: collapse; font-size: 0.95rem;">
-            <tbody>`;
-        for (let key in printerUniqueData) {
-            html += `<tr>
-                <td style="border: 1px solid #000; padding: 6px 10px; font-weight: bold; width: 40%; text-transform: capitalize; background-color: #f8f9fa;">${key.replace(/_/g, ' ')}</td>
-                <td style="border: 1px solid #000; padding: 6px 10px;">${printerUniqueData[key]}</td>
-            </tr>`;
-        }
-        html += `</tbody></table>`;
-    } else {
-        html += `<p style="font-style: italic; color: #555;">No additional unique printing details found from Printers stage.</p>`;
-    }
-    html += `</div>`;
-
-    // Display in Modal
+    // Modal එකට Data ඇතුලත් කිරීම
     let modalBody = document.getElementById('attachmentModalBody');
     if (modalBody) {
-        modalBody.innerHTML = `
-            ${html}
-            <div class="text-end mt-4 no-print border-top pt-3">
-                <button class="btn btn-primary fw-bold" onclick="printGluerDocument()"><i class="bi bi-printer"></i> Download / Print Document</button>
-            </div>
-        `;
-        let viewModal = new bootstrap.Modal(document.getElementById('viewAttachmentModal'));
-        viewModal.show();
+        modalBody.innerHTML = html;
+        new bootstrap.Modal(document.getElementById('viewAttachmentModal')).show();
     }
 }
+
+
+// Print function එක (Bootstrap styles print window එකට load වන සේ සකසා ඇත)
 function printGluerDocument() {
     let printContents = document.getElementById('gluerPrintableDocument').outerHTML;
     let printWindow = window.open('', '_blank', 'width=900,height=750');
     printWindow.document.write(`
         <html>
         <head>
-            <title>Gluer Integrated Document</title>
+            <title>Integrated Production Document</title>
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
             <style>
                 body { padding: 30px; background: #fff !important; font-family: sans-serif; }
-                table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-                th, td { border: 1px solid #000 !important; padding: 8px !important; text-align: left; }
+                .no-print { display: none !important; }
+                table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.9rem; }
+                th, td { border: 1px solid #dee2e6 !important; padding: 6px !important; text-align: left; }
+                .bg-light { background-color: #f8f9fa !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                .table-dark { background-color: #212529 !important; color: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                .badge { border: 1px solid #000; color: #000 !important; background-color: transparent !important; } /* Badges print friendly */
+                .text-danger { color: #dc3545 !important; }
+                .text-success { color: #198754 !important; }
+                .text-primary { color: #0d6efd !important; }
             </style>
         </head>
         <body>
             ${printContents}
-            <script>setTimeout(() => { window.print(); window.close(); }, 500);<\/script>
+            <script>setTimeout(() => { window.print(); window.close(); }, 600);<\/script>
         </body>
         </html>
     `);
