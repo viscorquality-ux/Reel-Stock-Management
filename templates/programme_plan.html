@@ -786,7 +786,7 @@
             transferPlan(id, target, dataObj, 'board_plant');
         }
 
-        // --- Printers Render & Forms (WITH BALANCE SPLIT SUPPORT) ---
+        // --- Printers Render & Forms (WITH BALANCE SPLIT SUPPORT AND ATTACHMENTS) ---
         function renderPrintersTable() {
             document.getElementById('generic-tab-title').innerHTML = "<i class='bi bi-printer'></i> Printers Stage";
             fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
@@ -807,6 +807,7 @@
                             <th>PO No</th>
                             <th>Customer & Product</th>
                             <th>Qty</th>
+                            <th>Attachment</th>
                             <th>Action</th>
                         </tr>
                     </thead>
@@ -825,10 +826,11 @@
                             <td class="fw-bold text-primary">${p.po_no}</td>
                             <td>${p.customer_name} - ${p.product_name}</td>
                             <td><span class="badge bg-secondary fs-6">${p.qty}</span></td>
+                            <td><button class="btn btn-sm btn-outline-info fw-bold" onclick="viewGluerAttachment(${p.id})"><i class="bi bi-eye"></i> View Log</button></td>
                             <td><button class="btn btn-sm btn-success fw-bold" onclick="showPrinterForm(${p.id})">Proceed Stage</button></td>
                         </tr>
                         <tr id="print_card_row_${p.id}" style="display:none;">
-                            <td colspan="5" class="p-0 border-0 position-relative" id="print_card_container_${p.id}"></td>
+                            <td colspan="6" class="p-0 border-0 position-relative" id="print_card_container_${p.id}"></td>
                         </tr>`;
                     });
                 }
@@ -1063,7 +1065,7 @@
 
 
         // ==========================================
-        // GLUER STAGE FUNCTIONS (WITH 3-WAY BALANCE SPLIT)
+        // GLUER STAGE FUNCTIONS (WITH 3-WAY BALANCE SPLIT AND ATTACHMENTS)
         // ==========================================
 
         function renderGluerTable() {
@@ -1075,7 +1077,7 @@
                     <div class="table-responsive">
                         <table class="table table-bordered table-striped align-middle text-center mb-0">
                             <thead class="table-dark small">
-                                <tr><th>PO No</th><th>Customer & Product Name</th><th>Qty</th><th>Action</th></tr>
+                                <tr><th>PO No</th><th>Customer & Product Name</th><th>Qty</th><th>Attachment</th><th>Action</th></tr>
                             </thead>
                             <tbody>`;
 
@@ -1087,9 +1089,10 @@
                             <td class="fw-bold text-primary">${p.po_no}</td>
                             <td>${p.customer_name} - ${p.product_name}</td>
                             <td><span class="badge bg-secondary fs-6">${p.qty}</span></td>
+                            <td><button class="btn btn-sm btn-info fw-bold text-white shadow-sm" onclick="viewGluerAttachment(${p.id})"><i class="bi bi-file-earmark-text"></i> View Log</button></td>
                             <td><button class="btn btn-sm btn-success fw-bold shadow-sm" onclick="showGluerForm(${p.id})">Proceed Stage</button></td>
                         </tr>
-                        <tr id="gluer_row_${p.id}" style="display:none;"><td colspan="4" class="p-0 border-0 position-relative" id="gluer_container_${p.id}"></td></tr>`;
+                        <tr id="gluer_row_${p.id}" style="display:none;"><td colspan="5" class="p-0 border-0 position-relative" id="gluer_container_${p.id}"></td></tr>`;
                     });
                 }
                 
@@ -1296,6 +1299,38 @@
                 modalBody.innerHTML = html;
                 new bootstrap.Modal(document.getElementById('viewAttachmentModal')).show();
             }
+        }
+
+        // --- Print Integrated Log Function Added Back ---
+        function printGluerDocument() {
+            let printContents = document.getElementById('gluerPrintableDocument').outerHTML;
+            let printWindow = window.open('', '_blank', 'width=900,height=750');
+            printWindow.document.write(`
+                <html>
+                <head>
+                    <title>Integrated Production Document</title>
+                    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+                    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+                    <style>
+                        body { padding: 30px; background: #fff !important; font-family: sans-serif; }
+                        .no-print { display: none !important; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.9rem; }
+                        th, td { border: 1px solid #dee2e6 !important; padding: 6px !important; text-align: left; }
+                        .bg-light { background-color: #f8f9fa !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                        .table-dark { background-color: #212529 !important; color: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                        .badge { border: 1px solid #000; color: #000 !important; background-color: transparent !important; } 
+                        .text-danger { color: #dc3545 !important; }
+                        .text-success { color: #198754 !important; }
+                        .text-primary { color: #0d6efd !important; }
+                    </style>
+                </head>
+                <body>
+                    ${printContents}
+                    <script>setTimeout(() => { window.print(); window.close(); }, 600);<\/script>
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
         }
 
         // ==========================================
