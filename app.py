@@ -846,27 +846,61 @@ def reset_db_now():
         
 @app.route('/programme_plan')
 def programme_plan():
+    if 'role' not in session: return redirect(url_for('login'))
     full_reels = Reel.query.filter_by(status='Full').all()
     used_reels = Reel.query.filter_by(status='Used').all()
+    return render_template('programme_plan.html', user_role=get_user_role(), full_reels=full_reels, used_reels=used_reels) 
 
-    return render_template('programme_plan.html', 
-                           user_role=get_user_role(), 
-                           full_reels=full_reels, 
-                           used_reels=used_reels) 
+# --- PRODUCT REGISTRY ROUTES (FIXED & RENAMED TO AVOID OVERWRITING) ---
 
+@app.route('/add_product', methods=['GET', 'POST'])
+def add_product_page():
+    if 'role' not in session: return redirect(url_for('login'))
+    user_role = get_user_role()
+    
+    if request.method == 'POST':
+        try:
+            c_id = request.form.get('customer_id', '').strip()
+            c_name = request.form.get('customer_name', '').strip()
+            c_address = request.form.get('address', '').strip()
+            p_code = request.form.get('product_code', '').strip()
+            p_name = request.form.get('product_name', '').strip()
+            c_size = request.form.get('cartoon_size', '').strip()
+            position = request.form.get('position', '').strip()
+            flute = request.form.get('flute', '').strip()
+            ply = safe_int(request.form.get('ply', 3))
+            
+            existing = CustomerProduct.query.filter_by(customer_id=c_id, product_code=p_code).first()
+            if existing:
+                flash(f"⚠️ This Customer ID and Product Code combination already exists!", "warning")
+                return redirect(url_for('add_product_page'))
+                
+            new_prod = CustomerProduct(
+                customer_id=c_id, customer_name=c_name, customer_address=c_address,
+                product_code=p_code, product_name=p_name, cartoon_size=c_size,
+                position=position, flute=flute, ply=ply
+            )
+            db.session.add(new_prod)
+            db.session.commit()
+            flash("✅ Product Registered Successfully!", "success")
+        except Exception as e:
+            db.session.rollback()
+            flash(f"❌ Error adding product: {str(e)}", "danger")
+        return redirect(url_for('add_product_page'))
+
+    return render_template('add_product.html', user_role=user_role)
 
 @app.route('/api/add_product', methods=['POST'])
-def add_product():
+def api_add_product():
     data = request.json
     cust_id = data.get('customer_id')
     p_code = data.get('product_code')
     
-    # 1. පද්ධතියට අලුතින් එක් කිරීමේදී Customer ID සහ Product Code සමානදැයි බැලීම
-    duplicate = Product.query.filter_by(customer_id=cust_id, product_code=p_code).first()
+    duplicate = CustomerProduct.query.filter_by(customer_id=cust_id, product_code=p_code).first()
     if duplicate:
         return jsonify({'success': False, 'message': 'Duplicate Error: මෙම Customer ID සහ Product Code එකතුව දැනටමත් පද්ධතියේ පවතී.'})
         
-    new_p = Product(
+    new_p = CustomerProduct(
         customer_id=cust_id, customer_name=data.get('customer_name'),
         product_code=p_code, product_name=data.get('product_name'),
         cartoon_size=data.get('cartoon_size'), position=data.get('position'),
@@ -883,12 +917,11 @@ def update_product():
     cust_id = data.get('customer_id')
     p_code = data.get('product_code')
     
-    # 2. සංස්කරණය (Edit) කිරීමේදී වෙනත් Row එකක Customer ID සහ Product Code සමානදැයි බැලීම
-    duplicate = Product.query.filter(Product.customer_id == cust_id, Product.product_code == p_code, Product.id != pid).first()
+    duplicate = CustomerProduct.query.filter(CustomerProduct.customer_id == cust_id, CustomerProduct.product_code == p_code, CustomerProduct.id != pid).first()
     if duplicate:
         return jsonify({'success': False, 'message': 'Duplicate Error: මෙම වෙනස් කරන ලද Customer ID සහ Product Code එකතුව වෙනත් නිෂ්පාදනයක පවතී.'})
         
-    p = Product.query.get(pid)
+    p = CustomerProduct.query.get(pid)
     if p:
         p.customer_id = cust_id
         p.customer_name = data.get('customer_name')
@@ -904,7 +937,7 @@ def update_product():
 
 @app.route('/api/get_products', methods=['GET'])
 def get_products():
-    products = Product.query.all()
+    products = CustomerProduct.query.all()
     res = []
     for p in products:
         res.append({
@@ -914,39 +947,19 @@ def get_products():
         })
     return jsonify(res)
 
-# PLANNING PRIORITY & GLUER TRANSFER MANAGEMENT
+# --- PLANNING CORE ROUTES (RESTORED & FIXED) ---
+
 @app.route('/api/update_row_priority', methods=['POST'])
 def update_row_priority():
     data = request.json
     plan_id = data.get('id')
     priority = data.get('priority')
-    plan = Plan.query.get(plan_id)
+    plan = ProgrammePlan.query.get(plan_id)
     if plan:
         plan.row_priority = priority
         db.session.commit()
         return jsonify({'success': True})
     return jsonify({'success': False, 'message': 'Plan entry not found.'})
-
-@app.route('/api/get_runtime_plans', methods=['GET'])
-def get_runtime_plans():
-    plans = Plan.query.all()
-    result = []
-    for p in plans:
-        # Printer stage details වල පාවිච්චි කල සැබෑ මැෂින් එකේ නම (PS500NL, TCY, ZK1224) JSON එකෙන් ලබාගැනීම
-        p_form = json.loads(p.printer_form) if p.printer_form else {}
-        printer_used = p_form.get('printer_name', 'Not Specified')
-        
-        result.append({
-            'id': p.id, 'po_no': p.po_no, 'customer_name': p.customer_name,
-            'product_name': p.product_name, 'size_cm': p.size_cm, 'cut_length': p.cut_length,
-            'ply': p.ply, 'qty': p.qty, 'finished_qty': p.finished_qty, 'balance_qty': p.balance_qty,
-            'status': p.status, 'row_priority': p.row_priority or 'Medium',
-            'printer_used': printer_used,
-            'attachment': p.attachment_path or '#',
-            'board_plant_form': json.loads(p.board_plant_form) if p.board_plant_form else None,
-            'printer_form': p_form
-        })
-    return jsonify(result)
 
 @app.route('/api/transfer_gluer_goods', methods=['POST'])
 def transfer_gluer_goods():
@@ -954,9 +967,9 @@ def transfer_gluer_goods():
     plan_id = data.get('id')
     f_qty = int(data.get('finished_qty') or 0)
     b_qty = int(data.get('balance_qty') or 0)
-    process_balance = data.get('process_balance') # 'yes' හෝ 'no'
+    process_balance = data.get('process_balance')
     
-    plan = Plan.query.get(plan_id)
+    plan = ProgrammePlan.query.get(plan_id)
     if not plan:
         return jsonify({'success': False, 'message': 'Plan record missing.'})
         
@@ -964,14 +977,214 @@ def transfer_gluer_goods():
     plan.balance_qty = b_qty
     
     if b_qty > 0 and process_balance == 'yes':
-        # Balance එක කිරීමට අවශ්‍ය නම් එය 'Balance PO' තත්ත්වයට පත් කර අලුත් Tab එකකට යොමු කරයි.
         plan.status = 'Balance PO'
     else:
-        # Balance අවශ්‍ය නැතිනම් හෝ 0 නම් කෙලින්ම Finished Goods වෙත මාරු වේ.
         plan.status = 'Finished Goods'
         
     db.session.commit()
     return jsonify({'success': True})
+
+@app.route('/api/get_saved_plans', methods=['GET'])
+def get_saved_plans():
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    
+    query = ProgrammePlan.query
+    if start_date and end_date:
+        try:
+            s_date = datetime.strptime(start_date, '%Y-%m-%d')
+            e_date = datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1)
+            query = query.filter(ProgrammePlan.created_at >= s_date, ProgrammePlan.created_at < e_date)
+        except Exception: pass
+
+    plans = query.order_by(ProgrammePlan.created_at.desc()).all()
+    
+    result = {}
+    for p in plans:
+        size = str(p.selected_reel_size)
+        if size not in result: result[size] = []
+        prod = CustomerProduct.query.filter_by(customer_id=p.customer_id, product_code=p.product_code).first()
+        c_name = prod.customer_name if prod else "Unknown"
+        p_name = prod.product_name if prod else "Unknown"
+        
+        cut_length = 0
+        if prod and prod.cartoon_size:
+            dims = [float(x) for x in re.findall(r'\d+\.?\d*', prod.cartoon_size)]
+            l = dims[0] if len(dims) > 0 else 0
+            w = dims[1] if len(dims) > 1 else 0
+            cut_length = ((w + l) * 2) + 6
+            
+        date_str = p.created_at.strftime('%Y-%m-%d %I:%M %p') if p.created_at else ""
+        
+        p_form = json.loads(p.printer_form) if p.printer_form else {}
+        printer_used = p_form.get('printer_select', 'Not Specified')
+        if isinstance(printer_used, list):
+            printer_used = " & ".join(printer_used)
+        elif isinstance(printer_used, dict):
+            printer_used = printer_used.get('printer_name', 'Not Specified')
+        
+        result[size].append({
+            'id': p.id, 'po_no': p.po_no, 'customer_id': p.customer_id, 'customer_name': c_name,
+            'product_code': p.product_code, 'product_name': p_name, 'ups': p.selected_ups, 'ply': prod.ply if prod else 3,
+            'remarks': f"{prod.position} / Flute: {prod.flute}" if prod else "",
+            'materials': json.loads(p.materials_json) if p.materials_json else [],
+            'created_at': date_str, 'cut_length': cut_length,
+            'status': p.status if p.status else 'Live Planning', 'qty': p.qty,
+            'finished_qty': getattr(p, 'finished_qty', 0),
+            'balance_qty': getattr(p, 'balance_qty', 0),
+            'row_priority': getattr(p, 'row_priority', 'Medium'),
+            'printer_used': printer_used,
+            'board_plant_form': json.loads(p.board_plant_form) if p.board_plant_form else None,
+            'printer_form': p_form
+        })
+    return jsonify(result)
+
+@app.route('/api/get_historical_planning_records', methods=['GET'])
+def get_historical_planning_records():
+    plans = ProgrammePlan.query.order_by(ProgrammePlan.created_at.desc()).all()
+    result = []
+    for p in plans:
+        prod = CustomerProduct.query.filter_by(customer_id=p.customer_id, product_code=p.product_code).first()
+        c_name = prod.customer_name if prod else "Unknown"
+        result.append({
+            'id': p.id, 'po_no': p.po_no, 'customer_name': c_name,
+            'selected_reel_size': p.selected_reel_size, 'qty': p.qty,
+            'ply': prod.ply if prod else 3, 'cut_length': 0, 
+            'materials': json.loads(p.materials_json) if p.materials_json else [],
+            'status': p.status,
+            'created_at': p.created_at.strftime('%Y-%m-%d %I:%M %p') if p.created_at else ""
+        })
+    return jsonify(result)
+
+@app.route('/api/get_runtime_plans', methods=['GET'])
+def get_runtime_plans():
+    plans = ProgrammePlan.query.all()
+    result = []
+    for p in plans:
+        p_form = json.loads(p.printer_form) if p.printer_form else {}
+        printer_used = p_form.get('printer_select', 'Not Specified')
+        if isinstance(printer_used, list):
+            printer_used = " & ".join(printer_used)
+        elif isinstance(printer_used, dict):
+            printer_used = printer_used.get('printer_name', 'Not Specified')
+            
+        prod = CustomerProduct.query.filter_by(customer_id=p.customer_id, product_code=p.product_code).first()
+        c_name = prod.customer_name if prod else "Unknown"
+        p_name = prod.product_name if prod else "Unknown"
+        
+        result.append({
+            'id': p.id, 'po_no': p.po_no, 'customer_name': c_name,
+            'product_name': p_name, 'size_cm': p.selected_reel_size, 'cut_length': 0,
+            'ply': prod.ply if prod else 3, 'qty': p.qty, 
+            'finished_qty': getattr(p, 'finished_qty', 0), 
+            'balance_qty': getattr(p, 'balance_qty', 0),
+            'status': p.status, 'row_priority': getattr(p, 'row_priority', 'Medium'),
+            'printer_used': printer_used,
+            'attachment': '#',
+            'board_plant_form': json.loads(p.board_plant_form) if p.board_plant_form else None,
+            'printer_form': p_form
+        })
+    return jsonify(result)
+
+@app.route('/api/update_plan_qty', methods=['POST'])
+def update_plan_qty():
+    data = request.json
+    plan = ProgrammePlan.query.get(data.get('id'))
+    if plan:
+        plan.qty = int(data.get('qty', 0))
+        db.session.commit()
+        return jsonify({'success': True})
+    return jsonify({'success': False})
+
+@app.route('/api/transfer_plan', methods=['POST'])
+def transfer_plan():
+    data = request.json
+    plan = ProgrammePlan.query.get(data.get('id'))
+    if plan:
+        plan.status = data.get('status')
+        if 'board_plant_form' in data:
+            plan.board_plant_form = json.dumps(data.get('board_plant_form'))
+        if 'printer_form' in data:
+            plan.printer_form = json.dumps(data.get('printer_form'))
+        db.session.commit()
+        return jsonify({'success': True})
+    return jsonify({'success': False})
+
+@app.route('/api/save_programme_plan', methods=['POST'])
+def save_programme_plan():
+    data = request.json
+    po_no = data.get('po_no')
+    customer_id = data.get('customer_id')
+    product_code = data.get('product_code')
+    size = safe_float(data.get('selected_reel_size'))
+    ups = safe_int(data.get('selected_ups'))
+    qty = safe_int(data.get('qty', 0))
+    sheet_length = safe_float(data.get('sheet_length', 0))
+    materials = data.get('materials', [])
+    
+    new_plan = ProgrammePlan(
+        po_no=po_no, customer_id=customer_id, product_code=product_code,
+        selected_reel_size=size, selected_ups=ups, qty=qty,
+        materials_json=json.dumps(materials), status='Live Planning', created_by=session.get('username', 'System')
+    )
+    db.session.add(new_plan)
+    
+    prod = CustomerProduct.query.filter_by(customer_id=customer_id, product_code=product_code).first()
+    cut_length = 0
+    flute = ""
+    if prod and prod.cartoon_size:
+        dims = [float(x) for x in re.findall(r'\d+\.?\d*', prod.cartoon_size)]
+        l = dims[0] if len(dims) > 0 else 0
+        w = dims[1] if len(dims) > 1 else 0
+        cut_length = ((w + l) * 2) + 6
+        flute = prod.flute
+        
+    board_w = size / 100.0 if size else 0.0
+    board_l = cut_length / 100.0 if cut_length else 0.0
+    
+    all_available = True
+    layer_data = []
+    
+    for idx, mat in enumerate(materials):
+        gsm = safe_int(mat.get('gsm', 0))
+        name = mat.get('name', '')
+        if idx == 0: comp_type = 'Top'
+        elif idx == len(materials) - 1: comp_type = 'Bottom'
+        else: comp_type = 'Corru'
+        
+        calc_weight = (size * sheet_length * (gsm / 10000.0) * qty) / 1000.0
+        if idx == 1: calc_weight *= 1.5
+            
+        active_reels = Reel.query.filter(
+            Reel.size_cm == size, Reel.material_name == name, Reel.gsm == gsm, Reel.status.in_(['Full', 'Used'])
+        ).all()
+        available_stock = sum([r.current_weight for r in active_reels])
+        
+        if available_stock < calc_weight: all_available = False
+            
+        layer_data.append({ 'gsm': gsm, 'name': name, 'weight': calc_weight, 'comp_type': comp_type })
+        
+    if all_available and len(layer_data) > 0 and qty > 0:
+        role = get_user_role()
+        prefix = get_sr_prefix(role)
+        base_sr_num = f"{prefix}-{datetime.now(colombo_tz).strftime('%Y%m%d%H%M')}-{random.randint(10,99)}"
+        
+        for idx, lw in enumerate(layer_data):
+            comp_sr_num = base_sr_num if len(layer_data) == 1 else f"{base_sr_num}-L{idx+1}"
+            calc_weight = lw['weight']
+            excess = calc_weight * 0.05
+            total_w = calc_weight + excess
+            
+            new_sr = SRRequest(
+                sr_number=comp_sr_num, po_number=po_no, reel_size=size, gsm=lw['gsm'], material_name=lw['name'],
+                qty=qty, calculated_weight=round(calc_weight, 2), total_weight=round(total_w, 2), board_width=board_w,
+                board_length=board_l, cartoon_amount=ups, component_type=lw['comp_type'], flute_type=flute,
+                excess_weight=round(excess, 2), status='Pending'
+            )
+            db.session.add(new_sr)
+            
+    db.session.commit()
+    return jsonify({'success': True, 'sr_auto_created': all_available})
 
 # WEBSOCKET FOR EMERGENCY TRANSFER REQUESTS
 @socketio.on('send_reel_request_packwell')
@@ -997,11 +1210,10 @@ def execute_packwell_transfer():
         db.session.add(ReelHistory(
             reel_id=reel.id, usage_type='Transferred for Verification',
             weight_before=old_w, weight_after=old_w,
-            doc_number="AUTO-REQ-TRANSFER", remarks="Emergency low stock auto-request trigger approved..."
+            doc_number="AUTO-REQ-TRANSFER", remarks="Emergency low stock auto-request trigger approved"
         ))
         db.session.commit()
-        return jsonify({'success': True})
-    return jsonify({'success': False, 'message': 'No matching reels available at Packwell storage.'})
-    
+        return jsonify({'success': True, 'reel_number': reel.reel_number})
+    return jsonify({'success': False, 'message': 'No matching active reels found in Packwell Stock.'})
 if __name__ == '__main__':
     socketio.run(app, debug=True, host='0.0.0.0', port=5000)
