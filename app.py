@@ -109,11 +109,16 @@ class ProgrammePlan(db.Model):
     printer_form = db.Column(db.Text(length=4294967295), nullable=True)
     created_by = db.Column(db.String(50), nullable=False)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(colombo_tz))
-    
-    # NEW COLUMNS FOR PLANNING & BALANCE FEATURES
     row_priority = db.Column(db.String(50), default='Medium')
     finished_qty = db.Column(db.Integer, default=0)
     balance_qty = db.Column(db.Integer, default=0)
+    
+    # NEW FIELDS FOR DYNAMIC STAGES & BALANCE
+    diecut_form = db.Column(db.Text(length=4294967295), nullable=True)
+    semiauto_form = db.Column(db.Text(length=4294967295), nullable=True)
+    gluer_form = db.Column(db.Text(length=4294967295), nullable=True)
+    balance_status = db.Column(db.String(100), default='')
+    finished_at = db.Column(db.DateTime, nullable=True)
 
 with app.app_context():
     db.create_all()
@@ -137,14 +142,23 @@ with app.app_context():
     add_column_if_not_exists("programme_plan", "qty", "INT DEFAULT 0")
     add_column_if_not_exists("programme_plan", "board_plant_form", "LONGTEXT")
     add_column_if_not_exists("programme_plan", "printer_form", "LONGTEXT")
-    
     add_column_if_not_exists("programme_plan", "row_priority", "VARCHAR(50) DEFAULT ''")
     add_column_if_not_exists("programme_plan", "finished_qty", "INT DEFAULT 0")
     add_column_if_not_exists("programme_plan", "balance_qty", "INT DEFAULT 0")
     
+    # Add newly integrated columns
+    add_column_if_not_exists("programme_plan", "diecut_form", "LONGTEXT")
+    add_column_if_not_exists("programme_plan", "semiauto_form", "LONGTEXT")
+    add_column_if_not_exists("programme_plan", "gluer_form", "LONGTEXT")
+    add_column_if_not_exists("programme_plan", "balance_status", "VARCHAR(100) DEFAULT ''")
+    add_column_if_not_exists("programme_plan", "finished_at", "DATETIME")
+    
     upgrade_column_to_longtext("programme_plan", "materials_json")
     upgrade_column_to_longtext("programme_plan", "board_plant_form")
     upgrade_column_to_longtext("programme_plan", "printer_form")
+    upgrade_column_to_longtext("programme_plan", "diecut_form")
+    upgrade_column_to_longtext("programme_plan", "semiauto_form")
+    upgrade_column_to_longtext("programme_plan", "gluer_form")
     
 @app.template_filter('datetimeformat')
 def datetimeformat(value, format='%Y-%m-%d %I:%M %p'):
@@ -875,7 +889,6 @@ def add_product():
             flute = request.form.get('flute', '').strip()
             ply = safe_int(request.form.get('ply', 3))
             
-            # 1. Duplicate Validation for Adding Product
             existing = CustomerProduct.query.filter_by(customer_id=c_id, product_code=p_code).first()
             if existing:
                 flash(f"⚠️ Duplicate Error: මෙම Customer ID ({c_id}) සහ Product Code ({p_code}) දැනටමත් පවතී!", "warning")
@@ -946,7 +959,6 @@ def update_product_api():
     cust_id = data.get('customer_id')
     p_code = data.get('product_code')
     
-    # 2. Duplicate Validation for Editing Product
     duplicate = CustomerProduct.query.filter(CustomerProduct.customer_id == cust_id, CustomerProduct.product_code == p_code, CustomerProduct.id != pid).first()
     if duplicate:
         return jsonify({'success': False, 'message': 'Duplicate Error: මෙම Customer ID සහ Product Code එකතුව වෙනත් නිෂ්පාදනයක පවතී.'})
@@ -1040,31 +1052,70 @@ def update_plan_qty():
         return jsonify({'success': True})
     return jsonify({'success': False})
 
+# CORE SPLIT / TRANSFER API UPDATE
 @app.route('/api/transfer_plan', methods=['POST'])
 def transfer_plan():
     data = request.json
     plan = ProgrammePlan.query.get(data.get('id'))
+    
     if plan:
         new_status = data.get('status')
+        form_type = data.get('form_type')
         
-        # 3. GLUER TO FINISHED/BALANCE LOGIC
-        if 'gluer_form' in data:
-            gf = data['gluer_form']
-            plan.finished_qty = safe_int(gf.get('finished_qty'))
-            plan.balance_qty = safe_int(gf.get('balance_qty'))
-            process_balance = gf.get('process_balance')
+        form_data = None
+        if form_type == 'board_plant' and 'board_plant_form' in data:
+            form_data = data['board_plant_form']
+            plan.board_plant_form = json.dumps(form_data)
+        elif form_type == 'printer' and 'printer_form' in data:
+            form_data = data['printer_form']
+            plan.printer_form = json.dumps(form_data)
+        elif form_type == 'diecut' and 'diecut_form' in data:
+            form_data = data['diecut_form']
+            plan.diecut_form = json.dumps(form_data)
+        elif form_type == 'semiauto' and 'semiauto_form' in data:
+            form_data = data['semiauto_form']
+            plan.semiauto_form = json.dumps(form_data)
+        elif form_type == 'gluer' and 'gluer_form' in data:
+            form_data = data['gluer_form']
+            plan.gluer_form = json.dumps(form_data)
+
+        # Handle Balance Splitting Logic
+        if form_data and 'finished_qty' in form_data and 'balance_qty' in form_data:
+            f_qty = safe_int(form_data.get('finished_qty'))
+            b_qty = safe_int(form_data.get('balance_qty'))
+            process_balance = form_data.get('process_balance')
             
-            # Balance එකක් තිබේ නම් සහ Command Box එකෙන් ඔව් කියා ඇත්නම් Balance PO වෙත මාරු වේ
-            if plan.balance_qty > 0 and process_balance == 'yes':
-                new_status = 'Balance PO'
-            else:
-                new_status = 'Finished Goods'
+            # Identify the default balance target if not explicitly selected
+            balance_target = form_data.get('balance_target', 'Board Plant')
+            if process_balance == 'yes' and not form_data.get('balance_target'):
+                if form_type == 'printer': balance_target = 'Board Plant'
+                elif form_type == 'diecut' or form_type == 'semiauto': balance_target = 'Board Plant'
+            
+            # Do the split if required
+            if b_qty > 0 and process_balance == 'yes':
+                # Create a new clone record for the Balance PO
+                new_plan = ProgrammePlan(
+                    po_no=plan.po_no, customer_id=plan.customer_id, product_code=plan.product_code,
+                    selected_reel_size=plan.selected_reel_size, selected_ups=plan.selected_ups,
+                    qty=b_qty, materials_json=plan.materials_json, status='Balance PO',
+                    balance_status=balance_target, created_by=plan.created_by,
+                    created_at=datetime.now(colombo_tz)
+                )
+                db.session.add(new_plan)
                 
+                # The original record carries ONLY the finished portion forward
+                plan.qty = f_qty
+                plan.finished_qty = f_qty
+                plan.balance_qty = 0 
+            else:
+                plan.finished_qty = f_qty
+                plan.balance_qty = b_qty
+                
+        # Move Original logic forward
+        if new_status == 'Finished Goods':
+            plan.finished_at = datetime.now(colombo_tz)
+            
         plan.status = new_status
-        if 'board_plant_form' in data:
-            plan.board_plant_form = json.dumps(data.get('board_plant_form'))
-        if 'printer_form' in data:
-            plan.printer_form = json.dumps(data.get('printer_form'))
         db.session.commit()
         return jsonify({'success': True})
     return jsonify({'success': False})
@@ -1176,18 +1227,22 @@ def get_saved_plans():
             cut_length = ((w + l) * 2) + 6
             
         date_str = p.created_at.strftime('%Y-%m-%d %I:%M %p') if p.created_at else ""
+        fin_date_str = p.finished_at.strftime('%Y-%m-%d %I:%M %p') if p.finished_at else ""
         
         result[size].append({
             'id': p.id, 'po_no': p.po_no, 'customer_id': p.customer_id, 'customer_name': c_name,
             'product_code': p.product_code, 'product_name': p_name, 'ups': p.selected_ups, 'ply': prod.ply if prod else 3,
             'remarks': f"{prod.position} / Flute: {prod.flute}" if prod else "",
             'materials': json.loads(p.materials_json) if p.materials_json else [],
-            'created_at': date_str, 'cut_length': cut_length,
+            'created_at': date_str, 'finished_at': fin_date_str, 'cut_length': cut_length,
             'status': p.status if p.status else 'Live Planning', 'qty': p.qty,
             'finished_qty': p.finished_qty, 'balance_qty': p.balance_qty,
-            'row_priority': p.row_priority,
+            'row_priority': p.row_priority, 'balance_status': p.balance_status,
             'board_plant_form': json.loads(p.board_plant_form) if p.board_plant_form else None,
-            'printer_form': json.loads(p.printer_form) if p.printer_form else None
+            'printer_form': json.loads(p.printer_form) if p.printer_form else None,
+            'diecut_form': json.loads(p.diecut_form) if p.diecut_form else None,
+            'semiauto_form': json.loads(p.semiauto_form) if p.semiauto_form else None,
+            'gluer_form': json.loads(p.gluer_form) if p.gluer_form else None
         })
     return jsonify(result)
 
