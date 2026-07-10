@@ -306,7 +306,7 @@
             .then(r=>r.json()).then(data => {
                 if(data.success) {
                     targetPly = data.ply;
-                    let dims = data.cartoon_size.match(/\d+\.?\d*/g);
+                    let dims = data.carton_size ? data.carton_size.match(/\d+\.?\d*/g) : (data.cartoon_size ? data.cartoon_size.match(/\d+\.?\d*/g) : null);
                     globalBoxLength = dims ? parseFloat(dims[0]) : 30;
                     globalBoxWidth = dims ? parseFloat(dims[1]) : 20;
 
@@ -858,82 +858,6 @@
                 sel.value = '';
             }
         }
-		function viewAttachment(jsonStr) {
-            if(!jsonStr) { alert("No attachment data."); return; }
-            let data = JSON.parse(decodeURIComponent(jsonStr));
-            
-            let reelRowsHtml = '';
-            for(let i=1; i<=5; i++) {
-                let rNo = data[`reel_no_${i}`] || '';
-                let rName = data[`reel_name_${i}`] || '';
-                if (!rNo && !rName) continue; 
-                reelRowsHtml += `<tr><td>${i}</td><td>${rNo}</td><td class="fw-bold">${rName}</td></tr>`;
-            }
-
-            let html = `
-            <div class="container-fluid print-friendly">
-                <h4 class="text-center mb-4 text-decoration-underline fw-bold">BOARD PLANT & QUALITY CHECK FORM</h4>
-                
-                <div class="row mb-3 border border-2 p-2 bg-light shadow-sm rounded">
-                    <div class="col-4 text-center border-end"><strong>PO No:</strong> <br><span class="fs-5 text-primary fw-bold">${data.po_no || '-'}</span></div>
-                    <div class="col-4 text-center border-end"><strong>Customer/Product:</strong> <br><span class="fs-6">${data.cust_prod || '-'}</span></div>
-                    <div class="col-4 text-center"><strong>Qty:</strong> <br><span class="fs-5 text-danger fw-bold">${data.qty || '-'}</span></div>
-                </div>
-
-                <h6 class="fw-bold mt-4 border-bottom border-dark pb-1 text-secondary"><i class="bi bi-box me-1"></i> Production Details</h6>
-                <table class="table table-sm table-bordered mb-4">
-                    <tr>
-                        <th class="bg-light">Serial No</th><td>${data.serial_no || '-'}</td>
-                        <th class="bg-light">Slit Size</th><td>${data.slit_size || '-'}</td>
-                        <th class="bg-light">Cut Length</th><td>${data.cut_length || '-'}</td>
-                        <th class="bg-light">Pass/Fail</th><td><span class="badge ${data.pass_fail==='Pass'?'bg-success':'bg-danger'}">${data.pass_fail || '-'}</span></td>
-                    </tr>
-                    <tr>
-                        <th class="bg-light">Date</th><td>${data.bp_date || '-'}</td>
-                        <th class="bg-light">Counter Qty</th><td>${data.counter_qty || '-'}</td>
-                        <th class="bg-light">Add Qty Feed</th><td colspan="3">${data.add_qty || '-'}</td>
-                    </tr>
-                    <tr>
-                        <th class="bg-light">Excess</th><td>${data.excess || '-'}</td>
-                        <th class="bg-light">Damaged Qty</th><td>${data.damaged || '-'}</td>
-                        <th class="bg-light">C: Hand EPF No</th><td colspan="3">${data['EPF No'] || '-'}</td>
-                    </tr>
-                    <tr>
-                        <th class="bg-light">Remark</th><td colspan="7" class="text-danger fw-semibold">${data.remark || 'N/A'}</td>
-                    </tr>
-                </table>
-
-                <h6 class="fw-bold mt-4 border-bottom border-dark pb-1 text-secondary"><i class="bi bi-distribute-vertical me-1"></i> Paper Reel Details</h6>
-                <table class="table table-sm table-bordered text-center mb-4">
-                    <thead class="table-dark small">
-                        <tr><th>#</th><th>Reel No</th><th>Reel Name</th></tr>
-                    </thead>
-                    <tbody>
-                        ${reelRowsHtml || '<tr><td colspan="3" class="text-muted">No reel details provided.</td></tr>'}
-                    </tbody>
-                </table>
-
-                <h6 class="fw-bold mt-4 border-bottom border-dark pb-1 text-secondary"><i class="bi bi-patch-check me-1"></i> Quality Check Section</h6>
-                <table class="table table-sm table-bordered mb-2">
-                    <tr>
-                        <th class="bg-light">Measurement</th><td>${data.qc_measurement || '-'}</td>
-                        <th class="bg-light">Caliper (mm)</th><td>${data.qc_caliper || '-'}</td>
-                        <th class="bg-light">Combination</th><td>${data.qc_combination || '-'}</td>
-                    </tr>
-                </table>
-                <table class="table table-sm table-bordered">
-                    <tr>
-                        <th class="bg-light">Flute Defects</th><td>${data.qc_flute || '-'}</td>
-                        <th class="bg-light">Creasing Defects</th><td>${data.qc_creasing || '-'}</td>
-                        <th class="bg-light">Visual Defects</th><td>${data.qc_visual || '-'}</td>
-                        <th class="bg-light">QC Approval</th><td><span class="badge ${data.qc_app==='Approved'?'bg-success':'bg-danger'}">${data.qc_app || '-'}</span></td>
-                    </tr>
-                </table>
-            </div>`;
-            
-            document.getElementById('attachmentModalBody').innerHTML = html;
-            new bootstrap.Modal(document.getElementById('viewAttachmentModal')).show();
-        }
 
         function showPrinterForm(id) {
             document.getElementById(`print_card_row_${id}`).style.display = 'table-row';
@@ -1191,11 +1115,11 @@
                 <form id="form_gluer_${id}" onsubmit="submitGluerForm(event, ${id})">
                     <div class="row g-2 mb-3 mt-4">
                         <div class="col-md-4">
-                            <label class="small fw-bold">1. Select Glure</label>
+                            <label class="small fw-bold">1. Select Gluer</label>
                             <div class="d-flex gap-3 mt-1 p-2 border rounded bg-light">
-                                <div class="form-check"><input class="form-check-input" type="checkbox" name="gluer_select" value="Glure_1" id="g1_${id}"><label class="form-check-label fw-semibold" for="g1_${id}">Glure 1</label></div>
-                                <div class="form-check"><input class="form-check-input" type="checkbox" name="gluer_select" value="Glure_2" id="g2_${id}"><label class="form-check-label fw-semibold" for="g2_${id}">Glure 2</label></div>
-                                <div class="form-check"><input class="form-check-input" type="checkbox" name="gluer_select" value="Glure_3" id="g3_${id}"><label class="form-check-label fw-semibold" for="g3_${id}">Glure 3</label></div>
+                                <div class="form-check"><input class="form-check-input" type="checkbox" name="gluer_select" value="Gluer_1" id="g1_${id}"><label class="form-check-label fw-semibold" for="g1_${id}">Gluer 1</label></div>
+                                <div class="form-check"><input class="form-check-input" type="checkbox" name="gluer_select" value="Gluer_2" id="g2_${id}"><label class="form-check-label fw-semibold" for="g2_${id}">Gluer 2</label></div>
+                                <div class="form-check"><input class="form-check-input" type="checkbox" name="gluer_select" value="Gluer_3" id="g3_${id}"><label class="form-check-label fw-semibold" for="g3_${id}">Gluer 3</label></div>
                             </div>
                         </div>
                         <div class="col-md-2"><label class="small fw-bold text-primary">Date</label><input type="date" class="form-control border-primary mt-1" required name="gl_date" value="${currentIsoDate}"></div>
@@ -1252,7 +1176,7 @@
             let selectedGluers = [];
             form.querySelectorAll('input[name="gluer_select"]:checked').forEach(cb => selectedGluers.push(cb.value));
             if(selectedGluers.length === 0) {
-                alert("⚠️ Please select at least one Glure.");
+                alert("⚠️ Please select at least one Gluer.");
                 return;
             }
             data['gluer_selected'] = selectedGluers.join(" & ");
@@ -1267,8 +1191,8 @@
             transferPlan(id, 'Finished Goods', data, 'gluer');
         }
 
-        /// ==========================================
-// GLUER STAGE - ATTACHMENT VIEW (WITH ACTUAL PRINTER NAME)
+// ==========================================
+// GLUER STAGE - ATTACHMENT VIEW (WITH CORRECT SCOPE AND DATA EXTRACTS)
 // ==========================================
 
 function viewGluerAttachment(id) {
@@ -1281,7 +1205,12 @@ function viewGluerAttachment(id) {
 
     let data = plan.board_plant_form || {};
     let pData = plan.printer_form || {};
-    
+    // Extracting missing variables correctly
+    let dcData = plan.diecut_form || {};
+    let saData = plan.semiauto_form || {};
+    let gData = plan.gluer_form || {};
+    let currentStageNo = 3; 
+
     let reelRowsHtml = '';
     for(let i=1; i<=5; i++) {
         let rNo = data[`reel_no_${i}`] || '';
@@ -1405,22 +1334,7 @@ function viewGluerAttachment(id) {
                 <th class="bg-light">Measurement</th><td>${pData.measurement ? '✔️ Yes' : '-'}</td>
                 <th class="bg-light"></th><td></td>
             </tr>
-        </table>
-
-    </div>
-    
-    <div class="text-end mt-4 no-print border-top pt-3">
-        <button class="btn btn-primary fw-bold" onclick="printGluerDocument()"><i class="bi bi-printer"></i> Download / Print Document</button>
-    </div>
-    `;
-
-    let modalBody = document.getElementById('attachmentModalBody');
-    if (modalBody) {
-        modalBody.innerHTML = html;
-        new bootstrap.Modal(document.getElementById('viewAttachmentModal')).show();
-    }
-}
-
+        </table>`;
 
             // DYNAMIC STAGE 3: DIE CUT
             if(Object.keys(dcData).length > 0) {
@@ -1470,7 +1384,8 @@ function viewGluerAttachment(id) {
                 modalBody.innerHTML = html;
                 new bootstrap.Modal(document.getElementById('viewAttachmentModal')).show();
             }
-        }
+} 
+// <-- Properly closed the viewGluerAttachment function scope!
 
         // --- Print Integrated Log Function Added Back ---
         function printGluerDocument() {
