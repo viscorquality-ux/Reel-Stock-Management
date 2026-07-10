@@ -843,6 +843,17 @@ def reset_db_now():
             return f"❌ Error: {str(e)}"
     else:
         return "❌ Access Denied: Unauthorized Reset Attempt.", 403
+        
+@app.route('/programme_plan')
+def programme_plan():
+    full_reels = Reel.query.filter_by(status='Full').all()
+    used_reels = Reel.query.filter_by(status='Used').all()
+
+    return render_template('programme_plan.html', 
+                           user_role=get_user_role(), 
+                           full_reels=full_reels, 
+                           used_reels=used_reels)
+
 
 @app.route('/api/add_product', methods=['POST'])
 def add_product():
