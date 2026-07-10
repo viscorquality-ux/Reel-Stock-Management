@@ -852,7 +852,7 @@ def programme_plan():
     return render_template('programme_plan.html', 
                            user_role=get_user_role(), 
                            full_reels=full_reels, 
-                           used_reels=used_reels)
+                           used_reels=used_reels) 
 
 
 @app.route('/api/add_product', methods=['POST'])
