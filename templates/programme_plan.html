@@ -205,11 +205,11 @@
                             <table class="table table-striped table-hover align-middle mb-0 text-center" id="historyLogsTable">
                                 <thead class="table-secondary font-monospace text-uppercase small">
                                     <tr>
-                                        <th>Timestamp</th><th>PO Number</th><th>Customer</th><th>Config Size Info</th><th>Ply</th><th>Qty</th><th>Materials Build</th><th>Status</th>
+                                        <th>Timestamp</th><th>PO Number</th><th>Customer</th><th>Config Size Info</th><th>Ply</th><th>Qty</th><th>Materials Build</th><th>Status</th><th>AD Number</th>
                                     </tr>
                                 </thead>
                                 <tbody id="historyLogsTableBody" class="small">
-                                    <tr><td colspan="8" class="text-muted py-4">Loading history audit logs...</td></tr>
+                                    <tr><td colspan="9" class="text-muted py-4">Loading history audit logs...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -259,7 +259,6 @@
             "White Kraft (WK)": ["WKLNY", "WKRAFT", "WHITE-K"]
         };
         
-        // Auto default current date string logic
         const currentIsoDate = new Date().toISOString().split('T')[0];
 
         function saveRowPriority(id, val) {
@@ -280,7 +279,7 @@
             if(!table) return;
             let tr = table.getElementsByTagName("tr");
             for (let i = 1; i < tr.length; i++) { 
-                if (tr[i].id && (tr[i].id.includes('card_row_') || tr[i].id.includes('print_card_row_'))) continue;
+                if (tr[i].id && (tr[i].id.includes('card_row_') || tr[i].id.includes('print_card_row_') || tr[i].id.includes('_row_'))) continue;
 
                 let td = tr[i].getElementsByTagName("td")[colIndex];
                 if (td) {
@@ -290,7 +289,7 @@
                     } else {
                         tr[i].style.display = "none";
                         let nextRow = tr[i+1];
-                        if(nextRow && nextRow.id && (nextRow.id.includes('card_row_') || nextRow.id.includes('print_card_row_'))) {
+                        if(nextRow && nextRow.id && (nextRow.id.includes('card_row_') || nextRow.id.includes('print_card_row_') || nextRow.id.includes('_row_'))) {
                             nextRow.style.display = "none";
                         }
                     }
@@ -514,7 +513,23 @@
                     if(formType === 'printer') document.getElementById('printers-tab').click();
                     else if(formType === 'gluer' || formType === 'stitching') document.getElementById('finishing-tab').click();
                     else if(formType === 'diecut' || formType === 'semiauto') document.getElementById('diecut-tab').click();
+                    else if(newStatus === 'Dispatched') document.getElementById('history-tab').click();
                     else document.querySelector('.nav-link.active').click(); 
+                }
+            });
+        }
+
+        // --- Finished Goods Manual Dispatch ---
+        function dispatchFinishedGoods(id) {
+            let adNo = document.getElementById(`ad_no_${id}`).value.trim();
+            if(!adNo) { alert("Please enter the Manual AD Number before dispatching."); return; }
+            fetch('/api/transfer_plan', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ id: id, status: 'Dispatched', ad_number: adNo })
+            }).then(r=>r.json()).then(res => {
+                if(res.success) {
+                    alert("✅ Job Successfully Dispatched!");
+                    document.getElementById('finished-tab').click();
                 }
             });
         }
@@ -787,6 +802,7 @@
             const form = e.target;
             const formData = new FormData(form);
             const dataObj = Object.fromEntries(formData.entries());
+            dataObj.saved_at = new Date().getTime(); 
             const target = dataObj.target_tab;
             transferPlan(id, target, dataObj, 'board_plant');
         }
@@ -844,7 +860,6 @@
             });
         }
 
-        // Standardized Command Box display trigger
         function calcBalanceTriggerBox(id, prefix) {
             let t = parseInt(document.getElementById(`${prefix}_target_qty_${id}`).value) || 0;
             let f = parseInt(document.getElementById(`${prefix}_finished_qty_${id}`).value) || 0;
@@ -943,6 +958,7 @@
             const form = e.target;
             const formData = new FormData(form);
             const dataObj = Object.fromEntries(formData.entries());
+            dataObj.saved_at = new Date().getTime(); 
             
             let selectedPrinters = [];
             form.querySelectorAll('input[name="printer_select"]:checked').forEach(cb => selectedPrinters.push(cb.value));
@@ -968,19 +984,26 @@
                 let saRows = buildSpecificRows(data, 'Semi Auto', 'sa');
                 
                 let html = `
+                <div class="mb-3 d-flex justify-content-between align-items-center">
+                    <span class="text-secondary fw-bold"><i class="bi bi-funnel"></i> Filter Job Cards</span>
+                    <div class="input-group shadow-sm w-25">
+                        <span class="input-group-text bg-primary text-white border-primary"><i class="bi bi-search"></i></span>
+                        <input type="text" id="dcSaSearch" class="form-control border-primary" placeholder="Search PO No..." onkeyup="filterByPONo('dcTable', 'dcSaSearch', 0); filterByPONo('saTable', 'dcSaSearch', 0)">
+                    </div>
+                </div>
                 <ul class="nav nav-tabs mb-3" id="dc-sa-tabs" role="tablist">
                     <li class="nav-item" role="presentation"><button class="nav-link active fw-bold text-uppercase border" data-bs-toggle="tab" data-bs-target="#dc-pane" type="button" role="tab">Die Cut</button></li>
                     <li class="nav-item" role="presentation"><button class="nav-link fw-bold text-uppercase border" data-bs-toggle="tab" data-bs-target="#sa-pane" type="button" role="tab">Semi Auto</button></li>
                 </ul>
                 <div class="tab-content" id="dc-sa-tabsContent">
                     <div class="tab-pane fade show active" id="dc-pane" role="tabpanel">
-                        <table class="table table-bordered table-striped align-middle text-center mb-0">
+                        <table id="dcTable" class="table table-bordered table-striped align-middle text-center mb-0">
                             <thead class="table-dark small"><tr><th>PO No</th><th>Customer</th><th>Size</th><th>Qty</th><th>Attachment</th><th>Action</th></tr></thead>
                             <tbody>${dcRows}</tbody>
                         </table>
                     </div>
                     <div class="tab-pane fade" id="sa-pane" role="tabpanel">
-                        <table class="table table-bordered table-striped align-middle text-center mb-0">
+                        <table id="saTable" class="table table-bordered table-striped align-middle text-center mb-0">
                             <thead class="table-dark small"><tr><th>PO No</th><th>Customer</th><th>Size</th><th>Qty</th><th>Attachment</th><th>Action</th></tr></thead>
                             <tbody>${saRows}</tbody>
                         </table>
@@ -1123,6 +1146,7 @@
             const form = e.target;
             const formData = new FormData(form);
             const dataObj = Object.fromEntries(formData.entries());
+            dataObj.saved_at = new Date().getTime();
 
             let bal = parseInt(document.getElementById(`${prefix}_balance_qty_${id}`).value) || 0;
             let option = document.getElementById(`${prefix}_balance_option_${id}`).value;
@@ -1147,7 +1171,6 @@
                 let gluerRows = buildSpecificRows(data, 'Gluer', 'gl');
                 let stitchingRows = buildSpecificRows(data, 'Stitching', 'st');
 
-                // Adjust the row build for Finishing as it uses different IDs/functions
                 gluerRows = ''; stitchingRows = '';
                 for (const [size, plans] of Object.entries(data)) {
                     plans.filter(p => p.status === 'Gluer').forEach(p => {
@@ -1174,19 +1197,26 @@
                 if(!stitchingRows) stitchingRows = `<tr><td colspan="5" class="text-muted p-3">No jobs currently in Stitching.</td></tr>`;
 
                 let html = `
+                <div class="mb-3 d-flex justify-content-between align-items-center">
+                    <span class="text-secondary fw-bold"><i class="bi bi-funnel"></i> Filter Job Cards</span>
+                    <div class="input-group shadow-sm w-25">
+                        <span class="input-group-text bg-success text-white border-success"><i class="bi bi-search"></i></span>
+                        <input type="text" id="finishSearch" class="form-control border-success" placeholder="Search PO No..." onkeyup="filterByPONo('gluerTable', 'finishSearch', 0); filterByPONo('stitchingTable', 'finishSearch', 0)">
+                    </div>
+                </div>
                 <ul class="nav nav-tabs mb-3" id="finishing-tabs" role="tablist">
                     <li class="nav-item" role="presentation"><button class="nav-link active fw-bold text-uppercase border" data-bs-toggle="tab" data-bs-target="#gluer-pane" type="button" role="tab">Gluers</button></li>
                     <li class="nav-item" role="presentation"><button class="nav-link fw-bold text-uppercase border" data-bs-toggle="tab" data-bs-target="#stitching-pane" type="button" role="tab">Stitching</button></li>
                 </ul>
                 <div class="tab-content" id="finishing-tabsContent">
                     <div class="tab-pane fade show active table-responsive" id="gluer-pane" role="tabpanel">
-                        <table class="table table-bordered table-striped align-middle text-center mb-0">
+                        <table id="gluerTable" class="table table-bordered table-striped align-middle text-center mb-0">
                             <thead class="table-dark small"><tr><th>PO No</th><th>Customer & Product Name</th><th>Qty</th><th>Attachment</th><th>Action</th></tr></thead>
                             <tbody>${gluerRows}</tbody>
                         </table>
                     </div>
                     <div class="tab-pane fade table-responsive" id="stitching-pane" role="tabpanel">
-                        <table class="table table-bordered table-striped align-middle text-center mb-0">
+                        <table id="stitchingTable" class="table table-bordered table-striped align-middle text-center mb-0">
                             <thead class="table-dark small"><tr><th>PO No</th><th>Customer & Product Name</th><th>Qty</th><th>Attachment</th><th>Action</th></tr></thead>
                             <tbody>${stitchingRows}</tbody>
                         </table>
@@ -1267,6 +1297,7 @@
             let form = event.target;
             let formData = new FormData(form);
             let data = Object.fromEntries(formData.entries());
+            data.saved_at = new Date().getTime();
             
             let selectedGluers = [];
             form.querySelectorAll('input[name="gluer_select"]:checked').forEach(cb => selectedGluers.push(cb.value));
@@ -1336,6 +1367,7 @@
             let form = event.target;
             let formData = new FormData(form);
             let data = Object.fromEntries(formData.entries());
+            data.saved_at = new Date().getTime();
             
             let bal = parseInt(document.getElementById(`st_balance_qty_${id}`).value) || 0;
             let option = document.getElementById(`st_balance_option_${id}`).value;
@@ -1347,212 +1379,196 @@
             transferPlan(id, 'Finished Goods', data, 'stitching');
         }
 
-// ==========================================
-// CENTRAL ATTACHMENT VIEW (ALL STAGES)
-// ==========================================
+        // ==========================================
+        // DYNAMIC CHRONOLOGICAL VIEW LOG SYSTEM
+        // ==========================================
 
-function viewStageAttachment(id) {
-    let plan;
-    for (const key in globalAllPlans) { 
-        let f = globalAllPlans[key].find(x => x.id === id); 
-        if(f) plan = f; 
-    }
-    if(!plan) { alert("No plan data found."); return; }
-
-    let data = plan.board_plant_form || {};
-    let pData = plan.printer_form || {};
-    let dcData = plan.diecut_form || {};
-    let saData = plan.semiauto_form || {};
-    let gData = plan.gluer_form || {};
-    let stData = plan.stitching_form || {};
-    let currentStageNo = 3; 
-
-    let reelRowsHtml = '';
-    for(let i=1; i<=5; i++) {
-        let rNo = data[`reel_no_${i}`] || '';
-        let rName = data[`reel_name_${i}`] || '';
-        if (!rNo && !rName) continue;
-        reelRowsHtml += `<tr><td>${i}</td><td>${rNo}</td><td class="fw-bold">${rName}</td></tr>`;
-    }
-
-    let html = `
-    <div id="gluerPrintableDocument" class="container-fluid print-friendly">
-        <h4 class="text-center mb-4 text-decoration-underline fw-bold">INTEGRATED PRODUCTION DOCUMENT</h4>
-        
-        <div class="row mb-3 border border-2 p-2 bg-light shadow-sm rounded">
-            <div class="col-4 text-center border-end"><strong>PO No:</strong> <br><span class="fs-5 text-primary fw-bold">${plan.po_no || '-'}</span></div>
-            <div class="col-4 text-center border-end"><strong>Customer/Product:</strong> <br><span class="fs-6">${plan.customer_name} - ${plan.product_name}</span></div>
-            <div class="col-4 text-center"><strong>Qty:</strong> <br><span class="fs-5 text-danger fw-bold">${plan.qty || '-'}</span></div>
-        </div>
-
-        <h5 class="mt-4 mb-3 text-primary fw-bold border-bottom pb-1">1. BOARD PLANT STAGE</h5>
-        
-        <h6 class="fw-bold mt-2 pb-1 text-secondary"><i class="bi bi-box me-1"></i> Production Details</h6>
-        <table class="table table-sm table-bordered mb-3">
-            <tr>
-                <th class="bg-light">Serial No</th><td>${data.serial_no || '-'}</td>
-                <th class="bg-light">Slit Size</th><td>${data.slit_size || '-'}</td>
-                <th class="bg-light">Cut Length</th><td>${data.cut_length || '-'}</td>
-                <th class="bg-light">Pass/Fail</th><td><span class="badge ${data.pass_fail==='Pass'?'bg-success':'bg-danger'}">${data.pass_fail || '-'}</span></td>
-            </tr>
-            <tr>
-                <th class="bg-light">Date</th><td>${data.bp_date || '-'}</td>
-                <th class="bg-light">Counter Qty</th><td>${data.counter_qty || '-'}</td>
-                <th class="bg-light">Add Qty Feed</th><td colspan="3">${data.add_qty || '-'}</td>
-            </tr>
-            <tr>
-                <th class="bg-light">Excess</th><td>${data.excess || '-'}</td>
-                <th class="bg-light">Damaged Qty</th><td>${data.damaged || '-'}</td>
-                <th class="bg-light">C: Hand EPF No</th><td colspan="3">${data['EPF No'] || '-'}</td>
-            </tr>
-            <tr>
-                <th class="bg-light">Remark</th><td colspan="7" class="text-danger fw-semibold">${data.remark || 'N/A'}</td>
-            </tr>
-        </table>
-
-        <h6 class="fw-bold mt-3 pb-1 text-secondary"><i class="bi bi-distribute-vertical me-1"></i> Paper Reel Details</h6>
-        <table class="table table-sm table-bordered text-center mb-3">
-            <thead class="table-dark small">
-                <tr><th>#</th><th>Reel No</th><th>Reel Name</th></tr>
-            </thead>
-            <tbody>
-                ${reelRowsHtml || '<tr><td colspan="3" class="text-muted">No reel details provided.</td></tr>'}
-            </tbody>
-        </table>
-
-        <h6 class="fw-bold mt-3 pb-1 text-secondary"><i class="bi bi-patch-check me-1"></i> BP Quality Check Section</h6>
-        <table class="table table-sm table-bordered mb-2">
-            <tr>
-                <th class="bg-light">Measurement</th><td>${data.qc_measurement || '-'}</td>
-                <th class="bg-light">Caliper (mm)</th><td>${data.qc_caliper || '-'}</td>
-                <th class="bg-light">Combination</th><td>${data.qc_combination || '-'}</td>
-            </tr>
-        </table>
-        <table class="table table-sm table-bordered mb-4 border-bottom border-dark">
-            <tr>
-                <th class="bg-light">Flute Defects</th><td>${data.qc_flute || '-'}</td>
-                <th class="bg-light">Creasing Defects</th><td>${data.qc_creasing || '-'}</td>
-                <th class="bg-light">Visual Defects</th><td>${data.qc_visual || '-'}</td>
-                <th class="bg-light">QC Approval</th><td><span class="badge ${data.qc_app==='Approved'?'bg-success':'bg-danger'}">${data.qc_app || '-'}</span></td>
-            </tr>
-        </table>
-
-        <h5 class="mt-4 mb-3 text-success fw-bold border-bottom pb-1">2. PRINTERS STAGE</h5>
-        
-        <h6 class="fw-bold mt-2 pb-1 text-secondary"><i class="bi bi-printer me-1"></i> Printer Production Details</h6>
-        <table class="table table-sm table-bordered mb-3">
-            <tr>
-                <th class="bg-light" style="width: 20%;">Printers Used</th>
-				<td colspan="3" class="fw-bold text-danger fs-6">${pData.printer_select ? pData.printer_select.toUpperCase() : 'Not Selected'}</td>
-                <th class="bg-light" style="width: 20%;">Pass/Fail</th><td><span class="badge ${pData.pr_pass==='Pass'?'bg-success': (pData.pr_pass==='Fail'?'bg-danger':'bg-secondary')}">${pData.pr_pass || '-'}</span></td>
-            </tr>
-            <tr>
-                <th class="bg-light">Plant BD Counter</th><td>${pData.pr_plant || '-'}</td>
-                <th class="bg-light">Slot BD Counter</th><td>${pData.pr_slot || '-'}</td>
-                <th class="bg-light">Add Qty Feed</th><td>${pData.pr_addqty || '-'}</td>
-            </tr>
-            <tr>
-                <th class="bg-light">Slot BDs Excess</th><td>${pData.pr_excess || '-'}</td>
-                <th class="bg-light">Finished Qty</th><td>${pData.finished_qty || '-'}</td>
-                <th class="bg-light">Balance Qty</th><td class="text-danger fw-bold">${pData.balance_qty || '0'}</td>
-            </tr>
-        </table>
-
-        <h6 class="fw-bold mt-3 pb-1 text-secondary"><i class="bi bi-patch-check me-1"></i> Printer Quality Check Section</h6>
-        <table class="table table-sm table-bordered mb-2">
-            <tr>
-                <th class="bg-light">Measurement</th><td>${pData.qc_measurement || '-'}</td>
-                <th class="bg-light">Caliper (mm)</th><td>${pData.qc_caliper || '-'}</td>
-                <th class="bg-light">Combination</th><td>${pData.qc_combination || '-'}</td>
-            </tr>
-        </table>
-        <table class="table table-sm table-bordered mb-3">
-            <tr>
-                <th class="bg-light">Flute Defects</th><td>${pData.qc_flute || '-'}</td>
-                <th class="bg-light">Creasing Defects</th><td>${pData.qc_creasing || '-'}</td>
-                <th class="bg-light">Visual Defects</th><td>${pData.qc_visual || '-'}</td>
-                <th class="bg-light">QC Approval</th><td><span class="badge ${pData.qc_app==='Approved'?'bg-success':(pData.qc_app==='Rejected'?'bg-danger':'bg-secondary')}">${pData.qc_app || '-'}</span></td>
-            </tr>
-        </table>
-
-        <h6 class="fw-bold mt-3 pb-1 text-secondary"><i class="bi bi-palette me-1"></i> Sample / Art Work Details</h6>
-        <table class="table table-sm table-bordered mb-4">
-            <tr>
-                <th class="bg-light" style="width: 20%;">Sample No</th><td style="width: 13%;">${pData.sample_no ? '✔️ Yes' : '-'}</td>
-                <th class="bg-light" style="width: 20%;">Code No</th><td style="width: 13%;">${pData.code_no ? '✔️ Yes' : '-'}</td>
-                <th class="bg-light" style="width: 20%;">Printing Details</th><td style="width: 14%;">${pData.printing_details ? '✔️ Yes' : '-'}</td>
-            </tr>
-            <tr>
-                <th class="bg-light">Colours</th><td>${pData.colours ? '✔️ Yes' : '-'}</td>
-                <th class="bg-light">Measurement</th><td>${pData.measurement ? '✔️ Yes' : '-'}</td>
-                <th class="bg-light"></th><td></td>
-            </tr>
-        </table>`;
-
-            // DYNAMIC STAGE: DIE CUT
-            if(Object.keys(dcData).length > 0) {
-                html += `
-                <h5 class="mt-4 mb-2 text-warning fw-bold border-bottom border-warning pb-1">Stage ${currentStageNo}: Die Cut Record</h5>
-                <table class="table table-sm table-bordered mb-2">
-                    <tr><th class="bg-light w-25">Date</th><td>${dcData.stage_date || '-'}</td><th class="bg-light w-25">EPF No</th><td>${dcData.dc_epf_no || '-'}</td></tr>
-                    <tr><th class="bg-light">Counter Qty</th><td>${dcData.dc_counter_qty || '-'}</td><th class="bg-light">Damaged Qty</th><td>${dcData.dc_damaged_qty || '0'}</td></tr>
-                    <tr><th class="bg-light">Excess Qty</th><td>${dcData.dc_excess_qty || '-'}</td><th class="bg-light">Finished Qty</th><td>${dcData.finished_qty || '-'}</td></tr>
-                    <tr><th class="bg-light">Balance Qty</th><td colspan="3" class="text-danger fw-bold">${dcData.balance_qty || '0'}</td></tr>
-                </table>
-                <h6 class="fw-bold mt-3 pb-1 text-secondary"><i class="bi bi-patch-check me-1"></i> Die Cut QC</h6>
-                <table class="table table-sm table-bordered mb-4">
-                    <tr><th class="bg-light">Flute</th><td>${dcData.qc_flute || '-'}</td><th class="bg-light">Measurement</th><td>${dcData.qc_measurement || '-'}</td></tr>
-                    <tr><th class="bg-light">Waste Cut Sample</th><td>${dcData.qc_waste_sample || '-'}</td><th class="bg-light">QC Approval</th><td>${dcData.qc_approval || '-'}</td></tr>
-                </table>`;
-                currentStageNo++;
+        function buildBoardPlantViewHTML(stageNo, data, plan) {
+            let reelRowsHtml = '';
+            for(let i=1; i<=5; i++) {
+                let rNo = data[`reel_no_${i}`] || '';
+                let rName = data[`reel_name_${i}`] || '';
+                if (!rNo && !rName) continue;
+                reelRowsHtml += `<tr><td>${i}</td><td>${rNo}</td><td class="fw-bold">${rName}</td></tr>`;
             }
+            return `
+            <h5 class="mt-4 mb-3 text-primary fw-bold border-bottom pb-1">Stage ${stageNo}: BOARD PLANT STAGE</h5>
+            <h6 class="fw-bold mt-2 pb-1 text-secondary"><i class="bi bi-box me-1"></i> Production Details</h6>
+            <table class="table table-sm table-bordered mb-3">
+                <tr>
+                    <th class="bg-light">Serial No</th><td>${data.serial_no || '-'}</td>
+                    <th class="bg-light">Slit Size</th><td>${data.slit_size || '-'}</td>
+                    <th class="bg-light">Cut Length</th><td>${data.cut_length || '-'}</td>
+                    <th class="bg-light">Pass/Fail</th><td><span class="badge ${data.pass_fail==='Pass'?'bg-success':'bg-danger'}">${data.pass_fail || '-'}</span></td>
+                </tr>
+                <tr>
+                    <th class="bg-light">Date</th><td>${data.bp_date || '-'}</td>
+                    <th class="bg-light">Counter Qty</th><td>${data.counter_qty || '-'}</td>
+                    <th class="bg-light">Add Qty Feed</th><td colspan="3">${data.add_qty || '-'}</td>
+                </tr>
+                <tr>
+                    <th class="bg-light">Excess</th><td>${data.excess || '-'}</td>
+                    <th class="bg-light">Damaged Qty</th><td>${data.damaged || '-'}</td>
+                    <th class="bg-light">C: Hand EPF No</th><td colspan="3">${data['EPF No'] || '-'}</td>
+                </tr>
+            </table>
+            <h6 class="fw-bold mt-3 pb-1 text-secondary"><i class="bi bi-distribute-vertical me-1"></i> Paper Reel Details</h6>
+            <table class="table table-sm table-bordered text-center mb-3">
+                <thead class="table-dark small"><tr><th>#</th><th>Reel No</th><th>Reel Name</th></tr></thead>
+                <tbody>${reelRowsHtml || '<tr><td colspan="3" class="text-muted">No reel details provided.</td></tr>'}</tbody>
+            </table>
+            <h6 class="fw-bold mt-3 pb-1 text-secondary"><i class="bi bi-patch-check me-1"></i> BP Quality Check Section</h6>
+            <table class="table table-sm table-bordered mb-2">
+                <tr>
+                    <th class="bg-light">Measurement</th><td>${data.qc_measurement || '-'}</td>
+                    <th class="bg-light">Caliper (mm)</th><td>${data.qc_caliper || '-'}</td>
+                    <th class="bg-light">Combination</th><td>${data.qc_combination || '-'}</td>
+                </tr>
+            </table>
+            <table class="table table-sm table-bordered mb-4 border-bottom border-dark">
+                <tr>
+                    <th class="bg-light">Flute Defects</th><td>${data.qc_flute || '-'}</td>
+                    <th class="bg-light">Creasing Defects</th><td>${data.qc_creasing || '-'}</td>
+                    <th class="bg-light">Visual Defects</th><td>${data.qc_visual || '-'}</td>
+                    <th class="bg-light">QC Approval</th><td><span class="badge ${data.qc_app==='Approved'?'bg-success':'bg-danger'}">${data.qc_app || '-'}</span></td>
+                </tr>
+            </table>`;
+        }
 
-            // DYNAMIC STAGE: SEMI AUTO
-            if(Object.keys(saData).length > 0) {
-                html += `
-                <h5 class="mt-4 mb-2 text-secondary fw-bold border-bottom border-secondary pb-1">Stage ${currentStageNo}: Semi Auto Record</h5>
-                <table class="table table-sm table-bordered mb-2">
-                    <tr><th class="bg-light w-25">Date</th><td>${saData.stage_date || '-'}</td><th class="bg-light w-25">EPF No</th><td>${saData.sa_epf_no || '-'}</td></tr>
-                    <tr><th class="bg-light">Excess Qty</th><td>${saData.sa_excess_qty || '-'}</td><th class="bg-light">Finished Qty</th><td>${saData.finished_qty || '-'}</td></tr>
-                    <tr><th class="bg-light">Balance Qty</th><td colspan="3" class="text-danger fw-bold">${saData.balance_qty || '0'}</td></tr>
-                </table>
-                <h6 class="fw-bold mt-3 pb-1 text-secondary"><i class="bi bi-patch-check me-1"></i> Semi Auto QC</h6>
-                <table class="table table-sm table-bordered mb-4">
-                    <tr><th class="bg-light">Flute</th><td>${saData.qc_flute || '-'}</td><th class="bg-light">Measurement</th><td>${saData.qc_measurement || '-'}</td></tr>
-                    <tr><th class="bg-light">Sample Matched</th><td>${saData.qc_sample || '-'}</td><th class="bg-light">QC Approval</th><td>${saData.qc_approval || '-'}</td></tr>
-                </table>`;
-                currentStageNo++;
-            }
+        function buildPrinterViewHTML(stageNo, pData) {
+            return `
+            <h5 class="mt-4 mb-3 text-success fw-bold border-bottom pb-1">Stage ${stageNo}: PRINTERS STAGE</h5>
+            <h6 class="fw-bold mt-2 pb-1 text-secondary"><i class="bi bi-printer me-1"></i> Printer Production Details</h6>
+            <table class="table table-sm table-bordered mb-3">
+                <tr>
+                    <th class="bg-light" style="width: 20%;">Printers Used</th>
+                    <td colspan="3" class="fw-bold text-danger fs-6">${pData.printer_select ? pData.printer_select.toUpperCase() : 'Not Selected'}</td>
+                    <th class="bg-light" style="width: 20%;">Pass/Fail</th><td><span class="badge ${pData.pr_pass==='Pass'?'bg-success': (pData.pr_pass==='Fail'?'bg-danger':'bg-secondary')}">${pData.pr_pass || '-'}</span></td>
+                </tr>
+                <tr>
+                    <th class="bg-light">Plant BD Counter</th><td>${pData.pr_plant || '-'}</td>
+                    <th class="bg-light">Slot BD Counter</th><td>${pData.pr_slot || '-'}</td>
+                    <th class="bg-light">Add Qty Feed</th><td>${pData.pr_addqty || '-'}</td>
+                </tr>
+                <tr>
+                    <th class="bg-light">Slot BDs Excess</th><td>${pData.pr_excess || '-'}</td>
+                    <th class="bg-light">Finished Qty</th><td>${pData.finished_qty || '-'}</td>
+                    <th class="bg-light">Balance Qty</th><td class="text-danger fw-bold">${pData.balance_qty || '0'}</td>
+                </tr>
+            </table>
+            <h6 class="fw-bold mt-3 pb-1 text-secondary"><i class="bi bi-patch-check me-1"></i> Printer Quality Check Section</h6>
+            <table class="table table-sm table-bordered mb-2">
+                <tr><th class="bg-light">Measurement</th><td>${pData.qc_measurement || '-'}</td><th class="bg-light">Caliper (mm)</th><td>${pData.qc_caliper || '-'}</td><th class="bg-light">Combination</th><td>${pData.qc_combination || '-'}</td></tr>
+            </table>
+            <table class="table table-sm table-bordered mb-3">
+                <tr><th class="bg-light">Flute Defects</th><td>${pData.qc_flute || '-'}</td><th class="bg-light">Creasing Defects</th><td>${pData.qc_creasing || '-'}</td><th class="bg-light">Visual Defects</th><td>${pData.qc_visual || '-'}</td><th class="bg-light">QC Approval</th><td><span class="badge ${pData.qc_app==='Approved'?'bg-success':(pData.qc_app==='Rejected'?'bg-danger':'bg-secondary')}">${pData.qc_app || '-'}</span></td></tr>
+            </table>
+            <h6 class="fw-bold mt-3 pb-1 text-secondary"><i class="bi bi-palette me-1"></i> Sample / Art Work Details</h6>
+            <table class="table table-sm table-bordered mb-4">
+                <tr>
+                    <th class="bg-light" style="width: 20%;">Sample No</th><td style="width: 13%;">${pData.sample_no ? '✔️ Yes' : '-'}</td>
+                    <th class="bg-light" style="width: 20%;">Code No</th><td style="width: 13%;">${pData.code_no ? '✔️ Yes' : '-'}</td>
+                    <th class="bg-light" style="width: 20%;">Printing Details</th><td style="width: 14%;">${pData.printing_details ? '✔️ Yes' : '-'}</td>
+                </tr>
+                <tr><th class="bg-light">Colours</th><td>${pData.colours ? '✔️ Yes' : '-'}</td><th class="bg-light">Measurement</th><td>${pData.measurement ? '✔️ Yes' : '-'}</td><th class="bg-light"></th><td></td></tr>
+            </table>`;
+        }
 
-            // DYNAMIC STAGE: GLUER
-            if(Object.keys(gData).length > 0) {
-                html += `
-                <h5 class="mt-4 mb-2 text-info fw-bold border-bottom border-info pb-1">Stage ${currentStageNo}: Gluer Record</h5>
-                <table class="table table-sm table-bordered mb-4">
-                    <tr>
-                        <th class="bg-light" style="width: 20%;">Date</th><td>${gData.gl_date || '-'}</td>
-                        <th class="bg-light" style="width: 20%;">Gluers Used</th><td class="fw-bold text-danger">${gData.gluer_selected || '-'}</td>
-                    </tr>
-                    <tr><th class="bg-light">Counter Qty</th><td>${gData.counter_qty || '-'}</td><th class="bg-light">Damaged Qty</th><td>${gData.damaged_qty || '0'}</td></tr>
-                    <tr><th class="bg-light">Finished Qty</th><td>${gData.finished_qty || '-'}</td><th class="bg-light">Balance Qty</th><td class="text-danger fw-bold">${gData.balance_qty || '0'}</td></tr>
-                    <tr><th class="bg-light">Batch Number</th><td>${gData.batch_number || '-'}</td><th class="bg-light">Pass/Fail</th><td>${gData.pass_fail || '-'}</td></tr>
-                    <tr><th class="bg-light">QC Approval</th><td>${gData.qc_approval || '-'}</td><th class="bg-light">Folding</th><td>${gData.folding || '-'}</td></tr>
-                </table>`;
-                currentStageNo++;
+        function buildDieCutViewHTML(stageNo, dcData) {
+            return `
+            <h5 class="mt-4 mb-2 text-warning fw-bold border-bottom border-warning pb-1">Stage ${stageNo}: DIE CUT STAGE</h5>
+            <table class="table table-sm table-bordered mb-2">
+                <tr><th class="bg-light w-25">Date</th><td>${dcData.stage_date || '-'}</td><th class="bg-light w-25">EPF No</th><td>${dcData.dc_epf_no || '-'}</td></tr>
+                <tr><th class="bg-light">Counter Qty</th><td>${dcData.dc_counter_qty || '-'}</td><th class="bg-light">Damaged Qty</th><td>${dcData.dc_damaged_qty || '0'}</td></tr>
+                <tr><th class="bg-light">Excess Qty</th><td>${dcData.dc_excess_qty || '-'}</td><th class="bg-light">Finished Qty</th><td>${dcData.finished_qty || '-'}</td></tr>
+                <tr><th class="bg-light">Balance Qty</th><td colspan="3" class="text-danger fw-bold">${dcData.balance_qty || '0'}</td></tr>
+            </table>
+            <h6 class="fw-bold mt-3 pb-1 text-secondary"><i class="bi bi-patch-check me-1"></i> Die Cut QC</h6>
+            <table class="table table-sm table-bordered mb-4">
+                <tr><th class="bg-light">Flute</th><td>${dcData.qc_flute || '-'}</td><th class="bg-light">Measurement</th><td>${dcData.qc_measurement || '-'}</td></tr>
+                <tr><th class="bg-light">Waste Cut Sample</th><td>${dcData.qc_waste_sample || '-'}</td><th class="bg-light">QC Approval</th><td>${dcData.qc_approval || '-'}</td></tr>
+            </table>`;
+        }
+
+        function buildSemiAutoViewHTML(stageNo, saData) {
+            return `
+            <h5 class="mt-4 mb-2 text-secondary fw-bold border-bottom border-secondary pb-1">Stage ${stageNo}: SEMI AUTO STAGE</h5>
+            <table class="table table-sm table-bordered mb-2">
+                <tr><th class="bg-light w-25">Date</th><td>${saData.stage_date || '-'}</td><th class="bg-light w-25">EPF No</th><td>${saData.sa_epf_no || '-'}</td></tr>
+                <tr><th class="bg-light">Excess Qty</th><td>${saData.sa_excess_qty || '-'}</td><th class="bg-light">Finished Qty</th><td>${saData.finished_qty || '-'}</td></tr>
+                <tr><th class="bg-light">Balance Qty</th><td colspan="3" class="text-danger fw-bold">${saData.balance_qty || '0'}</td></tr>
+            </table>
+            <h6 class="fw-bold mt-3 pb-1 text-secondary"><i class="bi bi-patch-check me-1"></i> Semi Auto QC</h6>
+            <table class="table table-sm table-bordered mb-4">
+                <tr><th class="bg-light">Flute</th><td>${saData.qc_flute || '-'}</td><th class="bg-light">Measurement</th><td>${saData.qc_measurement || '-'}</td></tr>
+                <tr><th class="bg-light">Sample Matched</th><td>${saData.qc_sample || '-'}</td><th class="bg-light">QC Approval</th><td>${saData.qc_approval || '-'}</td></tr>
+            </table>`;
+        }
+
+        function buildGluerViewHTML(stageNo, gData) {
+            return `
+            <h5 class="mt-4 mb-2 text-info fw-bold border-bottom border-info pb-1">Stage ${stageNo}: GLUER STAGE</h5>
+            <table class="table table-sm table-bordered mb-4">
+                <tr><th class="bg-light" style="width: 20%;">Date</th><td>${gData.gl_date || '-'}</td><th class="bg-light" style="width: 20%;">Gluers Used</th><td class="fw-bold text-danger">${gData.gluer_selected || '-'}</td></tr>
+                <tr><th class="bg-light">Counter Qty</th><td>${gData.counter_qty || '-'}</td><th class="bg-light">Damaged Qty</th><td>${gData.damaged_qty || '0'}</td></tr>
+                <tr><th class="bg-light">Finished Qty</th><td>${gData.finished_qty || '-'}</td><th class="bg-light">Balance Qty</th><td class="text-danger fw-bold">${gData.balance_qty || '0'}</td></tr>
+                <tr><th class="bg-light">Batch Number</th><td>${gData.batch_number || '-'}</td><th class="bg-light">Pass/Fail</th><td>${gData.pass_fail || '-'}</td></tr>
+                <tr><th class="bg-light">QC Approval</th><td>${gData.qc_approval || '-'}</td><th class="bg-light">Folding</th><td>${gData.folding || '-'}</td></tr>
+            </table>`;
+        }
+
+        function buildStitchingViewHTML(stageNo, stData) {
+            return `
+            <h5 class="mt-4 mb-2 text-dark fw-bold border-bottom border-dark pb-1">Stage ${stageNo}: STITCHING STAGE</h5>
+            <table class="table table-sm table-bordered mb-4">
+                <tr><th class="bg-light w-25">Date</th><td>${stData.st_date || '-'}</td><th class="bg-light w-25">Pass/Fail</th><td>${stData.pass_fail || '-'}</td></tr>
+                <tr><th class="bg-light">Counter Qty</th><td>${stData.st_counter || '-'}</td><th class="bg-light">Damaged Qty</th><td>${stData.st_damaged || '0'}</td></tr>
+                <tr><th class="bg-light">Finished Qty</th><td>${stData.finished_qty || '-'}</td><th class="bg-light">Balance Qty</th><td class="text-danger fw-bold">${stData.balance_qty || '0'}</td></tr>
+            </table>`;
+        }
+
+        function viewStageAttachment(id) {
+            let plan;
+            for (const key in globalAllPlans) { 
+                let f = globalAllPlans[key].find(x => x.id === id); 
+                if(f) plan = f; 
             }
-            
-            // DYNAMIC STAGE: STITCHING
-            if(Object.keys(stData).length > 0) {
-                html += `
-                <h5 class="mt-4 mb-2 text-dark fw-bold border-bottom border-dark pb-1">Stage ${currentStageNo}: Stitching Record</h5>
-                <table class="table table-sm table-bordered mb-4">
-                    <tr>
-                        <th class="bg-light w-25">Date</th><td>${stData.st_date || '-'}</td>
-                        <th class="bg-light w-25">Pass/Fail</th><td>${stData.pass_fail || '-'}</td>
-                    </tr>
-                    <tr><th class="bg-light">Counter Qty</th><td>${stData.st_counter || '-'}</td><th class="bg-light">Damaged Qty</th><td>${stData.st_damaged || '0'}</td></tr>
-                    <tr><th class="bg-light">Finished Qty</th><td>${stData.finished_qty || '-'}</td><th class="bg-light">Balance Qty</th><td class="text-danger fw-bold">${stData.balance_qty || '0'}</td></tr>
-                </table>`;
+            if(!plan) { alert("No plan data found."); return; }
+
+            // Dynamic extraction and chronological sorting
+            let stages = [];
+            if(plan.board_plant_form) stages.push({ name: 'Board Plant', data: plan.board_plant_form, time: plan.board_plant_form.saved_at || 1 });
+            if(plan.printer_form) stages.push({ name: 'Printers', data: plan.printer_form, time: plan.printer_form.saved_at || 2 });
+            if(plan.diecut_form) stages.push({ name: 'Die Cut', data: plan.diecut_form, time: plan.diecut_form.saved_at || 3 });
+            if(plan.semiauto_form) stages.push({ name: 'Semi Auto', data: plan.semiauto_form, time: plan.semiauto_form.saved_at || 4 });
+            if(plan.gluer_form) stages.push({ name: 'Gluer', data: plan.gluer_form, time: plan.gluer_form.saved_at || 5 });
+            if(plan.stitching_form) stages.push({ name: 'Stitching', data: plan.stitching_form, time: plan.stitching_form.saved_at || 6 });
+
+            stages.sort((a, b) => a.time - b.time);
+
+            let html = `
+            <div id="gluerPrintableDocument" class="container-fluid print-friendly">
+                <h4 class="text-center mb-4 text-decoration-underline fw-bold">INTEGRATED PRODUCTION DOCUMENT</h4>
+                
+                <div class="row mb-3 border border-2 p-2 bg-light shadow-sm rounded">
+                    <div class="col-4 text-center border-end"><strong>PO No:</strong> <br><span class="fs-5 text-primary fw-bold">${plan.po_no || '-'}</span></div>
+                    <div class="col-4 text-center border-end"><strong>Customer/Product:</strong> <br><span class="fs-6">${plan.customer_name} - ${plan.product_name}</span></div>
+                    <div class="col-4 text-center"><strong>Target Qty:</strong> <br><span class="fs-5 text-danger fw-bold">${plan.qty || '-'}</span></div>
+                </div>`;
+
+            if(stages.length === 0) {
+                html += `<div class="alert alert-secondary text-center fw-bold">No stage data has been recorded yet.</div>`;
+            } else {
+                let currentStageNo = 1;
+                stages.forEach(stage => {
+                    if(stage.name === 'Board Plant') html += buildBoardPlantViewHTML(currentStageNo, stage.data, plan);
+                    else if(stage.name === 'Printers') html += buildPrinterViewHTML(currentStageNo, stage.data);
+                    else if(stage.name === 'Die Cut') html += buildDieCutViewHTML(currentStageNo, stage.data);
+                    else if(stage.name === 'Semi Auto') html += buildSemiAutoViewHTML(currentStageNo, stage.data);
+                    else if(stage.name === 'Gluer') html += buildGluerViewHTML(currentStageNo, stage.data);
+                    else if(stage.name === 'Stitching') html += buildStitchingViewHTML(currentStageNo, stage.data);
+                    currentStageNo++;
+                });
             }
 
             html += `</div>
@@ -1567,37 +1583,6 @@ function viewStageAttachment(id) {
             }
         } 
 
-        function printGluerDocument() {
-            let printContents = document.getElementById('gluerPrintableDocument').outerHTML;
-            let printWindow = window.open('', '_blank', 'width=900,height=750');
-            printWindow.document.write(`
-                <html>
-                <head>
-                    <title>Integrated Production Document</title>
-                    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-                    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
-                    <style>
-                        body { padding: 30px; background: #fff !important; font-family: sans-serif; }
-                        .no-print { display: none !important; }
-                        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.9rem; }
-                        th, td { border: 1px solid #dee2e6 !important; padding: 6px !important; text-align: left; }
-                        .bg-light { background-color: #f8f9fa !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                        .table-dark { background-color: #212529 !important; color: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                        .badge { border: 1px solid #000; color: #000 !important; background-color: transparent !important; } 
-                        .text-danger { color: #dc3545 !important; }
-                        .text-success { color: #198754 !important; }
-                        .text-primary { color: #0d6efd !important; }
-                    </style>
-                </head>
-                <body>
-                    ${printContents}
-                    <script>setTimeout(() => { window.print(); window.close(); }, 600);<\/script>
-                </body>
-                </html>
-            `);
-            printWindow.document.close();
-        }
-
         // ==========================================
         // BALANCE PO AND FINISHED GOODS TABS
         // ==========================================
@@ -1605,7 +1590,15 @@ function viewStageAttachment(id) {
         function renderBalancePOTable() {
             document.getElementById('generic-tab-title').innerHTML = "<i class='bi bi-exclamation-triangle-fill text-warning'></i> Balance PO Pending Registry";
             fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
-                let html = `<div class="table-responsive"><table class="table table-bordered table-striped align-middle text-center mb-0"><thead class="table-dark small">
+                let html = `
+                <div class="mb-3 d-flex justify-content-between align-items-center">
+                    <span class="text-secondary fw-bold"><i class="bi bi-funnel"></i> Filter Records</span>
+                    <div class="input-group shadow-sm w-25">
+                        <span class="input-group-text bg-warning text-dark border-warning"><i class="bi bi-search"></i></span>
+                        <input type="text" id="balanceSearch" class="form-control border-warning" placeholder="Search PO No..." onkeyup="filterByPONo('balanceTable', 'balanceSearch', 0)">
+                    </div>
+                </div>
+                <div class="table-responsive"><table id="balanceTable" class="table table-bordered table-striped align-middle text-center mb-0"><thead class="table-dark small">
                     <tr><th>PO No</th><th>Customer & Product Name</th><th>Pending Stage</th><th>Balance Qty</th><th>Action</th></tr></thead><tbody>`;
                 let hasRecords = false;
                 
@@ -1631,10 +1624,18 @@ function viewStageAttachment(id) {
             document.getElementById('generic-tab-title').innerHTML = `<i class='bi bi-check-circle'></i> ${statusVal} Stage`;
             fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
                 
-                let html = `<div class="table-responsive"><table class="table table-bordered table-striped align-middle text-center mb-0"><thead class="table-dark small">`;
+                let html = `
+                <div class="mb-3 d-flex justify-content-between align-items-center">
+                    <span class="text-secondary fw-bold"><i class="bi bi-funnel"></i> Filter Records</span>
+                    <div class="input-group shadow-sm w-25">
+                        <span class="input-group-text bg-dark text-white border-dark"><i class="bi bi-search"></i></span>
+                        <input type="text" id="genericSearch_${statusVal.replace(/\s+/g, '')}" class="form-control border-dark" placeholder="Search PO No..." onkeyup="filterByPONo('genericTable_${statusVal.replace(/\s+/g, '')}', 'genericSearch_${statusVal.replace(/\s+/g, '')}', 0)">
+                    </div>
+                </div>
+                <div class="table-responsive"><table id="genericTable_${statusVal.replace(/\s+/g, '')}" class="table table-bordered table-striped align-middle text-center mb-0"><thead class="table-dark small">`;
                 
                 if(statusVal === 'Finished Goods') {
-                    html += `<tr><th>PO No</th><th>Customer & Product Name</th><th>Finished Goods Qty</th><th>Balance Qty</th><th>Finished Time</th><th>Attachment</th><th>Action</th></tr></thead><tbody>`;
+                    html += `<tr><th>PO No</th><th>Customer & Product Name</th><th>Finished Goods Qty</th><th>Balance Qty</th><th>Finished Time</th><th>Attachment</th><th>Action (Dispatch)</th></tr></thead><tbody>`;
                 } else {
                     html += `<tr><th>PO No</th><th>Customer</th><th>Size</th><th>Qty</th><th>Action</th></tr></thead><tbody>`;
                 }
@@ -1651,7 +1652,12 @@ function viewStageAttachment(id) {
                                 <td class="text-danger fw-bold">${p.balance_qty || 0}</td>
                                 <td class="small font-monospace">${p.finished_at || '-'}</td>
                                 <td><button class="btn btn-sm btn-outline-dark fw-bold shadow-sm" onclick="viewStageAttachment(${p.id})"><i class="bi bi-file-earmark-text text-danger"></i> View Log</button></td>
-                                <td><span class="badge bg-success py-2 px-3">Passed</span></td>
+                                <td>
+                                    <div class="input-group input-group-sm mx-auto" style="max-width: 250px;">
+                                        <input type="text" id="ad_no_${p.id}" class="form-control text-center fw-bold text-primary" placeholder="Enter AD No" required>
+                                        <button class="btn btn-success fw-bold px-3" onclick="dispatchFinishedGoods(${p.id})">Dispatch <i class="bi bi-truck ms-1"></i></button>
+                                    </div>
+                                </td>
                             </tr>`;
                         } else {
                             let nextStage = statusVal === 'Gluer' ? 'Finished Goods' : 'Archived';
@@ -1661,6 +1667,37 @@ function viewStageAttachment(id) {
                 }
                 html += `</tbody></table></div>`;
                 document.getElementById('generic-stage-container').innerHTML = hasRecords ? html : `<p class='text-muted p-3'>No jobs currently in ${statusVal}.</p>`;
+            });
+        }
+
+        // ==========================================
+        // PLAN HISTORY AUDIT LOG
+        // ==========================================
+        function loadHistoryLogs() {
+            document.getElementById('historyLogsTableBody').innerHTML = '<tr><td colspan="9" class="text-muted py-4">Loading history audit logs...</td></tr>';
+            fetch('/api/get_historical_planning_records').then(r=>r.json()).then(data => {
+                let html = '';
+                if(data.length === 0) {
+                    html = '<tr><td colspan="9" class="text-muted py-4">No history records found.</td></tr>';
+                } else {
+                    data.forEach(p => {
+                        let mats = p.materials ? p.materials.map((m,i)=> `L${i+1}: ${m.gsm} - ${m.name}`).join('<br>') : '';
+                        let sizeStr = p.selected_reel_size + ' x ' + (p.cut_length || '-');
+                        let statusBadge = p.status === 'Dispatched' ? 'bg-success' : (p.status === 'Live Planning' ? 'bg-secondary' : 'bg-primary');
+                        html += `<tr>
+                            <td>${p.created_at}</td>
+                            <td class="fw-bold">${p.po_no}</td>
+                            <td>${p.customer_name}</td>
+                            <td class="font-monospace text-danger">${sizeStr}</td>
+                            <td><span class="badge bg-secondary">${p.ply} Ply</span></td>
+                            <td class="fw-bold">${p.qty}</td>
+                            <td class="small text-start font-monospace">${mats}</td>
+                            <td><span class="badge ${statusBadge}">${p.status}</span></td>
+                            <td class="fw-bold text-dark">${p.ad_number || '-'}</td>
+                        </tr>`;
+                    });
+                }
+                document.getElementById('historyLogsTableBody').innerHTML = html;
             });
         }
 
