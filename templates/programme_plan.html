@@ -42,9 +42,27 @@
             <span class="navbar-brand fw-bold text-uppercase d-flex align-items-center">
                 <i class="bi bi-cpu-fill text-warning me-2 fs-4"></i> Viscor & Packwell - Planning Enterprise Core
             </span>
-            <div>
-                <span class="text-white-50 me-3">Logged Role: <strong class="text-warning text-uppercase" id="loggedRole">{{ user_role }}</strong></span>
-                <a href="/dashboard" class="btn btn-outline-light btn-sm px-3 rounded-pill"><i class="bi bi-speedometer2 me-1"></i> Dashboard</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    {% if session.get('role') in ['admin', 'programmer1', 'programmer2'] %}
+                    <li class="nav-item"><a class="nav-link" href="/add_product">Add Product</a></li>
+                    {% endif %}
+                    
+                    {% if session.get('role') in ['admin', 'programmer1', 'programmer2', 'viscor01', 'viscor02', 'viscor03', 'viscor04', 'viscor05'] %}
+                    <li class="nav-item"><a class="nav-link active" href="/programme_plan">Programme Plan</a></li>
+                    {% endif %}
+                    
+                    {% if session.get('role') not in ['viscor01', 'viscor02', 'viscor03', 'viscor04', 'viscor05'] %}
+                    <li class="nav-item"><a class="nav-link" href="/dashboard">Dashboard</a></li>
+                    {% endif %}
+                </ul>
+                <ul class="navbar-nav">
+                    <span class="navbar-text text-white-50 me-3">Logged Role: <strong class="text-warning text-uppercase" id="loggedRole">{{ user_role }}</strong></span>
+                    <li class="nav-item"><a class="nav-link text-danger fw-bold" href="/logout"><i class="bi bi-power"></i> Logout</a></li>
+                </ul>
             </div>
         </div>
     </nav>
@@ -97,6 +115,8 @@
         <div class="tab-content" id="planningTabsContent">
             <div class="tab-pane fade show active" id="live-planning" role="tabpanel">
                 <div class="row">
+                    
+                    {% if session.get('role') in ['admin', 'programmer1', 'programmer2'] %}
                     <div class="col-xl-4 col-md-5 no-print">
                         <div class="card border-0 shadow-sm mb-4">
                             <div class="card-header bg-dark text-white fw-bold py-3"><i class="bi bi-search text-warning me-1"></i> Initialize Planning Sheet</div>
@@ -140,10 +160,17 @@
                             </div>
                         </div>
                     </div>
-
+                    
                     <div class="col-xl-8 col-md-7 no-print">
+                    {% else %}
+                    <div class="col-12 no-print">
+                    {% endif %}
+
                         <div class="card border-0 shadow-sm mb-4" id="optionsCardPanel" style="display:none;">
-                            <div class="card-header bg-secondary text-white fw-bold py-3"><i class="bi bi-grid-3x3-gap me-1"></i> Corrugator Step Selection Options</div>
+                            <div class="card-header bg-secondary text-white fw-bold py-3 d-flex justify-content-between align-items-center">
+                                <span><i class="bi bi-grid-3x3-gap me-1"></i> Corrugator Step Selection Options</span>
+                                <button type="button" class="btn-close btn-close-white" aria-label="Close" onclick="document.getElementById('optionsCardPanel').style.display='none';"></button>
+                            </div>
                             <div class="card-body p-0 overflow-hidden">
                                 <table class="table table-hover text-center align-middle mb-0">
                                     <thead class="table-dark">
@@ -196,8 +223,11 @@
                     <div class="card-header bg-dark text-white fw-bold py-3 d-flex justify-content-between align-items-center">
                         <span><i class="bi bi-clock-history text-warning me-1"></i> Plan History Log Audit Trail</span>
                         <div class="d-flex align-items-center gap-2">
-                            <input type="text" id="historySearch" class="form-control form-control-sm" placeholder="Search PO No..." onkeyup="filterByPONo('historyLogsTable', 'historySearch', 1)">
-                            <button class="btn btn-sm btn-outline-light py-1 text-nowrap" onclick="loadHistoryLogs()"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+                            <input type="date" id="historyStartDate" class="form-control form-control-sm border-0">
+                            <input type="date" id="historyEndDate" class="form-control form-control-sm border-0">
+                            <button class="btn btn-sm btn-primary py-1" onclick="loadHistoryLogs()"><i class="bi bi-filter"></i> Filter</button>
+                            <input type="text" id="historySearch" class="form-control form-control-sm ms-2" placeholder="Search PO No..." onkeyup="filterByPONo('historyLogsTable', 'historySearch', 1)">
+                            <button class="btn btn-sm btn-outline-light py-1 text-nowrap" onclick="loadHistoryLogs(true)"><i class="bi bi-arrow-clockwise"></i> Reset</button>
                         </div>
                     </div>
                     <div class="card-body p-0">
@@ -240,11 +270,37 @@
         let selectedReelSize = 0;
         let globalBoxLength = 0;
         let globalBoxWidth = 0;
-        let isTwoDimensions = false; // FLAG FOR TWO DIMENSIONS
+        let isTwoDimensions = false; 
         let activePlanSuggestedUps = 1;
         const currentRole = document.getElementById('loggedRole').innerText.trim().toLowerCase();
         let globalAllPlans = {};
         let uiPriorities = { bpTabs: {}, printerRows: {} }; 
+        const currentIsoDate = new Date().toISOString().split('T')[0];
+
+        // --- NEW CENTRALIZED RBAC LOGIC ---
+        function canAct(stage) {
+            if (currentRole === 'admin') return true;
+            if (currentRole === 'programmer1' || currentRole === 'programmer2') {
+                return stage === 'Live Planning' || stage === 'Balance PO';
+            }
+            if (currentRole === 'viscor01' && stage === 'Board Plant') return true;
+            if (currentRole === 'viscor02' && stage === 'Printers') return true;
+            if (currentRole === 'viscor03' && (stage === 'Die Cut' || stage === 'Semi Auto')) return true;
+            if (currentRole === 'viscor04' && (stage === 'Gluer' || stage === 'Stitching')) return true;
+            if (currentRole === 'viscor05' && (stage === 'Finished Goods' || stage === 'History')) return true;
+            return false;
+        }
+
+        function reqPackwellTransfer(size, name) {
+            fetch('/api/execute_packwell_transfer', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ size: size, name: name })
+            }).then(r=>r.json()).then(res => {
+                if(res.success) alert("✅ Emergency Transfer Request triggered successfully for Reel: " + res.reel_number);
+                else alert("❌ " + res.message);
+            });
+            socket.emit('send_reel_request_packwell', { size: size, name: name });
+        }
 
         const activeReels = [
             {% for reel in full_reels + used_reels %}
@@ -259,8 +315,6 @@
             "White Liner(WT)": ["WTLNY", "WLINER", "WHITE-L"],
             "White Kraft (WK)": ["WKLNY", "WKRAFT", "WHITE-K"]
         };
-        
-        const currentIsoDate = new Date().toISOString().split('T')[0];
 
         function saveRowPriority(id, val) {
             fetch('/api/update_row_priority', {
@@ -310,7 +364,7 @@
                     
                     globalBoxLength = dims && dims.length > 0 ? parseFloat(dims[0]) : 30;
                     globalBoxWidth = dims && dims.length > 1 ? parseFloat(dims[1]) : 20;
-                    isTwoDimensions = dims && dims.length === 2; // VERY IMPORTANT - IDENTIFIES DIMENSION COUNT
+                    isTwoDimensions = dims && dims.length === 2; 
 
                     document.getElementById('selectedMetaSummary').style.display = 'block';
                     document.getElementById('selectedMetaSummary').innerHTML = `<i class="bi bi-info-circle"></i> Loaded Matrix: ${data.customer_name} | Ply: ${data.ply} | Flute: ${data.flute}`;
@@ -396,14 +450,14 @@
 
         function triggerStockWeightAudit() {
             if(!selectedReelSize) return;
-            // PRECISE SHEET LENGTH CALCULATION
             let parsedSheetLength = isTwoDimensions ? (globalBoxLength + 2) : ((globalBoxWidth + globalBoxLength) * 2 + 6);
-            
             let currentQty = parseInt(document.getElementById('manual_qty').value) || 0;
             let materialsArray = [];
+            
             document.querySelectorAll('.layer-row').forEach(row => {
                 materialsArray.push({ gsm: row.querySelector('.layer-gsm').value, name: row.querySelector('.layer-name').value });
             });
+            
             fetch('/api/check_stock_detailed', {
                 method: 'POST', headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ size: selectedReelSize, qty: currentQty, sheet_length: parsedSheetLength, materials: materialsArray })
@@ -411,6 +465,10 @@
                 let html = '';
                 data.results.forEach(res => {
                     let icon = res.has_stock ? `<span class="tick-icon">&#10004; Passed</span>` : `<span class="cross-icon">&#10008; Short</span>`;
+                    let reqActionHtml = '-';
+                    if (res.shortage > 0 && currentRole === 'programmer1') {
+                        reqActionHtml = `<button class="btn btn-sm btn-danger py-0 fw-bold no-print" onclick="reqPackwellTransfer(${selectedReelSize}, '${res.name}')"><i class="bi bi-send-exclamation"></i> Req Packwell</button>`;
+                    }
                     html += `<tr>
                         <td class="fw-bold">${res.layer}</td>
                         <td><strong>${res.name}</strong></td>
@@ -419,7 +477,7 @@
                         <td class="text-primary fw-bold">${res.required_weight} kg</td>
                         <td class="text-success fw-bold">${res.available_stock} kg</td>
                         <td><span class="badge ${res.shortage > 0 ? 'bg-danger':'bg-success'}">Shortage: ${res.shortage} kg</span></td>
-                        <td class="no-print">-</td>
+                        <td class="no-print">${reqActionHtml}</td>
                     </tr>`;
                 });
                 document.getElementById('detailedStockBody').innerHTML = html;
@@ -433,9 +491,8 @@
             document.querySelectorAll('.layer-row').forEach(row => {
                 materialsArray.push({ gsm: row.querySelector('.layer-gsm').value, name: row.querySelector('.layer-name').value, type: 'General' });
             });
-            // PRECISE SHEET LENGTH CALCULATION FOR SAVING
-            let parsedSheetLength = isTwoDimensions ? (globalBoxLength + 2) : ((globalBoxWidth + globalBoxLength) * 2 + 6);
             
+            let parsedSheetLength = isTwoDimensions ? (globalBoxLength + 2) : ((globalBoxWidth + globalBoxLength) * 2 + 6);
             const payload = {
                 po_no: document.getElementById('po_no').value.trim(), 
                 customer_id: document.getElementById('customer_id').value.trim(),
@@ -446,6 +503,7 @@
                 sheet_length: parsedSheetLength,
                 materials: materialsArray
             };
+            
             fetch('/api/save_programme_plan', {
                 method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
             }).then(r=>r.json()).then(res => {
@@ -500,7 +558,6 @@
             transferPlan(id, 'Board Plant');
         }
 
-        // ---------- CENTRAL TRANSFER LOGIC WITH BALANCE SUPPORT ----------
         function transferPlan(id, newStatus, formData = null, formType = null) {
             let payload = { id: id, status: newStatus, form_type: formType };
             
@@ -526,7 +583,6 @@
             });
         }
 
-        // --- Finished Goods Manual Dispatch ---
         function dispatchFinishedGoods(id) {
             let adNo = document.getElementById(`ad_no_${id}`).value.trim();
             if(!adNo) { alert("Please enter the Manual AD Number before dispatching."); return; }
@@ -536,7 +592,7 @@
             }).then(r=>r.json()).then(res => {
                 if(res.success) {
                     alert("✅ Job Successfully Dispatched!");
-                    document.getElementById('finished-tab').click();
+                    document.getElementById('history-tab').click();
                 }
             });
         }
@@ -601,6 +657,18 @@
                         let sheetSizeCalculatedFormula = `${size} cm &times; ${p.cut_length || 'N/A'} cm`;
                         let combinationSpecsString = p.materials.map((m,i)=> `L${i+1}: ${m.gsm} - ${m.name}`).join('<br>');
                         let hasQty = p.qty && p.qty > 0;
+                        
+                        let qtyEditHtml = canAct('Live Planning') ? `
+                            <input type="number" id="qty_input_${p.id}" class="form-control form-control-sm text-center fw-bold" style="max-width:80px; ${hasQty ? 'display:none;':''}" value="${p.qty||''}">
+                            <span id="qty_display_${p.id}" class="fw-bold text-dark mx-2" style="${!hasQty ? 'display:none;':''}">${p.qty||''}</span>
+                            <button class="btn btn-sm btn-success ms-1 no-print" id="btn_save_qty_${p.id}" onclick="saveQty(${p.id})" style="${hasQty ? 'display:none;':''}"><i class="bi bi-check-lg"></i></button>
+                            <button class="btn btn-sm btn-warning ms-1 no-print" id="btn_edit_qty_${p.id}" onclick="editQty(${p.id})" style="${!hasQty ? 'display:none;':''}"><i class="bi bi-pencil"></i></button>
+                        ` : `<span class="fw-bold text-dark mx-2">${p.qty||''}</span>`;
+                        
+                        let actHtml = canAct('Live Planning') ? 
+                            `<button class="btn btn-sm btn-primary px-2 py-0 fw-bold" onclick="validateAndTransferToBP(${p.id})">Transfer Board Plant</button>` : 
+                            `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
+                            
                         html += `
                             <tr>
                                 <td class="fw-bold text-primary">${p.po_no}</td>
@@ -608,18 +676,9 @@
                                 <td class="fw-bold bg-light text-danger font-monospace">${sheetSizeCalculatedFormula}</td>
                                 <td><span class="badge bg-secondary">${p.ply} Ply</span></td>
                                 <td class="text-start ps-2 font-monospace" style="font-size: 0.82rem;">${combinationSpecsString}</td>
-                                <td>
-                                    <div class="d-flex justify-content-center align-items-center">
-                                        <input type="number" id="qty_input_${p.id}" class="form-control form-control-sm text-center fw-bold" style="max-width:80px; ${hasQty ? 'display:none;':''}" value="${p.qty||''}">
-                                        <span id="qty_display_${p.id}" class="fw-bold text-dark mx-2" style="${!hasQty ? 'display:none;':''}">${p.qty||''}</span>
-                                        <button class="btn btn-sm btn-success ms-1 no-print" id="btn_save_qty_${p.id}" onclick="saveQty(${p.id})" style="${hasQty ? 'display:none;':''}"><i class="bi bi-check-lg"></i></button>
-                                        <button class="btn btn-sm btn-warning ms-1 no-print" id="btn_edit_qty_${p.id}" onclick="editQty(${p.id})" style="${!hasQty ? 'display:none;':''}"><i class="bi bi-pencil"></i></button>
-                                    </div>
-                                </td>
+                                <td><div class="d-flex justify-content-center align-items-center">${qtyEditHtml}</div></td>
                                 <td class="text-muted text-start" style="font-size:0.82rem;">${p.remarks || 'N/A'}</td>
-                                <td class="no-print">
-                                    <button class="btn btn-sm btn-primary px-2 py-0 fw-bold" onclick="validateAndTransferToBP(${p.id})">Transfer Board Plant</button>
-                                </td>
+                                <td class="no-print">${actHtml}</td>
                             </tr>`;
                     });
                     html += `</tbody></table></div></div>`;
@@ -628,7 +687,6 @@
             });
         }
 
-        // --- Board Plant Render & Forms ---
         function renderBoardPlantTable() {
             document.getElementById('generic-tab-title').innerHTML = "<i class='bi bi-tools'></i> Board Plant Stage";
             fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
@@ -680,7 +738,8 @@
 
                     bpPlans.forEach(p => {
                         let sheetSizeCalculated = `${size} cm &times; ${p.cut_length || 'N/A'} cm`;
-                        
+                        let actHtml = canAct('Board Plant') ? `<button class="btn btn-sm btn-success fw-bold" onclick="showBoardPlantForm(${p.id})">Create a Job Card</button>` : `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
+
                         contentHtml += `
                         <tr>
                             <td onclick="event.stopPropagation()">
@@ -692,7 +751,7 @@
                             <td><span class="badge bg-info text-dark">${p.flute || '-'}</span></td>
                             <td><span class="badge bg-secondary">${p.ply} Ply</span></td>
                             <td><span class="badge bg-secondary fs-6">${p.qty}</span></td>
-                            <td><button class="btn btn-sm btn-success fw-bold" onclick="showBoardPlantForm(${p.id})">Create a Job Card</button></td>
+                            <td>${actHtml}</td>
                         </tr>
                         <tr id="job_card_row_${p.id}" style="display:none;">
                             <td colspan="8" class="p-0 border-0 position-relative" id="job_card_container_${p.id}"></td>
@@ -814,7 +873,6 @@
             transferPlan(id, target, dataObj, 'board_plant');
         }
 
-        // --- Printers Render & Forms ---
         function renderPrintersTable() {
             document.getElementById('generic-tab-title').innerHTML = "<i class='bi bi-printer'></i> Printers Stage";
             fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
@@ -846,6 +904,8 @@
                     plans.filter(p => p.status === 'Printers').forEach(p => {
                         hasRecords = true;
                         let rowPriority = uiPriorities.printerRows[p.id] || '';
+                        let actHtml = canAct('Printers') ? `<button class="btn btn-sm btn-success fw-bold" onclick="showPrinterForm(${p.id})">Proceed Stage</button>` : `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
+                        
                         html += `
                         <tr>
                             <td onclick="event.stopPropagation()">
@@ -855,7 +915,7 @@
                             <td>${p.customer_name} - ${p.product_name}</td>
                             <td><span class="badge bg-secondary fs-6">${p.qty}</span></td>
                             <td><button class="btn btn-sm btn-outline-info fw-bold" onclick="viewStageAttachment(${p.id})"><i class="bi bi-eye"></i> View Log</button></td>
-                            <td><button class="btn btn-sm btn-success fw-bold" onclick="showPrinterForm(${p.id})">Proceed Stage</button></td>
+                            <td>${actHtml}</td>
                         </tr>
                         <tr id="print_card_row_${p.id}" style="display:none;">
                             <td colspan="6" class="p-0 border-0 position-relative" id="print_card_container_${p.id}"></td>
@@ -982,7 +1042,6 @@
             transferPlan(id, target, dataObj, 'printer');
         }
 
-        // --- Die Cut & Semi Auto Stage Render ---
         function renderDieCutSemiAutoTable() {
             document.getElementById('generic-tab-title').innerHTML = "<i class='bi bi-gear'></i> Die Cut & Semi Auto Stage";
             fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
@@ -1027,11 +1086,13 @@
                 plans.filter(p => p.status === statusVal).forEach(p => {
                     hasRecords = true;
                     let actionMethod = formPrefix === 'dc' ? `showDieCutForm(${p.id})` : `showSemiAutoForm(${p.id})`;
+                    let actHtml = canAct(statusVal) ? `<button class="btn btn-sm btn-primary fw-bold" onclick="${actionMethod}">Proceed</button>` : `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
+
                     rows += `
                     <tr>
                         <td class="fw-bold">${p.po_no}</td><td>${p.customer_name}</td><td>${size} cm</td><td><span class="badge bg-secondary fs-6">${p.qty}</span></td>
                         <td><button class="btn btn-sm btn-outline-dark fw-bold shadow-sm" onclick="viewStageAttachment(${p.id})"><i class="bi bi-file-earmark-text text-danger"></i> View Log</button></td>
-                        <td><button class="btn btn-sm btn-primary fw-bold" onclick="${actionMethod}">Proceed</button></td>
+                        <td>${actHtml}</td>
                     </tr>
                     <tr id="${formPrefix}_row_${p.id}" style="display:none;"><td colspan="6" class="p-0 border-0 position-relative" id="${formPrefix}_container_${p.id}"></td></tr>`;
                 });
@@ -1166,10 +1227,6 @@
             transferPlan(id, target, dataObj, dbFormType);
         }
 
-        // ==========================================
-        // FINISHING STAGE FUNCTIONS (GLUERS & STITCHING)
-        // ==========================================
-
         function renderFinishingTable() {
             document.getElementById('generic-tab-title').innerHTML = "<i class='bi bi-boxes'></i> Finishing Stage";
             fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
@@ -1181,21 +1238,23 @@
                 gluerRows = ''; stitchingRows = '';
                 for (const [size, plans] of Object.entries(data)) {
                     plans.filter(p => p.status === 'Gluer').forEach(p => {
+                        let actHtml = canAct('Gluer') ? `<button class="btn btn-sm btn-success fw-bold shadow-sm" onclick="showGluerForm(${p.id})">Proceed Stage</button>` : `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
                         gluerRows += `
                         <tr>
                             <td class="fw-bold text-primary">${p.po_no}</td><td>${p.customer_name} - ${p.product_name}</td><td><span class="badge bg-secondary fs-6">${p.qty}</span></td>
                             <td><button class="btn btn-sm btn-info fw-bold text-white shadow-sm" onclick="viewStageAttachment(${p.id})"><i class="bi bi-file-earmark-text"></i> View Log</button></td>
-                            <td><button class="btn btn-sm btn-success fw-bold shadow-sm" onclick="showGluerForm(${p.id})">Proceed Stage</button></td>
+                            <td>${actHtml}</td>
                         </tr>
                         <tr id="gluer_row_${p.id}" style="display:none;"><td colspan="5" class="p-0 border-0 position-relative" id="gluer_container_${p.id}"></td></tr>`;
                     });
                     
                     plans.filter(p => p.status === 'Stitching').forEach(p => {
+                        let actHtml = canAct('Stitching') ? `<button class="btn btn-sm btn-primary fw-bold shadow-sm" onclick="showStitchingForm(${p.id})">Proceed Stage</button>` : `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
                         stitchingRows += `
                         <tr>
                             <td class="fw-bold text-primary">${p.po_no}</td><td>${p.customer_name} - ${p.product_name}</td><td><span class="badge bg-secondary fs-6">${p.qty}</span></td>
                             <td><button class="btn btn-sm btn-info fw-bold text-white shadow-sm" onclick="viewStageAttachment(${p.id})"><i class="bi bi-file-earmark-text"></i> View Log</button></td>
-                            <td><button class="btn btn-sm btn-primary fw-bold shadow-sm" onclick="showStitchingForm(${p.id})">Proceed Stage</button></td>
+                            <td>${actHtml}</td>
                         </tr>
                         <tr id="stitching_row_${p.id}" style="display:none;"><td colspan="5" class="p-0 border-0 position-relative" id="stitching_container_${p.id}"></td></tr>`;
                     });
@@ -1542,7 +1601,6 @@
             }
             if(!plan) { alert("No plan data found."); return; }
 
-            // Dynamic extraction and chronological sorting
             let stages = [];
             if(plan.board_plant_form) stages.push({ name: 'Board Plant', data: plan.board_plant_form, time: plan.board_plant_form.saved_at || 1 });
             if(plan.printer_form) stages.push({ name: 'Printers', data: plan.printer_form, time: plan.printer_form.saved_at || 2 });
@@ -1613,12 +1671,14 @@
                     plans.filter(p => p.status === 'Balance PO').forEach(p => {
                         hasRecords = true;
                         let targetStage = p.balance_status || 'Board Plant';
+                        let actHtml = canAct('Balance PO') ? `<button class="btn btn-sm btn-primary fw-bold px-3" onclick="transferPlan(${p.id}, '${targetStage}')">Move to ${targetStage} <i class="bi bi-arrow-right"></i></button>` : `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
+                        
                         html += `<tr>
                             <td class="fw-bold text-warning font-monospace">${p.po_no}</td>
                             <td>${p.customer_name} - ${p.product_name}</td>
                             <td><span class="badge bg-danger-subtle text-danger px-3 py-2"><i class="bi bi-clock-history"></i> At ${targetStage}</span></td>
                             <td class="text-danger fw-bold fs-5">${p.qty}</td>
-                            <td><button class="btn btn-sm btn-primary fw-bold px-3" onclick="transferPlan(${p.id}, '${targetStage}')">Move to ${targetStage} <i class="bi bi-arrow-right"></i></button></td>
+                            <td>${actHtml}</td>
                         </tr>`;
                     });
                 }
@@ -1652,6 +1712,13 @@
                     plans.filter(p => p.status === statusVal).forEach(p => {
                         hasRecords = true;
                         if(statusVal === 'Finished Goods') {
+                            let actHtml = canAct('Finished Goods') ? `
+                                <div class="input-group input-group-sm mx-auto" style="max-width: 250px;">
+                                    <input type="text" id="ad_no_${p.id}" class="form-control text-center fw-bold text-primary" placeholder="Enter AD No" required>
+                                    <button class="btn btn-success fw-bold px-3" onclick="dispatchFinishedGoods(${p.id})">Dispatch <i class="bi bi-truck ms-1"></i></button>
+                                </div>
+                            ` : `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
+                            
                             html += `<tr>
                                 <td class="fw-bold text-success">${p.po_no}</td>
                                 <td class="text-start">${p.customer_name} <br><small class="text-muted">${p.product_name}</small></td>
@@ -1659,12 +1726,7 @@
                                 <td class="text-danger fw-bold">${p.balance_qty || 0}</td>
                                 <td class="small font-monospace">${p.finished_at || '-'}</td>
                                 <td><button class="btn btn-sm btn-outline-dark fw-bold shadow-sm" onclick="viewStageAttachment(${p.id})"><i class="bi bi-file-earmark-text text-danger"></i> View Log</button></td>
-                                <td>
-                                    <div class="input-group input-group-sm mx-auto" style="max-width: 250px;">
-                                        <input type="text" id="ad_no_${p.id}" class="form-control text-center fw-bold text-primary" placeholder="Enter AD No" required>
-                                        <button class="btn btn-success fw-bold px-3" onclick="dispatchFinishedGoods(${p.id})">Dispatch <i class="bi bi-truck ms-1"></i></button>
-                                    </div>
-                                </td>
+                                <td>${actHtml}</td>
                             </tr>`;
                         } else {
                             let nextStage = statusVal === 'Gluer' ? 'Finished Goods' : 'Archived';
@@ -1680,9 +1742,31 @@
         // ==========================================
         // PLAN HISTORY AUDIT LOG
         // ==========================================
-        function loadHistoryLogs() {
+        function loadHistoryLogs(reset = false) {
             document.getElementById('historyLogsTableBody').innerHTML = '<tr><td colspan="9" class="text-muted py-4">Loading history audit logs...</td></tr>';
-            fetch('/api/get_historical_planning_records').then(r=>r.json()).then(data => {
+            
+            let start = '', end = '';
+            if (!reset) {
+                let startEl = document.getElementById('historyStartDate');
+                let endEl = document.getElementById('historyEndDate');
+                if(startEl) start = startEl.value;
+                if(endEl) end = endEl.value;
+            } else {
+                let startEl = document.getElementById('historyStartDate');
+                let endEl = document.getElementById('historyEndDate');
+                let searchEl = document.getElementById('historySearch');
+                if(startEl) startEl.value = '';
+                if(endEl) endEl.value = '';
+                if(searchEl) {
+                    searchEl.value = '';
+                    filterByPONo('historyLogsTable', 'historySearch', 1);
+                }
+            }
+            
+            let url = '/api/get_historical_planning_records';
+            if(start && end) url += `?start_date=${start}&end_date=${end}`;
+            
+            fetch(url).then(r=>r.json()).then(data => {
                 let html = '';
                 if(data.length === 0) {
                     html = '<tr><td colspan="9" class="text-muted py-4">No history records found.</td></tr>';
