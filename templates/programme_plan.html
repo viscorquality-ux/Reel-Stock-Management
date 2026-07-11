@@ -238,8 +238,7 @@
         const socket = io();
         let targetPly = 3;
         let selectedReelSize = 0;
-        let globalBoxLength = 0;
-        let globalBoxWidth = 0;
+        let globalCutLength = 0; // IMPORTANT: Replaced W and L with purely calculated Cut Length from Backend
         let activePlanSuggestedUps = 1;
         const currentRole = document.getElementById('loggedRole').innerText.trim().toLowerCase();
         let globalAllPlans = {};
@@ -305,12 +304,11 @@
             .then(r=>r.json()).then(data => {
                 if(data.success) {
                     targetPly = data.ply;
-                    let dims = data.carton_size ? data.carton_size.match(/\d+\.?\d*/g) : (data.cartoon_size ? data.cartoon_size.match(/\d+\.?\d*/g) : null);
-                    globalBoxLength = dims ? parseFloat(dims[0]) : 30;
-                    globalBoxWidth = dims ? parseFloat(dims[1]) : 20;
+                    // FIX: Direct sync cut length from backend calculation
+                    globalCutLength = data.cut_length || 0; 
 
                     document.getElementById('selectedMetaSummary').style.display = 'block';
-                    document.getElementById('selectedMetaSummary').innerHTML = `<i class="bi bi-info-circle"></i> Loaded Matrix: ${data.customer_name} | Ply: ${data.ply} | Flute: ${data.flute}`;
+                    document.getElementById('selectedMetaSummary').innerHTML = `<i class="bi bi-info-circle"></i> Loaded Matrix: ${data.customer_name} | Ply: ${data.ply} | Flute: ${data.flute} | Required Sheet Length: <strong class="text-danger">${globalCutLength} cm</strong>`;
                     
                     let optionsHtml = '';
                     data.options.forEach(o => {
@@ -393,7 +391,9 @@
 
         function triggerStockWeightAudit() {
             if(!selectedReelSize) return;
-            let parsedSheetLength = (globalBoxWidth + globalBoxLength) * 2;
+            // FIX: Using calculated globalCutLength directly instead of manual W+L string matches
+            let parsedSheetLength = globalCutLength; 
+            
             let currentQty = parseInt(document.getElementById('manual_qty').value) || 0;
             let materialsArray = [];
             document.querySelectorAll('.layer-row').forEach(row => {
@@ -428,7 +428,8 @@
             document.querySelectorAll('.layer-row').forEach(row => {
                 materialsArray.push({ gsm: row.querySelector('.layer-gsm').value, name: row.querySelector('.layer-name').value, type: 'General' });
             });
-            let parsedSheetLength = (globalBoxWidth + globalBoxLength) * 2;
+            // FIX: Ensure sheet_length payload corresponds exactly to backend
+            let parsedSheetLength = globalCutLength; 
             const payload = {
                 po_no: document.getElementById('po_no').value.trim(), 
                 customer_id: document.getElementById('customer_id').value.trim(),
