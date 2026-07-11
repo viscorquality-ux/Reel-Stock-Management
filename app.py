@@ -120,6 +120,7 @@ class ProgrammePlan(db.Model):
     stitching_form = db.Column(db.Text(length=4294967295), nullable=True)
     balance_status = db.Column(db.String(100), default='')
     finished_at = db.Column(db.DateTime, nullable=True)
+    ad_number = db.Column(db.String(100), default='') # NEW: Added for Finished Goods Dispatch
 
 with app.app_context():
     db.create_all()
@@ -154,6 +155,7 @@ with app.app_context():
     add_column_if_not_exists("programme_plan", "stitching_form", "LONGTEXT")
     add_column_if_not_exists("programme_plan", "balance_status", "VARCHAR(100) DEFAULT ''")
     add_column_if_not_exists("programme_plan", "finished_at", "DATETIME")
+    add_column_if_not_exists("programme_plan", "ad_number", "VARCHAR(100) DEFAULT ''")
     
     upgrade_column_to_longtext("programme_plan", "materials_json")
     upgrade_column_to_longtext("programme_plan", "board_plant_form")
@@ -201,6 +203,16 @@ def safe_int(val, default=0):
         if val is None or str(val).strip() == '': return int(default)
         return int(float(val))
     except (ValueError, TypeError): return int(default)
+
+# --- NEW: Shared Cut Length Helper ---
+def get_cut_length(cartoon_size):
+    if not cartoon_size: return 0
+    dims = [float(x) for x in re.findall(r'\d+\.?\d*', str(cartoon_size))]
+    if len(dims) == 2:
+        return dims[0] + 2  # Length + 2cm
+    elif len(dims) >= 3:
+        return ((dims[1] + dims[0]) * 2) + 6
+    return 0
 
 @app.route('/', methods=['GET', 'POST'])
 @app.route('/login', methods=['GET', 'POST'])
@@ -912,29 +924,6 @@ def add_product():
 
     return render_template('add_product.html', user_role=user_role)
 
-def calculate_reel_size(length, width, height, position, ply):
-    standard_sizes = list(range(75, 155, 5))
-    options = []
-    
-    for ups in range(1, 6):
-        if position.lower() == 'internal':
-            if ply == 3:
-                req_size = ((width + 0.4) + (height + 0.3)) * ups + 2
-            elif ply == 5:
-                req_size = ((width + 0.8) + (height + 0.3)) * ups + 2
-            else:
-                req_size = (width + height) * ups + 2
-        else:
-            req_size = (width + height) * ups + 2
-            
-        for std in standard_sizes:
-            if std >= req_size:
-                options.append({'ups': ups, 'required_size': round(req_size, 2), 'suggested_reel': std, 'wastage': round(std - req_size, 2)})
-                break
-                
-    options.sort(key=lambda x: x['wastage'])
-    return options
-
 @app.route('/programme_plan')
 def programme_plan():
     full_reels = Reel.query.filter_by(status='Full').all()
@@ -988,27 +977,39 @@ def get_product_info():
     
     if product:
         dims = [float(x) for x in re.findall(r'\d+\.?\d*', product.cartoon_size)]
-        l = dims[0] if len(dims) > 0 else 30.0
-        w = dims[1] if len(dims) > 1 else 20.0
-        h = dims[2] if len(dims) > 2 else 10.0
-        
         options = []
-        for ups in range(1, 6):
-            if product.position.lower() == 'internal':
-                if product.ply == 3:
-                    req_size = ((w + 0.4) + (h + 0.3)) * ups + 2
-                elif product.ply == 5:
-                    req_size = ((w + 0.8) + (h + 0.3)) * ups + 2
-                else:
+        
+        # --- REQUIREMENT 1: Dynamic Calculation based on Dimensions Length ---
+        if len(dims) == 2:
+            l = dims[0]
+            w = dims[1]
+            for ups in range(1, 6):
+                req_size = w * ups + 2  # Width + 2cm
+                for std in range(75, 155, 5):
+                    if std >= req_size:
+                        options.append({'ups': ups, 'required_size': round(req_size, 2), 'suggested_reel': std, 'wastage': round(std - req_size, 2)})
+                        break
+        else:
+            l = dims[0] if len(dims) > 0 else 30.0
+            w = dims[1] if len(dims) > 1 else 20.0
+            h = dims[2] if len(dims) > 2 else 10.0
+            
+            for ups in range(1, 6):
+                if product.position.lower() == 'internal':
+                    if product.ply == 3:
+                        req_size = ((w + 0.4) + (h + 0.3)) * ups + 2
+                    elif product.ply == 5:
+                        req_size = ((w + 0.8) + (h + 0.3)) * ups + 2
+                    else:
+                        req_size = (w + h) * ups + 2
+                else: 
                     req_size = (w + h) * ups + 2
-            else: 
-                req_size = (w + h) * ups + 2
-                
-            for std in range(75, 155, 5):
-                if std >= req_size:
-                    options.append({'ups': ups, 'required_size': round(req_size, 2), 'suggested_reel': std, 'wastage': round(std - req_size, 2)})
-                    break
                     
+                for std in range(75, 155, 5):
+                    if std >= req_size:
+                        options.append({'ups': ups, 'required_size': round(req_size, 2), 'suggested_reel': std, 'wastage': round(std - req_size, 2)})
+                        break
+                        
         return jsonify({"success": True, "customer_name": product.customer_name, "product_name": product.product_name, "cartoon_size": product.cartoon_size, "ply": product.ply, "flute": product.flute, "position": product.position, "options": options})
     return jsonify({"success": False, "message": "Product not found"})
 
@@ -1065,6 +1066,13 @@ def transfer_plan():
         new_status = data.get('status')
         form_type = data.get('form_type')
         
+        # --- REQUIREMENT 5: Dispatch Handling ---
+        if new_status == 'Dispatched':
+            plan.ad_number = data.get('ad_number', '')
+            plan.status = 'Dispatched'
+            db.session.commit()
+            return jsonify({'success': True})
+        
         form_data = None
         if form_type == 'board_plant' and 'board_plant_form' in data:
             form_data = data['board_plant_form']
@@ -1116,14 +1124,8 @@ def transfer_plan():
         # --- AUTO SR CREATION WHEN TRANSFERRING TO BOARD PLANT FROM LIVE PLANNING ---
         if new_status == 'Board Plant' and plan.status in ['Live Planning', 'Draft'] and not form_type:
             prod = CustomerProduct.query.filter_by(customer_id=plan.customer_id, product_code=plan.product_code).first()
-            cut_length = 0
-            flute = ""
-            if prod and prod.cartoon_size:
-                dims = [float(x) for x in re.findall(r'\d+\.?\d*', prod.cartoon_size)]
-                l = dims[0] if len(dims) > 0 else 0
-                w = dims[1] if len(dims) > 1 else 0
-                cut_length = ((w + l) * 2) + 6
-                flute = prod.flute
+            cut_length = get_cut_length(prod.cartoon_size) if prod else 0
+            flute = prod.flute if prod else ""
                 
             board_w = plan.selected_reel_size / 100.0 if plan.selected_reel_size else 0.0
             board_l = cut_length / 100.0 if cut_length else 0.0
@@ -1208,14 +1210,8 @@ def get_saved_plans():
         c_name = prod.customer_name if prod else "Unknown"
         p_name = prod.product_name if prod else "Unknown"
         
-        cut_length = 0
-        flute = ""
-        if prod and prod.cartoon_size:
-            dims = [float(x) for x in re.findall(r'\d+\.?\d*', prod.cartoon_size)]
-            l = dims[0] if len(dims) > 0 else 0
-            w = dims[1] if len(dims) > 1 else 0
-            cut_length = ((w + l) * 2) + 6
-            flute = prod.flute
+        cut_length = get_cut_length(prod.cartoon_size) if prod else 0
+        flute = prod.flute if prod else ""
             
         date_str = p.created_at.strftime('%Y-%m-%d %I:%M %p') if p.created_at else ""
         fin_date_str = p.finished_at.strftime('%Y-%m-%d %I:%M %p') if p.finished_at else ""
@@ -1249,9 +1245,10 @@ def get_historical_planning_records():
         result.append({
             'id': p.id, 'po_no': p.po_no, 'customer_name': c_name,
             'selected_reel_size': p.selected_reel_size, 'qty': p.qty,
-            'ply': prod.ply if prod else 3, 'cut_length': 0, 
+            'ply': prod.ply if prod else 3, 'cut_length': get_cut_length(prod.cartoon_size) if prod else 0, 
             'materials': json.loads(p.materials_json) if p.materials_json else [],
             'status': p.status,
+            'ad_number': p.ad_number,
             'created_at': p.created_at.strftime('%Y-%m-%d %I:%M %p') if p.created_at else ""
         })
     return jsonify(result)
