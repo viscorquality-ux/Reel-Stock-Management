@@ -120,7 +120,7 @@ class ProgrammePlan(db.Model):
     stitching_form = db.Column(db.Text(length=4294967295), nullable=True)
     balance_status = db.Column(db.String(100), default='')
     finished_at = db.Column(db.DateTime, nullable=True)
-    ad_number = db.Column(db.String(100), default='') # NEW: Added for Finished Goods Dispatch
+    ad_number = db.Column(db.String(100), default='') 
 
 with app.app_context():
     db.create_all()
@@ -148,7 +148,6 @@ with app.app_context():
     add_column_if_not_exists("programme_plan", "finished_qty", "INT DEFAULT 0")
     add_column_if_not_exists("programme_plan", "balance_qty", "INT DEFAULT 0")
     
-    # Add newly integrated columns
     add_column_if_not_exists("programme_plan", "diecut_form", "LONGTEXT")
     add_column_if_not_exists("programme_plan", "semiauto_form", "LONGTEXT")
     add_column_if_not_exists("programme_plan", "gluer_form", "LONGTEXT")
@@ -204,12 +203,12 @@ def safe_int(val, default=0):
         return int(float(val))
     except (ValueError, TypeError): return int(default)
 
-# --- NEW: Shared Cut Length Helper ---
+# --- REFINED: Shared Cut Length Helper ---
 def get_cut_length(cartoon_size):
     if not cartoon_size: return 0
     dims = [float(x) for x in re.findall(r'\d+\.?\d*', str(cartoon_size))]
     if len(dims) == 2:
-        return dims[0] + 2  # Length + 2cm
+        return dims[0] + 2  # Length + 2cm for 2D Products
     elif len(dims) >= 3:
         return ((dims[1] + dims[0]) * 2) + 6
     return 0
@@ -984,11 +983,13 @@ def get_product_info():
             l = dims[0]
             w = dims[1]
             for ups in range(1, 6):
-                req_size = w * ups + 2  # Width + 2cm
+                req_size = (w * ups) + 2  # Width + 2cm for Reel Size
+                suggested = req_size
                 for std in range(75, 155, 5):
                     if std >= req_size:
-                        options.append({'ups': ups, 'required_size': round(req_size, 2), 'suggested_reel': std, 'wastage': round(std - req_size, 2)})
+                        suggested = std
                         break
+                options.append({'ups': ups, 'required_size': round(req_size, 2), 'suggested_reel': suggested, 'wastage': round(suggested - req_size, 2)})
         else:
             l = dims[0] if len(dims) > 0 else 30.0
             w = dims[1] if len(dims) > 1 else 20.0
@@ -1005,12 +1006,24 @@ def get_product_info():
                 else: 
                     req_size = (w + h) * ups + 2
                     
+                suggested = req_size
                 for std in range(75, 155, 5):
                     if std >= req_size:
-                        options.append({'ups': ups, 'required_size': round(req_size, 2), 'suggested_reel': std, 'wastage': round(std - req_size, 2)})
+                        suggested = std
                         break
+                options.append({'ups': ups, 'required_size': round(req_size, 2), 'suggested_reel': suggested, 'wastage': round(suggested - req_size, 2)})
                         
-        return jsonify({"success": True, "customer_name": product.customer_name, "product_name": product.product_name, "cartoon_size": product.cartoon_size, "ply": product.ply, "flute": product.flute, "position": product.position, "options": options})
+        return jsonify({
+            "success": True, 
+            "customer_name": product.customer_name, 
+            "product_name": product.product_name, 
+            "cartoon_size": product.cartoon_size, 
+            "ply": product.ply, 
+            "flute": product.flute, 
+            "position": product.position, 
+            "cut_length": get_cut_length(product.cartoon_size),
+            "options": options
+        })
     return jsonify({"success": False, "message": "Product not found"})
 
 @app.route('/api/check_stock_detailed', methods=['POST'])
