@@ -203,12 +203,12 @@ def safe_int(val, default=0):
         return int(float(val))
     except (ValueError, TypeError): return int(default)
 
-# --- REFINED: Shared Cut Length Helper ---
+# --- Shared Cut Length Helper ---
 def get_cut_length(cartoon_size):
     if not cartoon_size: return 0
     dims = [float(x) for x in re.findall(r'\d+\.?\d*', str(cartoon_size))]
     if len(dims) == 2:
-        return dims[0] + 2  # Length + 2cm for 2D Products
+        return dims[0] + 2  # Length + 2cm
     elif len(dims) >= 3:
         return ((dims[1] + dims[0]) * 2) + 6
     return 0
@@ -983,13 +983,11 @@ def get_product_info():
             l = dims[0]
             w = dims[1]
             for ups in range(1, 6):
-                req_size = (w * ups) + 2  # Width + 2cm for Reel Size
-                suggested = req_size
-                for std in range(75, 155, 5):
+                req_size = (w * ups) + 2  # Adjusted to multiply width by UPS
+                for std in range(75, 155, 5): # MAX is implicitly 150 (range stops at 155)
                     if std >= req_size:
-                        suggested = std
+                        options.append({'ups': ups, 'required_size': round(req_size, 2), 'suggested_reel': std, 'wastage': round(std - req_size, 2)})
                         break
-                options.append({'ups': ups, 'required_size': round(req_size, 2), 'suggested_reel': suggested, 'wastage': round(suggested - req_size, 2)})
         else:
             l = dims[0] if len(dims) > 0 else 30.0
             w = dims[1] if len(dims) > 1 else 20.0
@@ -1006,24 +1004,12 @@ def get_product_info():
                 else: 
                     req_size = (w + h) * ups + 2
                     
-                suggested = req_size
-                for std in range(75, 155, 5):
+                for std in range(75, 155, 5): # Max limit to 150cm strictly
                     if std >= req_size:
-                        suggested = std
+                        options.append({'ups': ups, 'required_size': round(req_size, 2), 'suggested_reel': std, 'wastage': round(std - req_size, 2)})
                         break
-                options.append({'ups': ups, 'required_size': round(req_size, 2), 'suggested_reel': suggested, 'wastage': round(suggested - req_size, 2)})
                         
-        return jsonify({
-            "success": True, 
-            "customer_name": product.customer_name, 
-            "product_name": product.product_name, 
-            "cartoon_size": product.cartoon_size, 
-            "ply": product.ply, 
-            "flute": product.flute, 
-            "position": product.position, 
-            "cut_length": get_cut_length(product.cartoon_size),
-            "options": options
-        })
+        return jsonify({"success": True, "customer_name": product.customer_name, "product_name": product.product_name, "cartoon_size": product.cartoon_size, "ply": product.ply, "flute": product.flute, "position": product.position, "options": options})
     return jsonify({"success": False, "message": "Product not found"})
 
 @app.route('/api/check_stock_detailed', methods=['POST'])
@@ -1188,7 +1174,7 @@ def save_programme_plan():
     size = safe_float(data.get('selected_reel_size'))
     ups = safe_int(data.get('selected_ups'))
     qty = safe_int(data.get('qty', 0))
-    sheet_length = safe_float(data.get('sheet_length', 0))
+    sheet_length = safe_float(data.get('sheet_length', 0)) # Uses correctly calculated sheet length from Frontend
     materials = data.get('materials', [])
     
     new_plan = ProgrammePlan(
