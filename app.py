@@ -187,7 +187,7 @@ def apply_location_filter(query, model):
     role = session.get('role', '')
     if role in ['dataop2', 'super2', 'programmer2']:
         return query.filter(model.store_location.like('Packwell%'))
-    elif role in ['super1', 'programmer1']:
+    elif role in ['super1', 'programmer1', 'dataop1']:
         return query.filter(model.store_location == 'Viscor Lanka')
     return query
 
@@ -203,12 +203,11 @@ def safe_int(val, default=0):
         return int(float(val))
     except (ValueError, TypeError): return int(default)
 
-# --- Shared Cut Length Helper ---
 def get_cut_length(cartoon_size):
     if not cartoon_size: return 0
     dims = [float(x) for x in re.findall(r'\d+\.?\d*', str(cartoon_size))]
     if len(dims) == 2:
-        return dims[0] + 2  # Length + 2cm
+        return dims[0] + 2  
     elif len(dims) >= 3:
         return ((dims[1] + dims[0]) * 2) + 6
     return 0
@@ -229,7 +228,6 @@ def login():
             "programmer1": ("viscor@1235", "programmer1"),
             "programmer2": ("packwell@3457", "programmer2"),
             "viewer": ("view@123", "viewer"),
-            # NEW ADDED USERS FOR PLANNING ENTERPRISE CORE RESTRICTIONS
             "viscor01": ("viscor@0001", "viscor01"),
             "viscor02": ("viscor@0012", "viscor02"),
             "viscor03": ("viscor@0123", "viscor03"),
@@ -242,7 +240,6 @@ def login():
             session['role'] = users[username][1]
             flash(f"👋 Welcome back, {username}!", "success")
             
-            # Direct redirect to programme plan if it's a viscor stage user
             if users[username][1].startswith('viscor0'):
                 return redirect(url_for('programme_plan'))
             return redirect(url_for('dashboard'))
@@ -260,7 +257,6 @@ def logout():
 def dashboard():
     if 'role' not in session: return redirect(url_for('login'))
     
-    # Viscor Stage Users should not access general dashboard to avoid confusion.
     if session.get('role', '').startswith('viscor0'):
         return redirect(url_for('programme_plan'))
     
@@ -331,7 +327,7 @@ def add_stock():
 def active_stock():
     if 'role' not in session: return redirect(url_for('login'))
     user_role = get_user_role()
-    if user_role in ['programmer1', 'programmer2'] or user_role.startswith('viscor0'):
+    if user_role.startswith('viscor0'):
         flash("❌ Action Not Allowed.", "danger")
         return redirect(url_for('dashboard'))
     
@@ -563,7 +559,7 @@ def edit_sr(id):
 @app.route('/approve_sr/<int:id>', methods=['POST'])
 def approve_sr(id):
     user_role = get_user_role()
-    if user_role in ['programmer1', 'programmer2', 'dataop1', 'dataop2', 'viewer']:
+    if user_role in ['dataop1', 'dataop2', 'viewer']:
         flash("❌ Unauthorized Action.", "danger")
         return redirect(url_for('sr_request'))
     sr = SRRequest.query.get_or_404(id)
@@ -711,7 +707,7 @@ def issue_reel(id):
 def viscor_issue():
     if 'role' not in session: return redirect(url_for('login'))
     user_role = get_user_role()
-    if user_role in ['programmer1', 'programmer2'] or user_role.startswith('viscor0'):
+    if user_role.startswith('viscor0'):
         flash("❌ Action Not Allowed.", "danger")
         return redirect(url_for('dashboard'))
     
@@ -821,7 +817,7 @@ def partial_return(id):
 def issued_stock():
     if 'role' not in session: return redirect(url_for('login'))
     user_role = get_user_role()
-    if user_role in ['programmer1', 'programmer2'] or user_role.startswith('viscor0'):
+    if user_role.startswith('viscor0'):
         flash("❌ Action Not Allowed.", "danger")
         return redirect(url_for('dashboard'))
     reels = apply_location_filter(Reel.query, Reel).filter(Reel.status.in_(['Issued', 'SR_Requested'])).order_by(Reel.id.desc()).all()
@@ -834,7 +830,7 @@ def issued_stock():
 def finished_usage_stock():
     if 'role' not in session: return redirect(url_for('login'))
     user_role = get_user_role()
-    if user_role in ['programmer1', 'programmer2'] or user_role.startswith('viscor0'):
+    if user_role.startswith('viscor0'):
         flash("❌ Action Not Allowed.", "danger")
         return redirect(url_for('dashboard'))
     
@@ -881,7 +877,7 @@ def update_finished_sr(id):
 def damage_sell_stock():
     if 'role' not in session: return redirect(url_for('login'))
     user_role = get_user_role()
-    if user_role in ['programmer1', 'programmer2'] or user_role.startswith('viscor0'):
+    if user_role.startswith('viscor0'):
         flash("❌ Action Not Allowed.", "danger")
         return redirect(url_for('dashboard'))
     
@@ -967,13 +963,13 @@ def programme_plan():
     if 'role' not in session: return redirect(url_for('login'))
     user_role = get_user_role()
     
-    # RESTRICT ACCESS: only admin, programmers, and specific viscor planning stage users
-    if user_role not in ['admin', 'programmer1', 'programmer2', 'viscor01', 'viscor02', 'viscor03', 'viscor04', 'viscor05']:
+    # RESTRICT ACCESS: only admin, programmers, super users and specific viscor planning stage users
+    if user_role not in ['admin', 'programmer1', 'programmer2', 'viscor01', 'viscor02', 'viscor03', 'viscor04', 'viscor05', 'super1', 'super2']:
         flash("❌ Access Denied.", "danger")
         return redirect(url_for('dashboard'))
         
-    full_reels = Reel.query.filter_by(status='Full').all()
-    used_reels = Reel.query.filter_by(status='Used').all()
+    full_reels = apply_location_filter(Reel.query.filter_by(status='Full'), Reel).all()
+    used_reels = apply_location_filter(Reel.query.filter_by(status='Used'), Reel).all()
 
     return render_template('programme_plan.html', 
                            user_role=user_role, 
@@ -1025,13 +1021,12 @@ def get_product_info():
         dims = [float(x) for x in re.findall(r'\d+\.?\d*', product.cartoon_size)]
         options = []
         
-        # --- REQUIREMENT 1: Dynamic Calculation based on Dimensions Length ---
         if len(dims) == 2:
             l = dims[0]
             w = dims[1]
             for ups in range(1, 6):
-                req_size = (w * ups) + 2  # Adjusted to multiply width by UPS
-                for std in range(75, 155, 5): # MAX is implicitly 150 (range stops at 155)
+                req_size = (w * ups) + 2  
+                for std in range(75, 155, 5): 
                     if std >= req_size:
                         options.append({'ups': ups, 'required_size': round(req_size, 2), 'suggested_reel': std, 'wastage': round(std - req_size, 2)})
                         break
@@ -1051,7 +1046,7 @@ def get_product_info():
                 else: 
                     req_size = (w + h) * ups + 2
                     
-                for std in range(75, 155, 5): # Max limit to 150cm strictly
+                for std in range(75, 155, 5):
                     if std >= req_size:
                         options.append({'ups': ups, 'required_size': round(req_size, 2), 'suggested_reel': std, 'wastage': round(std - req_size, 2)})
                         break
@@ -1076,7 +1071,6 @@ def check_stock_detailed():
         calc_weight = (size * sheet_length * (gsm / 10000.0) * qty) / 1000.0
         if idx == 1: calc_weight *= 1.5
             
-        # APP Location Filter used for restricting views per programmer logic
         active_reels = Reel.query.filter(
             Reel.size_cm == size, Reel.material_name == name, Reel.gsm == gsm, Reel.status.in_(['Full', 'Used'])
         )
@@ -1114,7 +1108,6 @@ def transfer_plan():
         new_status = data.get('status')
         form_type = data.get('form_type')
         
-        # --- REQUIREMENT 5: Dispatch Handling ---
         if new_status == 'Dispatched':
             plan.ad_number = data.get('ad_number', '')
             plan.status = 'Dispatched'
@@ -1141,7 +1134,6 @@ def transfer_plan():
             form_data = data['stitching_form']
             plan.stitching_form = json.dumps(form_data)
 
-        # Handle Balance Splitting Logic
         if form_data and 'finished_qty' in form_data and 'balance_qty' in form_data:
             f_qty = safe_int(form_data.get('finished_qty'))
             b_qty = safe_int(form_data.get('balance_qty'))
@@ -1169,7 +1161,6 @@ def transfer_plan():
                 plan.finished_qty = f_qty
                 plan.balance_qty = b_qty
                 
-        # --- AUTO SR CREATION WHEN TRANSFERRING TO BOARD PLANT FROM LIVE PLANNING ---
         if new_status == 'Board Plant' and plan.status in ['Live Planning', 'Draft'] and not form_type:
             prod = CustomerProduct.query.filter_by(customer_id=plan.customer_id, product_code=plan.product_code).first()
             cut_length = get_cut_length(prod.cartoon_size) if prod else 0
@@ -1223,7 +1214,7 @@ def save_programme_plan():
     size = safe_float(data.get('selected_reel_size'))
     ups = safe_int(data.get('selected_ups'))
     qty = safe_int(data.get('qty', 0))
-    sheet_length = safe_float(data.get('sheet_length', 0)) # Uses correctly calculated sheet length from Frontend
+    sheet_length = safe_float(data.get('sheet_length', 0)) 
     materials = data.get('materials', [])
     
     new_plan = ProgrammePlan(
@@ -1312,7 +1303,6 @@ def get_historical_planning_records():
         })
     return jsonify(result)
 
-# WEBSOCKET FOR EMERGENCY TRANSFER REQUESTS
 @socketio.on('send_reel_request_packwell')
 def handle_packwell_request(data):
     emit('receive_packwell_alert', data, broadcast=True)
