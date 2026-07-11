@@ -177,7 +177,7 @@ def get_user_role():
     return SmartRole(session.get('role', ''))
 
 def get_sr_prefix(role):
-    if role in ['dataop1', 'programmer1', 'super1']:
+    if role in ['dataop1', 'programmer1', 'super1', 'viscor01', 'viscor02', 'viscor03', 'viscor04', 'viscor05']:
         return "SRVL"
     elif role in ['dataop2', 'programmer2', 'super2']:
         return "SRPL"
@@ -187,7 +187,7 @@ def apply_location_filter(query, model):
     role = session.get('role', '')
     if role in ['dataop2', 'super2', 'programmer2']:
         return query.filter(model.store_location.like('Packwell%'))
-    elif role == 'super1':
+    elif role in ['super1', 'programmer1']:
         return query.filter(model.store_location == 'Viscor Lanka')
     return query
 
@@ -228,13 +228,23 @@ def login():
             "super2": ("packwell@7531", "super2"),
             "programmer1": ("viscor@1235", "programmer1"),
             "programmer2": ("packwell@3457", "programmer2"),
-            "viewer": ("view@123", "viewer")
+            "viewer": ("view@123", "viewer"),
+            # NEW ADDED USERS FOR PLANNING ENTERPRISE CORE RESTRICTIONS
+            "viscor01": ("viscor@0001", "viscor01"),
+            "viscor02": ("viscor@0012", "viscor02"),
+            "viscor03": ("viscor@0123", "viscor03"),
+            "viscor04": ("viscor@1234", "viscor04"),
+            "viscor05": ("viscor@2345", "viscor05")
         }
         
         if username in users and users[username][0] == password:
             session['username'] = username
             session['role'] = users[username][1]
             flash(f"👋 Welcome back, {username}!", "success")
+            
+            # Direct redirect to programme plan if it's a viscor stage user
+            if users[username][1].startswith('viscor0'):
+                return redirect(url_for('programme_plan'))
             return redirect(url_for('dashboard'))
         else:
             flash("❌ Invalid Username or Password.", "danger")
@@ -249,6 +259,10 @@ def logout():
 @app.route('/dashboard')
 def dashboard():
     if 'role' not in session: return redirect(url_for('login'))
+    
+    # Viscor Stage Users should not access general dashboard to avoid confusion.
+    if session.get('role', '').startswith('viscor0'):
+        return redirect(url_for('programme_plan'))
     
     stats_query = db.session.query(
         func.count(Reel.id),
@@ -279,7 +293,7 @@ def dashboard():
 @app.route('/add_stock', methods=['GET', 'POST'])
 def add_stock():
     user_role = get_user_role()
-    if user_role in ['programmer1', 'programmer2', 'super1', 'super2', 'viewer']:
+    if user_role not in ['admin', 'dataop1', 'dataop2']:
         flash("❌ Access Denied: Unauthorized tab.", "danger")
         return redirect(url_for('dashboard'))
         
@@ -317,6 +331,9 @@ def add_stock():
 def active_stock():
     if 'role' not in session: return redirect(url_for('login'))
     user_role = get_user_role()
+    if user_role in ['programmer1', 'programmer2'] or user_role.startswith('viscor0'):
+        flash("❌ Action Not Allowed.", "danger")
+        return redirect(url_for('dashboard'))
     
     base_query = apply_location_filter(Reel.query, Reel)
     full_reels = base_query.filter_by(status='Full').order_by(Reel.received_date.asc()).all()
@@ -694,6 +711,9 @@ def issue_reel(id):
 def viscor_issue():
     if 'role' not in session: return redirect(url_for('login'))
     user_role = get_user_role()
+    if user_role in ['programmer1', 'programmer2'] or user_role.startswith('viscor0'):
+        flash("❌ Action Not Allowed.", "danger")
+        return redirect(url_for('dashboard'))
     
     viscor_reels = Reel.query.filter_by(status='Pending_Verify', store_location='Viscor Lanka').all()
     packwell_reels = Reel.query.filter(Reel.status == 'Pending_Verify', Reel.store_location.like('Packwell%')).all()
@@ -800,15 +820,24 @@ def partial_return(id):
 @app.route('/issued_stock')
 def issued_stock():
     if 'role' not in session: return redirect(url_for('login'))
+    user_role = get_user_role()
+    if user_role in ['programmer1', 'programmer2'] or user_role.startswith('viscor0'):
+        flash("❌ Action Not Allowed.", "danger")
+        return redirect(url_for('dashboard'))
     reels = apply_location_filter(Reel.query, Reel).filter(Reel.status.in_(['Issued', 'SR_Requested'])).order_by(Reel.id.desc()).all()
     logs_query = ReelHistory.query.join(Reel).filter(ReelHistory.usage_type == 'Issued to Production')
     logs_query = apply_location_filter(logs_query, Reel)
     manual_issue_logs = logs_query.order_by(ReelHistory.timestamp.desc()).all()
-    return render_template('issued_stock.html', stocks=reels, manual_logs=manual_issue_logs, user_role=get_user_role()) 
+    return render_template('issued_stock.html', stocks=reels, manual_logs=manual_issue_logs, user_role=user_role) 
 
 @app.route('/finished_usage_stock')
 def finished_usage_stock():
     if 'role' not in session: return redirect(url_for('login'))
+    user_role = get_user_role()
+    if user_role in ['programmer1', 'programmer2'] or user_role.startswith('viscor0'):
+        flash("❌ Action Not Allowed.", "danger")
+        return redirect(url_for('dashboard'))
+    
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
     
@@ -829,7 +858,7 @@ def finished_usage_stock():
     total_finished_weight = sum([r.weight_kg for r in finished_reels])
     total_used_weight_log = sum([(l.weight_before - l.weight_after) for l in usage_logs if l.weight_before is not None and l.weight_after is not None])
     
-    return render_template('finished_usage_stock.html', finished_reels=finished_reels, usage_logs=usage_logs, total_finished_weight=round(total_finished_weight, 2), total_used_weight_log=round(total_used_weight_log, 2), start_date=start_date or '', end_date=end_date or '', user_role=get_user_role())
+    return render_template('finished_usage_stock.html', finished_reels=finished_reels, usage_logs=usage_logs, total_finished_weight=round(total_finished_weight, 2), total_used_weight_log=round(total_used_weight_log, 2), start_date=start_date or '', end_date=end_date or '', user_role=user_role)
 
 @app.route('/update_finished_sr/<int:id>', methods=['POST'])
 def update_finished_sr(id):
@@ -851,13 +880,18 @@ def update_finished_sr(id):
 @app.route('/damage_sell_stock')
 def damage_sell_stock():
     if 'role' not in session: return redirect(url_for('login'))
+    user_role = get_user_role()
+    if user_role in ['programmer1', 'programmer2'] or user_role.startswith('viscor0'):
+        flash("❌ Action Not Allowed.", "danger")
+        return redirect(url_for('dashboard'))
+    
     damaged_reels = apply_location_filter(Reel.query, Reel).filter_by(status='Damaged').all()
     sold_reels = apply_location_filter(Reel.query, Reel).filter_by(status='Sold').all()
     
     cond_logs = ReelHistory.query.join(Reel).filter(ReelHistory.usage_type == 'Conditional Issue (Damaged)')
     cond_logs = apply_location_filter(cond_logs, Reel).order_by(ReelHistory.timestamp.desc()).all()
     
-    return render_template('damage_sell_stock.html', damaged_reels=damaged_reels, sold_reels=sold_reels, cond_logs=cond_logs, user_role=get_user_role())
+    return render_template('damage_sell_stock.html', damaged_reels=damaged_reels, sold_reels=sold_reels, cond_logs=cond_logs, user_role=user_role)
 
 @app.route('/reset_db_now')
 def reset_db_now():
@@ -890,6 +924,11 @@ def update_row_priority():
 def add_product():
     if 'role' not in session: return redirect(url_for('login'))
     user_role = get_user_role()
+    
+    # REQUIREMENT: Only admin, prog1, prog2 can add products. Viscor stage users CANNOT access Add Product.
+    if user_role not in ['admin', 'programmer1', 'programmer2']:
+        flash("❌ Access Denied.", "danger")
+        return redirect(url_for('dashboard'))
     
     if request.method == 'POST':
         try:
@@ -925,11 +964,19 @@ def add_product():
 
 @app.route('/programme_plan')
 def programme_plan():
+    if 'role' not in session: return redirect(url_for('login'))
+    user_role = get_user_role()
+    
+    # RESTRICT ACCESS: only admin, programmers, and specific viscor planning stage users
+    if user_role not in ['admin', 'programmer1', 'programmer2', 'viscor01', 'viscor02', 'viscor03', 'viscor04', 'viscor05']:
+        flash("❌ Access Denied.", "danger")
+        return redirect(url_for('dashboard'))
+        
     full_reels = Reel.query.filter_by(status='Full').all()
     used_reels = Reel.query.filter_by(status='Used').all()
 
     return render_template('programme_plan.html', 
-                           user_role=get_user_role(), 
+                           user_role=user_role, 
                            full_reels=full_reels, 
                            used_reels=used_reels)
 
@@ -1029,9 +1076,11 @@ def check_stock_detailed():
         calc_weight = (size * sheet_length * (gsm / 10000.0) * qty) / 1000.0
         if idx == 1: calc_weight *= 1.5
             
+        # APP Location Filter used for restricting views per programmer logic
         active_reels = Reel.query.filter(
             Reel.size_cm == size, Reel.material_name == name, Reel.gsm == gsm, Reel.status.in_(['Full', 'Used'])
-        ).all()
+        )
+        active_reels = apply_location_filter(active_reels, Reel).all()
         
         available_stock = sum([r.current_weight for r in active_reels])
         has_stock = available_stock >= calc_weight if calc_weight > 0 else available_stock > 0
@@ -1236,7 +1285,18 @@ def get_saved_plans():
 
 @app.route('/api/get_historical_planning_records', methods=['GET'])
 def get_historical_planning_records():
-    plans = ProgrammePlan.query.order_by(ProgrammePlan.created_at.desc()).all()
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    
+    query = ProgrammePlan.query
+    if start_date and end_date:
+        try:
+            s_date = datetime.strptime(start_date, '%Y-%m-%d')
+            e_date = datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1)
+            query = query.filter(ProgrammePlan.created_at >= s_date, ProgrammePlan.created_at < e_date)
+        except Exception: pass
+        
+    plans = query.order_by(ProgrammePlan.created_at.desc()).all()
     result = []
     for p in plans:
         prod = CustomerProduct.query.filter_by(customer_id=p.customer_id, product_code=p.product_code).first()
