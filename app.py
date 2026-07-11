@@ -117,6 +117,7 @@ class ProgrammePlan(db.Model):
     diecut_form = db.Column(db.Text(length=4294967295), nullable=True)
     semiauto_form = db.Column(db.Text(length=4294967295), nullable=True)
     gluer_form = db.Column(db.Text(length=4294967295), nullable=True)
+    stitching_form = db.Column(db.Text(length=4294967295), nullable=True)
     balance_status = db.Column(db.String(100), default='')
     finished_at = db.Column(db.DateTime, nullable=True)
 
@@ -150,6 +151,7 @@ with app.app_context():
     add_column_if_not_exists("programme_plan", "diecut_form", "LONGTEXT")
     add_column_if_not_exists("programme_plan", "semiauto_form", "LONGTEXT")
     add_column_if_not_exists("programme_plan", "gluer_form", "LONGTEXT")
+    add_column_if_not_exists("programme_plan", "stitching_form", "LONGTEXT")
     add_column_if_not_exists("programme_plan", "balance_status", "VARCHAR(100) DEFAULT ''")
     add_column_if_not_exists("programme_plan", "finished_at", "DATETIME")
     
@@ -159,6 +161,7 @@ with app.app_context():
     upgrade_column_to_longtext("programme_plan", "diecut_form")
     upgrade_column_to_longtext("programme_plan", "semiauto_form")
     upgrade_column_to_longtext("programme_plan", "gluer_form")
+    upgrade_column_to_longtext("programme_plan", "stitching_form")
     
 @app.template_filter('datetimeformat')
 def datetimeformat(value, format='%Y-%m-%d %I:%M %p'):
@@ -1078,6 +1081,9 @@ def transfer_plan():
         elif form_type == 'gluer' and 'gluer_form' in data:
             form_data = data['gluer_form']
             plan.gluer_form = json.dumps(form_data)
+        elif form_type == 'stitching' and 'stitching_form' in data:
+            form_data = data['stitching_form']
+            plan.stitching_form = json.dumps(form_data)
 
         # Handle Balance Splitting Logic
         if form_data and 'finished_qty' in form_data and 'balance_qty' in form_data:
@@ -1085,15 +1091,12 @@ def transfer_plan():
             b_qty = safe_int(form_data.get('balance_qty'))
             process_balance = form_data.get('process_balance')
             
-            # Identify the default balance target if not explicitly selected
             balance_target = form_data.get('balance_target', 'Board Plant')
             if process_balance == 'yes' and not form_data.get('balance_target'):
                 if form_type == 'printer': balance_target = 'Board Plant'
                 elif form_type == 'diecut' or form_type == 'semiauto': balance_target = 'Board Plant'
             
-            # Do the split if required
             if b_qty > 0 and process_balance == 'yes':
-                # Create a new clone record for the Balance PO
                 new_plan = ProgrammePlan(
                     po_no=plan.po_no, customer_id=plan.customer_id, product_code=plan.product_code,
                     selected_reel_size=plan.selected_reel_size, selected_ups=plan.selected_ups,
@@ -1103,7 +1106,6 @@ def transfer_plan():
                 )
                 db.session.add(new_plan)
                 
-                # The original record carries ONLY the finished portion forward
                 plan.qty = f_qty
                 plan.finished_qty = f_qty
                 plan.balance_qty = 0 
@@ -1111,7 +1113,49 @@ def transfer_plan():
                 plan.finished_qty = f_qty
                 plan.balance_qty = b_qty
                 
-        # Move Original logic forward
+        # --- AUTO SR CREATION WHEN TRANSFERRING TO BOARD PLANT FROM LIVE PLANNING ---
+        if new_status == 'Board Plant' and plan.status in ['Live Planning', 'Draft'] and not form_type:
+            prod = CustomerProduct.query.filter_by(customer_id=plan.customer_id, product_code=plan.product_code).first()
+            cut_length = 0
+            flute = ""
+            if prod and prod.cartoon_size:
+                dims = [float(x) for x in re.findall(r'\d+\.?\d*', prod.cartoon_size)]
+                l = dims[0] if len(dims) > 0 else 0
+                w = dims[1] if len(dims) > 1 else 0
+                cut_length = ((w + l) * 2) + 6
+                flute = prod.flute
+                
+            board_w = plan.selected_reel_size / 100.0 if plan.selected_reel_size else 0.0
+            board_l = cut_length / 100.0 if cut_length else 0.0
+            materials = json.loads(plan.materials_json) if plan.materials_json else []
+            
+            prefix = get_sr_prefix(session.get('role', 'admin'))
+            base_sr_num = f"{prefix}-{datetime.now(colombo_tz).strftime('%Y%m%d%H%M')}-{random.randint(10,99)}"
+            
+            for idx, mat in enumerate(materials):
+                gsm = safe_int(mat.get('gsm', 0))
+                name = mat.get('name', '')
+                if idx == 0: comp_type = 'Top'
+                elif idx == len(materials) - 1: comp_type = 'Bottom'
+                else: comp_type = 'Corru'
+                
+                calc_weight = (plan.selected_reel_size * cut_length * (gsm / 10000.0) * plan.qty) / 1000.0
+                if comp_type == 'Corru': calc_weight *= 1.5
+                
+                excess = calc_weight * 0.05
+                total_w = calc_weight + excess
+                
+                comp_sr_num = base_sr_num if len(materials) == 1 else f"{base_sr_num}-L{idx+1}"
+                
+                new_sr = SRRequest(
+                    sr_number=comp_sr_num, po_number=plan.po_no, reel_size=plan.selected_reel_size, 
+                    gsm=gsm, material_name=name, qty=plan.qty, calculated_weight=round(calc_weight, 2), 
+                    total_weight=round(total_w, 2), board_width=board_w, board_length=board_l, 
+                    cartoon_amount=plan.selected_ups, component_type=comp_type, flute_type=flute,
+                    excess_weight=round(excess, 2), status='Pending'
+                )
+                db.session.add(new_sr)
+                
         if new_status == 'Finished Goods':
             plan.finished_at = datetime.now(colombo_tz)
             
@@ -1138,63 +1182,8 @@ def save_programme_plan():
         materials_json=json.dumps(materials), status='Live Planning', created_by=session.get('username', 'System')
     )
     db.session.add(new_plan)
-    
-    prod = CustomerProduct.query.filter_by(customer_id=customer_id, product_code=product_code).first()
-    cut_length = 0
-    flute = ""
-    if prod and prod.cartoon_size:
-        dims = [float(x) for x in re.findall(r'\d+\.?\d*', prod.cartoon_size)]
-        l = dims[0] if len(dims) > 0 else 0
-        w = dims[1] if len(dims) > 1 else 0
-        cut_length = ((w + l) * 2) + 6
-        flute = prod.flute
-        
-    board_w = size / 100.0 if size else 0.0
-    board_l = cut_length / 100.0 if cut_length else 0.0
-    
-    all_available = True
-    layer_data = []
-    
-    for idx, mat in enumerate(materials):
-        gsm = safe_int(mat.get('gsm', 0))
-        name = mat.get('name', '')
-        if idx == 0: comp_type = 'Top'
-        elif idx == len(materials) - 1: comp_type = 'Bottom'
-        else: comp_type = 'Corru'
-        
-        calc_weight = (size * sheet_length * (gsm / 10000.0) * qty) / 1000.0
-        if idx == 1: calc_weight *= 1.5
-            
-        active_reels = Reel.query.filter(
-            Reel.size_cm == size, Reel.material_name == name, Reel.gsm == gsm, Reel.status.in_(['Full', 'Used'])
-        ).all()
-        available_stock = sum([r.current_weight for r in active_reels])
-        
-        if available_stock < calc_weight: all_available = False
-            
-        layer_data.append({ 'gsm': gsm, 'name': name, 'weight': calc_weight, 'comp_type': comp_type })
-        
-    if all_available and len(layer_data) > 0 and qty > 0:
-        role = get_user_role()
-        prefix = get_sr_prefix(role)
-        base_sr_num = f"{prefix}-{datetime.now(colombo_tz).strftime('%Y%m%d%H%M')}-{random.randint(10,99)}"
-        
-        for idx, lw in enumerate(layer_data):
-            comp_sr_num = base_sr_num if len(layer_data) == 1 else f"{base_sr_num}-L{idx+1}"
-            calc_weight = lw['weight']
-            excess = calc_weight * 0.05
-            total_w = calc_weight + excess
-            
-            new_sr = SRRequest(
-                sr_number=comp_sr_num, po_number=po_no, reel_size=size, gsm=lw['gsm'], material_name=lw['name'],
-                qty=qty, calculated_weight=round(calc_weight, 2), total_weight=round(total_w, 2), board_width=board_w,
-                board_length=board_l, cartoon_amount=ups, component_type=lw['comp_type'], flute_type=flute,
-                excess_weight=round(excess, 2), status='Pending'
-            )
-            db.session.add(new_sr)
-            
     db.session.commit()
-    return jsonify({'success': True, 'sr_auto_created': all_available})
+    return jsonify({'success': True, 'sr_auto_created': False})
 
 @app.route('/api/get_saved_plans')
 def get_saved_plans():
@@ -1220,11 +1209,13 @@ def get_saved_plans():
         p_name = prod.product_name if prod else "Unknown"
         
         cut_length = 0
+        flute = ""
         if prod and prod.cartoon_size:
             dims = [float(x) for x in re.findall(r'\d+\.?\d*', prod.cartoon_size)]
             l = dims[0] if len(dims) > 0 else 0
             w = dims[1] if len(dims) > 1 else 0
             cut_length = ((w + l) * 2) + 6
+            flute = prod.flute
             
         date_str = p.created_at.strftime('%Y-%m-%d %I:%M %p') if p.created_at else ""
         fin_date_str = p.finished_at.strftime('%Y-%m-%d %I:%M %p') if p.finished_at else ""
@@ -1232,7 +1223,8 @@ def get_saved_plans():
         result[size].append({
             'id': p.id, 'po_no': p.po_no, 'customer_id': p.customer_id, 'customer_name': c_name,
             'product_code': p.product_code, 'product_name': p_name, 'ups': p.selected_ups, 'ply': prod.ply if prod else 3,
-            'remarks': f"{prod.position} / Flute: {prod.flute}" if prod else "",
+            'remarks': f"{prod.position} / Flute: {flute}" if prod else "",
+            'flute': flute,
             'materials': json.loads(p.materials_json) if p.materials_json else [],
             'created_at': date_str, 'finished_at': fin_date_str, 'cut_length': cut_length,
             'status': p.status if p.status else 'Live Planning', 'qty': p.qty,
@@ -1242,7 +1234,8 @@ def get_saved_plans():
             'printer_form': json.loads(p.printer_form) if p.printer_form else None,
             'diecut_form': json.loads(p.diecut_form) if p.diecut_form else None,
             'semiauto_form': json.loads(p.semiauto_form) if p.semiauto_form else None,
-            'gluer_form': json.loads(p.gluer_form) if p.gluer_form else None
+            'gluer_form': json.loads(p.gluer_form) if p.gluer_form else None,
+            'stitching_form': json.loads(p.stitching_form) if p.stitching_form else None
         })
     return jsonify(result)
 
