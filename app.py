@@ -113,7 +113,6 @@ class ProgrammePlan(db.Model):
     finished_qty = db.Column(db.Integer, default=0)
     balance_qty = db.Column(db.Integer, default=0)
     
-    # NEW FIELDS FOR DYNAMIC STAGES & BALANCE
     diecut_form = db.Column(db.Text(length=4294967295), nullable=True)
     semiauto_form = db.Column(db.Text(length=4294967295), nullable=True)
     gluer_form = db.Column(db.Text(length=4294967295), nullable=True)
@@ -1063,6 +1062,8 @@ def check_stock_detailed():
     sheet_length = float(data.get('sheet_length', 0))
     
     results = []
+    role = session.get('role', '')
+    
     for idx, mat in enumerate(materials):
         gsm = int(mat.get('gsm', 0))
         name = mat.get('name', '')
@@ -1076,13 +1077,34 @@ def check_stock_detailed():
         )
         active_reels = apply_location_filter(active_reels, Reel).all()
         
-        available_stock = sum([r.current_weight for r in active_reels])
+        total_stock = sum([r.current_weight for r in active_reels])
+        
+        # Calculate pending SRs strictly filtering by role/location (SRPL vs SRVL)
+        pending_srs = SRRequest.query.filter(
+            SRRequest.reel_size == size, 
+            SRRequest.material_name == name, 
+            SRRequest.gsm == gsm, 
+            SRRequest.status.in_(['Pending', 'Approved'])
+        ).all()
+        
+        if role in ['programmer2', 'super2', 'dataop2']:
+            pending_srs = [sr for sr in pending_srs if sr.sr_number and sr.sr_number.startswith('SRPL')]
+        elif role in ['programmer1', 'super1', 'dataop1']:
+            pending_srs = [sr for sr in pending_srs if sr.sr_number and sr.sr_number.startswith('SRVL')]
+            
+        reserved_weight = sum([sr.total_weight for sr in pending_srs])
+        available_stock = total_stock - reserved_weight
+        
         has_stock = available_stock >= calc_weight if calc_weight > 0 else available_stock > 0
         shortage = max(0.0, calc_weight - available_stock)
         
         results.append({
             'layer': layer_role, 'name': name, 'gsm': gsm, 'has_stock': has_stock,
-            'required_weight': round(calc_weight, 2), 'available_stock': round(available_stock, 2), 'shortage': round(shortage, 2)
+            'required_weight': round(calc_weight, 2), 
+            'available_stock': round(available_stock, 2), 
+            'shortage': round(shortage, 2),
+            'total_stock': round(total_stock, 2),
+            'reserved_weight': round(reserved_weight, 2)
         })
         
     papers_data = db.session.query(Reel.material_name).filter(Reel.status.in_(['Full', 'Used'])).distinct().all()
