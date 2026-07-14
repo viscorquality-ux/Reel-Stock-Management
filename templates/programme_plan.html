@@ -255,11 +255,12 @@
                 <div class="card shadow-sm border-0 mb-5">
                     <div class="card-header bg-dark text-white fw-bold py-3 d-flex justify-content-between align-items-center">
                         <span><i class="bi bi-clock-history text-warning me-1"></i> Plan History Log Audit Trail</span>
-                        <div class="d-flex align-items-center gap-2">
-                            <input type="date" id="historyStartDate" class="form-control form-control-sm border-0">
-                            <input type="date" id="historyEndDate" class="form-control form-control-sm border-0">
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <input type="date" id="historyStartDate" class="form-control form-control-sm border-0" title="Start Date">
+                            <input type="date" id="historyEndDate" class="form-control form-control-sm border-0" title="End Date">
                             <button class="btn btn-sm btn-primary py-1" onclick="loadHistoryLogs()"><i class="bi bi-filter"></i> Filter</button>
-                            <input type="text" id="historySearch" class="form-control form-control-sm ms-2" placeholder="Search PO No..." onkeyup="filterByPONo('historyLogsTable', 'historySearch', 1)">
+                            <input type="text" id="historySearchPO" class="form-control form-control-sm ms-2" style="width: 130px;" placeholder="Search PO..." onkeyup="filterHistoryTable()">
+                            <input type="text" id="historySearchCustomer" class="form-control form-control-sm" style="width: 150px;" placeholder="Search Customer..." onkeyup="filterHistoryTable()">
                             <button class="btn btn-sm btn-outline-light py-1 text-nowrap" onclick="loadHistoryLogs(true)"><i class="bi bi-arrow-clockwise"></i> Reset</button>
                         </div>
                     </div>
@@ -380,6 +381,35 @@
                         if(nextRow && nextRow.id && (nextRow.id.includes('card_row_') || nextRow.id.includes('print_card_row_') || nextRow.id.includes('_row_'))) {
                             nextRow.style.display = "none";
                         }
+                    }
+                }
+            }
+        }
+
+        function filterHistoryTable() {
+            let poFilter = document.getElementById('historySearchPO').value.toUpperCase();
+            let custFilter = document.getElementById('historySearchCustomer').value.toUpperCase();
+            let table = document.getElementById('historyLogsTable');
+            if(!table) return;
+            let tr = table.getElementsByTagName('tr');
+
+            for (let i = 1; i < tr.length; i++) {
+                if (tr[i].id && tr[i].id.includes('_row_')) continue;
+
+                let tdPO = tr[i].getElementsByTagName('td')[1]; 
+                let tdCust = tr[i].getElementsByTagName('td')[2]; 
+
+                if (tdPO && tdCust) {
+                    let txtPO = tdPO.textContent || tdPO.innerText;
+                    let txtCust = tdCust.textContent || tdCust.innerText;
+
+                    let poMatch = txtPO.toUpperCase().indexOf(poFilter) > -1;
+                    let custMatch = txtCust.toUpperCase().indexOf(custFilter) > -1;
+
+                    if (poMatch && custMatch) {
+                        tr[i].style.display = "";
+                    } else {
+                        tr[i].style.display = "none";
                     }
                 }
             }
@@ -719,7 +749,6 @@
                 document.getElementById('savedPlansWrapperContainer').innerHTML = html || `<div class="text-center text-muted p-4">No active live execution plans scheduled.</div>`;
             });
             
-            // Auto open valid tab for specific viscor users
             if(currentRole === 'viscor01') document.getElementById('board-plant-tab').click();
             if(currentRole === 'viscor02') document.getElementById('printers-tab').click();
             if(currentRole === 'viscor03') document.getElementById('diecut-tab').click();
@@ -1795,13 +1824,12 @@
             } else {
                 let startEl = document.getElementById('historyStartDate');
                 let endEl = document.getElementById('historyEndDate');
-                let searchEl = document.getElementById('historySearch');
+                let searchPOEl = document.getElementById('historySearchPO');
+                let searchCustEl = document.getElementById('historySearchCustomer');
                 if(startEl) startEl.value = '';
                 if(endEl) endEl.value = '';
-                if(searchEl) {
-                    searchEl.value = '';
-                    filterByPONo('historyLogsTable', 'historySearch', 1);
-                }
+                if(searchPOEl) searchPOEl.value = '';
+                if(searchCustEl) searchCustEl.value = '';
             }
             
             let url = '/api/get_historical_planning_records';
@@ -1830,6 +1858,7 @@
                     });
                 }
                 document.getElementById('historyLogsTableBody').innerHTML = html;
+                filterHistoryTable(); // Apply existing text filters if not reset
             });
         }
 
