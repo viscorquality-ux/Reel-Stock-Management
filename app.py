@@ -920,7 +920,6 @@ def add_product():
     if 'role' not in session: return redirect(url_for('login'))
     user_role = get_user_role()
     
-    # REQUIREMENT: Only admin, prog1, prog2 can add products. Viscor stage users CANNOT access Add Product.
     if user_role not in ['admin', 'programmer1', 'programmer2']:
         flash("❌ Access Denied.", "danger")
         return redirect(url_for('dashboard'))
@@ -962,7 +961,6 @@ def programme_plan():
     if 'role' not in session: return redirect(url_for('login'))
     user_role = get_user_role()
     
-    # RESTRICT ACCESS: only admin, programmers, super users and specific viscor planning stage users
     if user_role not in ['admin', 'programmer1', 'programmer2', 'viscor01', 'viscor02', 'viscor03', 'viscor04', 'viscor05', 'super1', 'super2']:
         flash("❌ Access Denied.", "danger")
         return redirect(url_for('dashboard'))
@@ -1079,7 +1077,6 @@ def check_stock_detailed():
         
         total_stock = sum([r.current_weight for r in active_reels])
         
-        # Calculate pending SRs strictly filtering by role/location (SRPL vs SRVL)
         pending_srs = SRRequest.query.filter(
             SRRequest.reel_size == size, 
             SRRequest.material_name == name, 
