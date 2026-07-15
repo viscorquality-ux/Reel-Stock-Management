@@ -1251,6 +1251,14 @@ def get_saved_plans():
     end_date = request.args.get('end_date')
     
     query = ProgrammePlan.query
+
+    # --- ISOLATION LOGIC FOR PROGRAMMER 1 & 2 ---
+    user_role = session.get('role')
+    username = session.get('username')
+    if user_role in ['programmer1', 'programmer2']:
+        query = query.filter(ProgrammePlan.created_by == username)
+    # --------------------------------------------
+
     if start_date and end_date:
         try:
             s_date = datetime.strptime(start_date, '%Y-%m-%d')
@@ -1299,6 +1307,14 @@ def get_historical_planning_records():
     end_date = request.args.get('end_date')
     
     query = ProgrammePlan.query
+
+    # --- ISOLATION LOGIC FOR PROGRAMMER 1 & 2 ---
+    user_role = session.get('role')
+    username = session.get('username')
+    if user_role in ['programmer1', 'programmer2']:
+        query = query.filter(ProgrammePlan.created_by == username)
+    # --------------------------------------------
+
     if start_date and end_date:
         try:
             s_date = datetime.strptime(start_date, '%Y-%m-%d')
