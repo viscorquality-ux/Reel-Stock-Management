@@ -178,15 +178,15 @@ def get_user_role():
 def get_sr_prefix(role):
     if role in ['dataop1', 'programmer1', 'super1', 'viscor01', 'viscor02', 'viscor03', 'viscor04', 'viscor05']:
         return "SRVL"
-    elif role in ['dataop2', 'programmer2', 'super2']:
+    elif role in ['dataop2', 'programmer2', 'super2', 'packwell01', 'packwell02', 'packwell03', 'packwell04', 'packwell05']:
         return "SRPL"
     return "SR"
 
 def apply_location_filter(query, model):
     role = session.get('role', '')
-    if role in ['dataop2', 'super2', 'programmer2']:
+    if role in ['dataop2', 'super2', 'programmer2', 'packwell01', 'packwell02', 'packwell03', 'packwell04', 'packwell05']:
         return query.filter(model.store_location.like('Packwell%'))
-    elif role in ['super1', 'programmer1', 'dataop1']:
+    elif role in ['super1', 'programmer1', 'dataop1', 'viscor01', 'viscor02', 'viscor03', 'viscor04', 'viscor05']:
         return query.filter(model.store_location == 'Viscor Lanka')
     return query
 
@@ -231,7 +231,13 @@ def login():
             "viscor02": ("viscor@0012", "viscor02"),
             "viscor03": ("viscor@0123", "viscor03"),
             "viscor04": ("viscor@1234", "viscor04"),
-            "viscor05": ("viscor@2345", "viscor05")
+            "viscor05": ("viscor@2345", "viscor05"),
+            # NEW PACKWELL USERS
+            "packwell01": ("packwell@1234", "packwell01"),
+            "packwell02": ("packwell@2345", "packwell02"),
+            "packwell03": ("packwell@3456", "packwell03"),
+            "packwell04": ("packwell@4567", "packwell04"),
+            "packwell05": ("packwell@5678", "packwell05")
         }
         
         if username in users and users[username][0] == password:
@@ -239,7 +245,7 @@ def login():
             session['role'] = users[username][1]
             flash(f"👋 Welcome back, {username}!", "success")
             
-            if users[username][1].startswith('viscor0'):
+            if users[username][1].startswith('viscor0') or users[username][1].startswith('packwell0'):
                 return redirect(url_for('programme_plan'))
             return redirect(url_for('dashboard'))
         else:
@@ -256,7 +262,7 @@ def logout():
 def dashboard():
     if 'role' not in session: return redirect(url_for('login'))
     
-    if session.get('role', '').startswith('viscor0'):
+    if session.get('role', '').startswith('viscor0') or session.get('role', '').startswith('packwell0'):
         return redirect(url_for('programme_plan'))
     
     stats_query = db.session.query(
@@ -326,7 +332,7 @@ def add_stock():
 def active_stock():
     if 'role' not in session: return redirect(url_for('login'))
     user_role = get_user_role()
-    if user_role.startswith('viscor0'):
+    if user_role.startswith('viscor0') or user_role.startswith('packwell0'):
         flash("❌ Action Not Allowed.", "danger")
         return redirect(url_for('dashboard'))
     
@@ -706,7 +712,7 @@ def issue_reel(id):
 def viscor_issue():
     if 'role' not in session: return redirect(url_for('login'))
     user_role = get_user_role()
-    if user_role.startswith('viscor0'):
+    if user_role.startswith('viscor0') or user_role.startswith('packwell0'):
         flash("❌ Action Not Allowed.", "danger")
         return redirect(url_for('dashboard'))
     
@@ -816,7 +822,7 @@ def partial_return(id):
 def issued_stock():
     if 'role' not in session: return redirect(url_for('login'))
     user_role = get_user_role()
-    if user_role.startswith('viscor0'):
+    if user_role.startswith('viscor0') or user_role.startswith('packwell0'):
         flash("❌ Action Not Allowed.", "danger")
         return redirect(url_for('dashboard'))
     reels = apply_location_filter(Reel.query, Reel).filter(Reel.status.in_(['Issued', 'SR_Requested'])).order_by(Reel.id.desc()).all()
@@ -829,7 +835,7 @@ def issued_stock():
 def finished_usage_stock():
     if 'role' not in session: return redirect(url_for('login'))
     user_role = get_user_role()
-    if user_role.startswith('viscor0'):
+    if user_role.startswith('viscor0') or user_role.startswith('packwell0'):
         flash("❌ Action Not Allowed.", "danger")
         return redirect(url_for('dashboard'))
     
@@ -876,7 +882,7 @@ def update_finished_sr(id):
 def damage_sell_stock():
     if 'role' not in session: return redirect(url_for('login'))
     user_role = get_user_role()
-    if user_role.startswith('viscor0'):
+    if user_role.startswith('viscor0') or user_role.startswith('packwell0'):
         flash("❌ Action Not Allowed.", "danger")
         return redirect(url_for('dashboard'))
     
@@ -961,7 +967,8 @@ def programme_plan():
     if 'role' not in session: return redirect(url_for('login'))
     user_role = get_user_role()
     
-    if user_role not in ['admin', 'programmer1', 'programmer2', 'viscor01', 'viscor02', 'viscor03', 'viscor04', 'viscor05', 'super1', 'super2']:
+    allowed_roles = ['admin', 'programmer1', 'programmer2', 'viscor01', 'viscor02', 'viscor03', 'viscor04', 'viscor05', 'packwell01', 'packwell02', 'packwell03', 'packwell04', 'packwell05', 'super1', 'super2']
+    if user_role not in allowed_roles:
         flash("❌ Access Denied.", "danger")
         return redirect(url_for('dashboard'))
         
@@ -1084,9 +1091,9 @@ def check_stock_detailed():
             SRRequest.status.in_(['Pending', 'Approved'])
         ).all()
         
-        if role in ['programmer2', 'super2', 'dataop2']:
+        if role in ['programmer2', 'super2', 'dataop2', 'packwell01', 'packwell02', 'packwell03', 'packwell04', 'packwell05']:
             pending_srs = [sr for sr in pending_srs if sr.sr_number and sr.sr_number.startswith('SRPL')]
-        elif role in ['programmer1', 'super1', 'dataop1']:
+        elif role in ['programmer1', 'super1', 'dataop1', 'viscor01', 'viscor02', 'viscor03', 'viscor04', 'viscor05']:
             pending_srs = [sr for sr in pending_srs if sr.sr_number and sr.sr_number.startswith('SRVL')]
             
         reserved_weight = sum([sr.total_weight for sr in pending_srs])
@@ -1255,8 +1262,15 @@ def get_saved_plans():
     # --- ISOLATION LOGIC FOR PROGRAMMER 1 & 2 ---
     user_role = session.get('role')
     username = session.get('username')
-    if user_role in ['programmer1', 'programmer2']:
-        query = query.filter(ProgrammePlan.created_by == username)
+    
+    if user_role == 'programmer1':
+        query = query.filter(ProgrammePlan.created_by == 'programmer1')
+    elif user_role == 'programmer2':
+        query = query.filter(ProgrammePlan.created_by == 'programmer2')
+    elif user_role and user_role.startswith('viscor0'):
+        query = query.filter(ProgrammePlan.created_by == 'programmer1')
+    elif user_role and user_role.startswith('packwell0'):
+        query = query.filter(ProgrammePlan.created_by == 'programmer2')
     # --------------------------------------------
 
     if start_date and end_date:
@@ -1311,8 +1325,15 @@ def get_historical_planning_records():
     # --- ISOLATION LOGIC FOR PROGRAMMER 1 & 2 ---
     user_role = session.get('role')
     username = session.get('username')
-    if user_role in ['programmer1', 'programmer2']:
-        query = query.filter(ProgrammePlan.created_by == username)
+    
+    if user_role == 'programmer1':
+        query = query.filter(ProgrammePlan.created_by == 'programmer1')
+    elif user_role == 'programmer2':
+        query = query.filter(ProgrammePlan.created_by == 'programmer2')
+    elif user_role and user_role.startswith('viscor0'):
+        query = query.filter(ProgrammePlan.created_by == 'programmer1')
+    elif user_role and user_role.startswith('packwell0'):
+        query = query.filter(ProgrammePlan.created_by == 'programmer2')
     # --------------------------------------------
 
     if start_date and end_date:
