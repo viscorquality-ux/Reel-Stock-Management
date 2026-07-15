@@ -51,11 +51,11 @@
                     <li class="nav-item"><a class="nav-link" href="/add_product">Add Product</a></li>
                     {% endif %}
                     
-                    {% if session.get('role') in ['admin', 'programmer1', 'programmer2', 'viscor01', 'viscor02', 'viscor03', 'viscor04', 'viscor05', 'super1', 'super2'] %}
+                    {% if session.get('role') in ['admin', 'programmer1', 'programmer2', 'viscor01', 'viscor02', 'viscor03', 'viscor04', 'viscor05', 'packwell01', 'packwell02', 'packwell03', 'packwell04', 'packwell05', 'super1', 'super2'] %}
                     <li class="nav-item"><a class="nav-link active" href="/programme_plan">Programme Plan</a></li>
                     {% endif %}
                     
-                    {% if session.get('role') not in ['viscor01', 'viscor02', 'viscor03', 'viscor04', 'viscor05'] %}
+                    {% if session.get('role') not in ['viscor01', 'viscor02', 'viscor03', 'viscor04', 'viscor05', 'packwell01', 'packwell02', 'packwell03', 'packwell04', 'packwell05'] %}
                     <li class="nav-item"><a class="nav-link" href="/dashboard">Dashboard</a></li>
                     {% endif %}
                     
@@ -63,7 +63,7 @@
                     <li class="nav-item"><a class="nav-link" href="/add_stock">Add Stock</a></li>
                     {% endif %}
                     
-                    {% if session.get('role') not in ['viscor01', 'viscor02', 'viscor03', 'viscor04', 'viscor05'] %}
+                    {% if session.get('role') not in ['viscor01', 'viscor02', 'viscor03', 'viscor04', 'viscor05', 'packwell01', 'packwell02', 'packwell03', 'packwell04', 'packwell05'] %}
                     <li class="nav-item"><a class="nav-link" href="/active_stock">Active Stock</a></li>
                     <li class="nav-item"><a class="nav-link" href="/viscor_issue">Verify / Returns</a></li>
                     <li class="nav-item"><a class="nav-link" href="/issued_stock">Issued Stock</a></li>
@@ -91,33 +91,33 @@
             </li>
             {% endif %}
 
-            {% if session.get('role') in ['admin', 'programmer1', 'programmer2', 'super1', 'super2', 'viscor01'] %}
+            {% if session.get('role') in ['admin', 'programmer1', 'programmer2', 'super1', 'super2', 'viscor01', 'packwell01'] %}
             <li class="nav-item" role="presentation">
-                <button class="nav-link fw-bold text-uppercase {% if session.get('role') == 'viscor01' %}active{% endif %}" id="board-plant-tab" data-bs-toggle="tab" data-bs-target="#generic-tab-content" type="button" role="tab" onclick="renderBoardPlantTable()">
+                <button class="nav-link fw-bold text-uppercase {% if session.get('role') in ['viscor01', 'packwell01'] %}active{% endif %}" id="board-plant-tab" data-bs-toggle="tab" data-bs-target="#generic-tab-content" type="button" role="tab" onclick="renderBoardPlantTable()">
                     1. Board Plant
                 </button>
             </li>
             {% endif %}
 
-            {% if session.get('role') in ['admin', 'programmer1', 'programmer2', 'super1', 'super2', 'viscor02'] %}
+            {% if session.get('role') in ['admin', 'programmer1', 'programmer2', 'super1', 'super2', 'viscor02', 'packwell02'] %}
             <li class="nav-item" role="presentation">
-                <button class="nav-link fw-bold text-uppercase {% if session.get('role') == 'viscor02' %}active{% endif %}" id="printers-tab" data-bs-toggle="tab" data-bs-target="#generic-tab-content" type="button" role="tab" onclick="renderPrintersTable()">
+                <button class="nav-link fw-bold text-uppercase {% if session.get('role') in ['viscor02', 'packwell02'] %}active{% endif %}" id="printers-tab" data-bs-toggle="tab" data-bs-target="#generic-tab-content" type="button" role="tab" onclick="renderPrintersTable()">
                     2. Printers
                 </button>
             </li>
             {% endif %}
 
-            {% if session.get('role') in ['admin', 'programmer1', 'programmer2', 'super1', 'super2', 'viscor03'] %}
+            {% if session.get('role') in ['admin', 'programmer1', 'programmer2', 'super1', 'super2', 'viscor03', 'packwell03'] %}
             <li class="nav-item" role="presentation">
-                <button class="nav-link fw-bold text-uppercase {% if session.get('role') == 'viscor03' %}active{% endif %}" id="diecut-tab" data-bs-toggle="tab" data-bs-target="#generic-tab-content" type="button" role="tab" onclick="renderDieCutSemiAutoTable()">
+                <button class="nav-link fw-bold text-uppercase {% if session.get('role') in ['viscor03', 'packwell03'] %}active{% endif %}" id="diecut-tab" data-bs-toggle="tab" data-bs-target="#generic-tab-content" type="button" role="tab" onclick="renderDieCutSemiAutoTable()">
                     3. Diecut & Semi Auto
                 </button>
             </li>
             {% endif %}
 
-            {% if session.get('role') in ['admin', 'programmer1', 'programmer2', 'super1', 'super2', 'viscor04'] %}
+            {% if session.get('role') in ['admin', 'programmer1', 'programmer2', 'super1', 'super2', 'viscor04', 'packwell04'] %}
            <li class="nav-item" role="presentation">
-    			<button class="nav-link fw-bold text-uppercase {% if session.get('role') == 'viscor04' %}active{% endif %}" id="finishing-tab" data-bs-toggle="tab" data-bs-target="#generic-tab-content" type="button" role="tab" onclick="renderFinishingTable()">
+    			<button class="nav-link fw-bold text-uppercase {% if session.get('role') in ['viscor04', 'packwell04'] %}active{% endif %}" id="finishing-tab" data-bs-toggle="tab" data-bs-target="#generic-tab-content" type="button" role="tab" onclick="renderFinishingTable()">
         			4. Finishing Stage
     			</button>
 			</li>
@@ -131,9 +131,9 @@
             </li>
             {% endif %}
 
-            {% if session.get('role') in ['admin', 'programmer1', 'programmer2', 'super1', 'super2', 'viscor05'] %}
+            {% if session.get('role') in ['admin', 'programmer1', 'programmer2', 'super1', 'super2', 'viscor05', 'packwell05'] %}
             <li class="nav-item" role="presentation">
-                <button class="nav-link fw-bold text-uppercase {% if session.get('role') == 'viscor05' %}active{% endif %}" id="finished-tab" data-bs-toggle="tab" data-bs-target="#generic-tab-content" type="button" role="tab" onclick="renderGenericTable('Finished Goods')">
+                <button class="nav-link fw-bold text-uppercase {% if session.get('role') in ['viscor05', 'packwell05'] %}active{% endif %}" id="finished-tab" data-bs-toggle="tab" data-bs-target="#generic-tab-content" type="button" role="tab" onclick="renderGenericTable('Finished Goods')">
                     5. Finished Goods
                 </button>
             </li>
@@ -241,7 +241,7 @@
                 </div>
             </div>
 
-            <div class="tab-pane fade {% if session.get('role') in ['viscor01', 'viscor02', 'viscor03', 'viscor04', 'viscor05'] %}show active{% endif %}" id="generic-tab-content" role="tabpanel">
+            <div class="tab-pane fade {% if session.get('role') in ['viscor01', 'viscor02', 'viscor03', 'viscor04', 'viscor05', 'packwell01', 'packwell02', 'packwell03', 'packwell04', 'packwell05'] %}show active{% endif %}" id="generic-tab-content" role="tabpanel">
                 <div class="card shadow-sm border-0 mb-5 mt-3">
                     <div class="card-header bg-dark text-white fw-bold py-3">
                         <span id="generic-tab-title">Production Stage</span>
@@ -317,11 +317,11 @@
             if (currentRole === 'programmer1' || currentRole === 'programmer2') {
                 return stage === 'Live Planning' || stage === 'Balance PO';
             }
-            if (currentRole === 'viscor01' && stage === 'Board Plant') return true;
-            if (currentRole === 'viscor02' && stage === 'Printers') return true;
-            if (currentRole === 'viscor03' && (stage === 'Die Cut' || stage === 'Semi Auto')) return true;
-            if (currentRole === 'viscor04' && (stage === 'Gluer' || stage === 'Stitching')) return true;
-            if (currentRole === 'viscor05' && (stage === 'Finished Goods' || stage === 'History')) return true;
+            if ((currentRole === 'viscor01' || currentRole === 'packwell01') && stage === 'Board Plant') return true;
+            if ((currentRole === 'viscor02' || currentRole === 'packwell02') && stage === 'Printers') return true;
+            if ((currentRole === 'viscor03' || currentRole === 'packwell03') && (stage === 'Die Cut' || stage === 'Semi Auto')) return true;
+            if ((currentRole === 'viscor04' || currentRole === 'packwell04') && (stage === 'Gluer' || stage === 'Stitching')) return true;
+            if ((currentRole === 'viscor05' || currentRole === 'packwell05') && (stage === 'Finished Goods' || stage === 'History')) return true;
             return false;
         }
 
@@ -749,11 +749,11 @@
                 document.getElementById('savedPlansWrapperContainer').innerHTML = html || `<div class="text-center text-muted p-4">No active live execution plans scheduled.</div>`;
             });
             
-            if(currentRole === 'viscor01') document.getElementById('board-plant-tab').click();
-            if(currentRole === 'viscor02') document.getElementById('printers-tab').click();
-            if(currentRole === 'viscor03') document.getElementById('diecut-tab').click();
-            if(currentRole === 'viscor04') document.getElementById('finishing-tab').click();
-            if(currentRole === 'viscor05') document.getElementById('finished-tab').click();
+            if(currentRole === 'viscor01' || currentRole === 'packwell01') document.getElementById('board-plant-tab').click();
+            if(currentRole === 'viscor02' || currentRole === 'packwell02') document.getElementById('printers-tab').click();
+            if(currentRole === 'viscor03' || currentRole === 'packwell03') document.getElementById('diecut-tab').click();
+            if(currentRole === 'viscor04' || currentRole === 'packwell04') document.getElementById('finishing-tab').click();
+            if(currentRole === 'viscor05' || currentRole === 'packwell05') document.getElementById('finished-tab').click();
         }
 
         function renderBoardPlantTable() {
