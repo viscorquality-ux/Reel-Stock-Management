@@ -1341,10 +1341,14 @@ def get_saved_plans():
         })
     return jsonify(result)
 
-@app.route('/api/get_historical_planning_records', methods=['GET'])
-def get_historical_planning_records():
-    start_date = request.args.get('start_date')
-    end_date = request.args.get('end_date')
+@app.route('/api/get_history_logs', methods=['GET'])
+def get_history_logs():
+    try:
+        # Database එකෙන් logs ලබාගන්නා code එක මෙතැනට යොදන්න
+        logs = get_all_history_logs()  # උදාහරණයක් ලෙස
+        return jsonify(logs), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
     
     query = ProgrammePlan.query
 
