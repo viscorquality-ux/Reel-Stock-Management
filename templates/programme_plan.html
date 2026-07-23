@@ -646,20 +646,6 @@
             });
         }
 
-        function dispatchFinishedGoods(id) {
-            let adNo = document.getElementById(`ad_no_${id}`).value.trim();
-            if(!adNo) { alert("Please enter the Manual AD Number before dispatching."); return; }
-            fetch('/api/transfer_plan', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ id: id, status: 'Dispatched', ad_number: adNo })
-            }).then(r=>r.json()).then(res => {
-                if(res.success) {
-                    alert("✅ Job Successfully Dispatched!");
-                    document.getElementById('history-tab').click();
-                }
-            });
-        }
-
         function printSelectedBand(bandId) {
             document.getElementById(bandId).querySelectorAll('input[type="number"]').forEach(el => { el.setAttribute('value', el.value); });
             let printContents = document.getElementById(bandId).outerHTML;
@@ -1640,231 +1626,207 @@
             </table>`;
         }
 
-        function buildGluerViewHTML(stageNo, gData) {
-            return `
-            <h5 class="mt-4 mb-2 text-info fw-bold border-bottom border-info pb-1">Stage ${stageNo}: GLUER STAGE</h5>
-            <table class="table table-sm table-bordered mb-4">
-                <tr><th class="bg-light" style="width: 20%;">Date</th><td>${gData.gl_date || '-'}</td><th class="bg-light" style="width: 20%;">Gluers Used</th><td class="fw-bold text-danger">${gData.gluer_selected || '-'}</td></tr>
-                <tr><th class="bg-light">Counter Qty</th><td>${gData.counter_qty || '-'}</td><th class="bg-light">Damaged Qty</th><td>${gData.damaged_qty || '0'}</td></tr>
-                <tr><th class="bg-light">Finished Qty</th><td>${gData.finished_qty || '-'}</td><th class="bg-light">Balance Qty</th><td class="text-danger fw-bold">${gData.balance_qty || '0'}</td></tr>
-                <tr><th class="bg-light">Batch Number</th><td>${gData.batch_number || '-'}</td><th class="bg-light">Pass/Fail</th><td>${gData.pass_fail || '-'}</td></tr>
-                <tr><th class="bg-light">QC Approval</th><td>${gData.qc_approval || '-'}</td><th class="bg-light">Folding</th><td>${gData.folding || '-'}</td></tr>
-            </table>`;
-        }
+        // --- NEW/UPDATED GENERIC RENDERER & DISPATCH COMMAND BOX LOGIC ---
 
-        function buildStitchingViewHTML(stageNo, stData) {
-            return `
-            <h5 class="mt-4 mb-2 text-dark fw-bold border-bottom border-dark pb-1">Stage ${stageNo}: STITCHING STAGE</h5>
-            <table class="table table-sm table-bordered mb-4">
-                <tr><th class="bg-light w-25">Date</th><td>${stData.st_date || '-'}</td><th class="bg-light w-25">Pass/Fail</th><td>${stData.pass_fail || '-'}</td></tr>
-                <tr><th class="bg-light">Counter Qty</th><td>${stData.st_counter || '-'}</td><th class="bg-light">Damaged Qty</th><td>${stData.st_damaged || '0'}</td></tr>
-                <tr><th class="bg-light">Finished Qty</th><td>${stData.finished_qty || '-'}</td><th class="bg-light">Balance Qty</th><td class="text-danger fw-bold">${stData.balance_qty || '0'}</td></tr>
-            </table>`;
-        }
-
-        function viewStageAttachment(id) {
-            let plan;
-            for (const key in globalAllPlans) { 
-                let f = globalAllPlans[key].find(x => x.id === id); 
-                if(f) plan = f; 
-            }
-            if(!plan) { alert("No plan data found."); return; }
-
-            // Dynamic extraction and chronological sorting
-            let stages = [];
-            if(plan.board_plant_form) stages.push({ name: 'Board Plant', data: plan.board_plant_form, time: plan.board_plant_form.saved_at || 1 });
-            if(plan.printer_form) stages.push({ name: 'Printers', data: plan.printer_form, time: plan.printer_form.saved_at || 2 });
-            if(plan.diecut_form) stages.push({ name: 'Die Cut', data: plan.diecut_form, time: plan.diecut_form.saved_at || 3 });
-            if(plan.semiauto_form) stages.push({ name: 'Semi Auto', data: plan.semiauto_form, time: plan.semiauto_form.saved_at || 4 });
-            if(plan.gluer_form) stages.push({ name: 'Gluer', data: plan.gluer_form, time: plan.gluer_form.saved_at || 5 });
-            if(plan.stitching_form) stages.push({ name: 'Stitching', data: plan.stitching_form, time: plan.stitching_form.saved_at || 6 });
-
-            stages.sort((a, b) => a.time - b.time);
-
-            let html = `
-            <div id="gluerPrintableDocument" class="container-fluid print-friendly">
-                <h4 class="text-center mb-4 text-decoration-underline fw-bold">INTEGRATED PRODUCTION DOCUMENT</h4>
-                
-                <div class="row mb-3 border border-2 p-2 bg-light shadow-sm rounded">
-                    <div class="col-4 text-center border-end"><strong>PO No:</strong> <br><span class="fs-5 text-primary fw-bold">${plan.po_no || '-'}</span></div>
-                    <div class="col-4 text-center border-end"><strong>Customer/Product:</strong> <br><span class="fs-6">${plan.customer_name} - ${plan.product_name}</span></div>
-                    <div class="col-4 text-center"><strong>Target Qty:</strong> <br><span class="fs-5 text-danger fw-bold">${plan.qty || '-'}</span></div>
-                </div>`;
-
-            if(stages.length === 0) {
-                html += `<div class="alert alert-secondary text-center fw-bold">No stage data has been recorded yet.</div>`;
-            } else {
-                let currentStageNo = 1;
-                stages.forEach(stage => {
-                    if(stage.name === 'Board Plant') html += buildBoardPlantViewHTML(currentStageNo, stage.data, plan);
-                    else if(stage.name === 'Printers') html += buildPrinterViewHTML(currentStageNo, stage.data);
-                    else if(stage.name === 'Die Cut') html += buildDieCutViewHTML(currentStageNo, stage.data);
-                    else if(stage.name === 'Semi Auto') html += buildSemiAutoViewHTML(currentStageNo, stage.data);
-                    else if(stage.name === 'Gluer') html += buildGluerViewHTML(currentStageNo, stage.data);
-                    else if(stage.name === 'Stitching') html += buildStitchingViewHTML(currentStageNo, stage.data);
-                    currentStageNo++;
-                });
-            }
-
-            html += `</div>
-            <div class="text-end mt-4 no-print border-top pt-3">
-                <button class="btn btn-primary fw-bold" onclick="printGluerDocument()"><i class="bi bi-printer"></i> Download / Print Document</button>
-            </div>`;
-
-            let modalBody = document.getElementById('attachmentModalBody');
-            if (modalBody) {
-                modalBody.innerHTML = html;
-                new bootstrap.Modal(document.getElementById('viewAttachmentModal')).show();
-            }
-        } 
-
-        // ==========================================
-        // BALANCE PO AND FINISHED GOODS TABS
-        // ==========================================
-
-        function renderBalancePOTable() {
-            document.getElementById('generic-tab-title').innerHTML = "<i class='bi bi-exclamation-triangle-fill text-warning'></i> Balance PO Pending Registry";
+        function renderGenericTable(stageName) {
+            document.getElementById('generic-tab-title').innerHTML = "<i class='bi bi-box-seam'></i> " + stageName + " Stage";
             fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
-                let html = `
-                <div class="mb-3 d-flex justify-content-between align-items-center">
-                    <span class="text-secondary fw-bold"><i class="bi bi-funnel"></i> Filter Records</span>
-                    <div class="input-group shadow-sm w-25">
-                        <span class="input-group-text bg-warning text-dark border-warning"><i class="bi bi-search"></i></span>
-                        <input type="text" id="balanceSearch" class="form-control border-warning" placeholder="Search PO No..." onkeyup="filterByPONo('balanceTable', 'balanceSearch', 0)">
-                    </div>
-                </div>
-                <div class="table-responsive"><table id="balanceTable" class="table table-bordered table-striped align-middle text-center mb-0"><thead class="table-dark small">
-                    <tr><th>PO No</th><th>Customer & Product Name</th><th>Pending Stage</th><th>Balance Qty</th><th>Action</th></tr></thead><tbody>`;
+                globalAllPlans = data;
+                let rows = '';
                 let hasRecords = false;
-                
                 for (const [size, plans] of Object.entries(data)) {
-                    plans.filter(p => p.status === 'Balance PO').forEach(p => {
+                    plans.filter(p => p.status === stageName).forEach(p => {
                         hasRecords = true;
-                        let targetStage = p.balance_status || 'Board Plant';
-                        let actHtml = canAct('Balance PO') ? `<button class="btn btn-sm btn-primary fw-bold px-3" onclick="transferPlan(${p.id}, '${targetStage}')">Move to ${targetStage} <i class="bi bi-arrow-right"></i></button>` : `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
                         
-                        html += `<tr>
-                            <td class="fw-bold text-warning font-monospace">${p.po_no}</td>
-                            <td>${p.customer_name} - ${p.product_name}</td>
-                            <td><span class="badge bg-danger-subtle text-danger px-3 py-2"><i class="bi bi-clock-history"></i> At ${targetStage}</span></td>
-                            <td class="text-danger fw-bold fs-5">${p.qty}</td>
-                            <td>${actHtml}</td>
-                        </tr>`;
-                    });
-                }
-                html += `</tbody></table></div>`;
-                document.getElementById('generic-stage-container').innerHTML = hasRecords ? html : `<p class='text-muted p-3'>No pending Balance PO records.</p>`;
-            });
-        }
+                        if(stageName === 'Finished Goods') {
+                            let actHtml = canAct(stageName) ? 
+                                `<input type="text" id="ad_no_${p.id}" class="form-control form-control-sm d-inline-block me-2 border-dark" style="width:120px;" placeholder="AD Number" required>
+                                 <button class="btn btn-sm btn-dark fw-bold" onclick="showDispatchCommandBox(${p.id}, ${p.qty})"><i class="bi bi-truck me-1"></i> Dispatch</button>` 
+                                : `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
 
-        function renderGenericTable(statusVal) {
-            document.getElementById('generic-tab-title').innerHTML = `<i class='bi bi-check-circle'></i> ${statusVal} Stage`;
-            fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
-                
-                let html = `
-                <div class="mb-3 d-flex justify-content-between align-items-center">
-                    <span class="text-secondary fw-bold"><i class="bi bi-funnel"></i> Filter Records</span>
-                    <div class="input-group shadow-sm w-25">
-                        <span class="input-group-text bg-dark text-white border-dark"><i class="bi bi-search"></i></span>
-                        <input type="text" id="genericSearch_${statusVal.replace(/\s+/g, '')}" class="form-control border-dark" placeholder="Search PO No..." onkeyup="filterByPONo('genericTable_${statusVal.replace(/\s+/g, '')}', 'genericSearch_${statusVal.replace(/\s+/g, '')}', 0)">
-                    </div>
-                </div>
-                <div class="table-responsive"><table id="genericTable_${statusVal.replace(/\s+/g, '')}" class="table table-bordered table-striped align-middle text-center mb-0"><thead class="table-dark small">`;
-                
-                if(statusVal === 'Finished Goods') {
-                    html += `<tr><th>PO No</th><th>Customer & Product Name</th><th>Finished Goods Qty</th><th>Balance Qty</th><th>Finished Time</th><th>Attachment</th><th>Action (Dispatch)</th></tr></thead><tbody>`;
-                } else {
-                    html += `<tr><th>PO No</th><th>Customer</th><th>Size</th><th>Qty</th><th>Action</th></tr></thead><tbody>`;
-                }
-                
-                let hasRecords = false;
-                for (const [size, plans] of Object.entries(data)) {
-                    plans.filter(p => p.status === statusVal).forEach(p => {
-                        hasRecords = true;
-                        if(statusVal === 'Finished Goods') {
-                            let actHtml = canAct('Finished Goods') ? `
-                                <div class="input-group input-group-sm mx-auto" style="max-width: 250px;">
-                                    <input type="text" id="ad_no_${p.id}" class="form-control text-center fw-bold text-primary" placeholder="Enter AD No" required>
-                                    <button class="btn btn-success fw-bold px-3" onclick="dispatchFinishedGoods(${p.id})">Dispatch <i class="bi bi-truck ms-1"></i></button>
-                                </div>
-                            ` : `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
-                            
-                            html += `<tr>
-                                <td class="fw-bold text-success">${p.po_no}</td>
-                                <td class="text-start">${p.customer_name} <br><small class="text-muted">${p.product_name}</small></td>
-                                <td class="text-success fw-bold fs-6">${p.finished_qty || p.qty}</td>
-                                <td class="text-danger fw-bold">${p.balance_qty || 0}</td>
-                                <td class="small font-monospace">${p.finished_at || '-'}</td>
-                                <td><button class="btn btn-sm btn-outline-dark fw-bold shadow-sm" onclick="viewStageAttachment(${p.id})"><i class="bi bi-file-earmark-text text-danger"></i> View Log</button></td>
+                            rows += `
+                            <tr>
+                                <td class="fw-bold text-primary">${p.po_no}</td>
+                                <td>${p.customer_name}</td>
+                                <td class="font-monospace text-danger fw-bold">${size} cm</td>
+                                <td><span class="badge bg-secondary fs-6" id="fg_qty_${p.id}">${p.qty}</span></td>
+                                <td><button class="btn btn-sm btn-outline-dark fw-bold shadow-sm" onclick="viewStageAttachment(${p.id})"><i class="bi bi-file-earmark-text text-primary"></i> View Log</button></td>
                                 <td>${actHtml}</td>
-                            </tr>`;
+                            </tr>
+                            <tr id="dispatch_cmd_row_${p.id}" style="display:none;">
+                                <td colspan="6" class="p-3 bg-light border border-dark rounded position-relative">
+                                    <button type="button" class="btn btn-danger btn-sm position-absolute top-0 end-0 m-2 px-3 shadow-sm fw-bold" onclick="document.getElementById('dispatch_cmd_row_${p.id}').style.display='none'"><i class="bi bi-x-lg"></i></button>
+                                    <div class="alert alert-warning mb-0 border-warning text-start shadow-sm mt-3">
+                                        <h6 class="fw-bold text-danger"><i class="bi bi-truck me-2"></i>Dispatch Command Box</h6>
+                                        <label class="small fw-bold mt-1 text-dark">මෙය සම්පූර්ණයෙන් Dispatch කරනවද? නැතිනම් කොටසක් පමණක්ද?</label>
+                                        <div class="d-flex align-items-center mt-2 mb-2 gap-3 flex-wrap">
+                                            <select class="form-select border-warning fw-bold w-auto" id="dispatch_type_${p.id}" onchange="toggleDispatchType(${p.id})">
+                                                <option value="">-- තෝරන්න (Select) --</option>
+                                                <option value="full">Full Dispatch (සම්පූර්ණ Qty)</option>
+                                                <option value="partial">Partial Dispatch (කොටසක් පමණක්)</option>
+                                            </select>
+                                            <div id="partial_qty_box_${p.id}" style="display:none;" class="align-items-center gap-2">
+                                                <label class="small fw-bold mb-0">Dispatch Qty:</label>
+                                                <input type="number" id="dispatch_partial_qty_${p.id}" class="form-control form-control-sm border-danger text-center fw-bold" style="width: 120px;" placeholder="Max: ${p.qty}" max="${p.qty}" min="1">
+                                            </div>
+                                        </div>
+                                        <div class="mt-3">
+                                            <button class="btn btn-sm btn-success fw-bold px-4" onclick="executeDispatchProcess(${p.id}, ${p.qty})"><i class="bi bi-check-circle me-1"></i> Confirm Dispatch</button>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            `;
                         } else {
-                            let nextStage = statusVal === 'Gluer' ? 'Finished Goods' : 'Archived';
-                            html += `<tr><td class="fw-bold">${p.po_no}</td><td>${p.customer_name}</td><td>${size} cm</td><td>${p.qty}</td><td><button class="btn btn-sm btn-primary fw-bold" onclick="transferPlan(${p.id}, '${nextStage}')">Transfer</button></td></tr>`;
+                            rows += `
+                            <tr>
+                                <td class="fw-bold">${p.po_no}</td><td>${p.customer_name}</td><td>${size} cm</td><td><span class="badge bg-secondary fs-6">${p.qty}</span></td>
+                                <td><button class="btn btn-sm btn-outline-dark fw-bold" onclick="viewStageAttachment(${p.id})">View Log</button></td>
+                                <td><span class="badge bg-secondary px-3 py-2">View Only</span></td>
+                            </tr>`;
                         }
                     });
                 }
-                html += `</tbody></table></div>`;
-                document.getElementById('generic-stage-container').innerHTML = hasRecords ? html : `<p class='text-muted p-3'>No jobs currently in ${statusVal}.</p>`;
+
+                if(!hasRecords) rows = `<tr><td colspan="6" class="text-muted p-3">No jobs currently in ${stageName}.</td></tr>`;
+
+                let tableHtml = `
+                <table class="table table-bordered table-striped align-middle text-center mb-0">
+                    <thead class="table-dark small"><tr><th>PO No</th><th>Customer</th><th>Size</th><th>Total Qty</th><th>Attachment</th><th>Action</th></tr></thead>
+                    <tbody>${rows}</tbody>
+                </table>`;
+                document.getElementById('generic-stage-container').innerHTML = tableHtml;
             });
         }
 
-        // ==========================================
-        // PLAN HISTORY AUDIT LOG
-        // ==========================================
-        function loadHistoryLogs(reset = false) {
-            document.getElementById('historyLogsTableBody').innerHTML = '<tr><td colspan="9" class="text-muted py-4">Loading history audit logs...</td></tr>';
-            
-            let start = '', end = '';
-            if (!reset) {
-                let startEl = document.getElementById('historyStartDate');
-                let endEl = document.getElementById('historyEndDate');
-                if(startEl) start = startEl.value;
-                if(endEl) end = endEl.value;
+        function showDispatchCommandBox(id, totalQty) {
+            let adNo = document.getElementById(`ad_no_${id}`).value.trim();
+            if(!adNo) { alert("⚠️ කරුණාකර පළමුව Manual AD Number එක ඇතුලත් කරන්න."); return; }
+            document.getElementById(`dispatch_cmd_row_${id}`).style.display = 'table-row';
+            document.getElementById(`dispatch_type_${id}`).value = '';
+            document.getElementById(`partial_qty_box_${id}`).style.display = 'none';
+        }
+
+        function toggleDispatchType(id) {
+            let type = document.getElementById(`dispatch_type_${id}`).value;
+            let qtyBox = document.getElementById(`partial_qty_box_${id}`);
+            if (type === 'partial') {
+                qtyBox.style.display = 'flex';
+                document.getElementById(`dispatch_partial_qty_${id}`).value = '';
             } else {
-                let startEl = document.getElementById('historyStartDate');
-                let endEl = document.getElementById('historyEndDate');
-                let searchPOEl = document.getElementById('historySearchPO');
-                let searchCustEl = document.getElementById('historySearchCustomer');
-                if(startEl) startEl.value = '';
-                if(endEl) endEl.value = '';
-                if(searchPOEl) searchPOEl.value = '';
-                if(searchCustEl) searchCustEl.value = '';
+                qtyBox.style.display = 'none';
+            }
+        }
+
+        function executeDispatchProcess(id, currentTotalQty) {
+            let adNo = document.getElementById(`ad_no_${id}`).value.trim();
+            let type = document.getElementById(`dispatch_type_${id}`).value;
+            
+            if(!type) { alert("⚠️ කරුණාකර Dispatch වර්ගය (Full/Partial) තෝරන්න."); return; }
+            
+            let dispatchQty = currentTotalQty;
+            let remainingQty = 0;
+            let isPartial = false;
+            
+            if(type === 'partial') {
+                let inputQty = parseInt(document.getElementById(`dispatch_partial_qty_${id}`).value);
+                if(isNaN(inputQty) || inputQty <= 0 || inputQty >= currentTotalQty) {
+                    alert(`⚠️ කරුණාකර නිවැරදි ප්‍රමාණයක් ඇතුලත් කරන්න. (1 සිට ${currentTotalQty - 1} දක්වා)`);
+                    return;
+                }
+                dispatchQty = inputQty;
+                remainingQty = currentTotalQty - inputQty;
+                isPartial = true;
+            }
+
+            let payload = {
+                id: id,
+                status: isPartial ? 'Finished Goods' : 'Dispatched', 
+                ad_number: adNo,
+                dispatched_qty: dispatchQty,
+                remaining_qty: remainingQty,
+                is_partial: isPartial,
+                action_type: 'dispatch_finished_goods' // For Backend validation / history update separation
+            };
+
+            fetch('/api/transfer_plan', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            }).then(r=>r.json()).then(res => {
+                if(res.success) {
+                    alert("✅ Job Successfully Dispatched!");
+                    if(isPartial) {
+                        // Refresh the table to show updated remaining quantity without leaving the tab
+                        renderGenericTable('Finished Goods');
+                        if (typeof loadHistoryLogs === "function") loadHistoryLogs();
+                    } else {
+                        document.getElementById('history-tab').click();
+                    }
+                } else {
+                    alert("❌ Error processing dispatch: " + (res.message || "Unknown error"));
+                }
+            }).catch(e => alert("❌ Request failed. Please check network/backend connection."));
+        }
+
+        // --- MISSING / GLOBAL HELPERS ---
+
+        function viewStageAttachment(id) {
+            fetch(`/api/get_plan_details?id=${id}`).then(r=>r.json()).then(data => {
+                if(data.success) {
+                    let html = `<div class="p-3"><h4>Job Details Log for ID: ${id}</h4>
+                                <pre>${JSON.stringify(data.plan, null, 2)}</pre></div>`;
+                    document.getElementById('attachmentModalBody').innerHTML = html;
+                    new bootstrap.Modal(document.getElementById('viewAttachmentModal')).show();
+                }
+            });
+        }
+
+        function loadHistoryLogs(reset = false) {
+            if(reset) {
+                document.getElementById('historyStartDate').value = '';
+                document.getElementById('historyEndDate').value = '';
+                document.getElementById('historySearchPO').value = '';
+                document.getElementById('historySearchCustomer').value = '';
             }
             
-            let url = '/api/get_historical_planning_records';
-            if(start && end) url += `?start_date=${start}&end_date=${end}`;
+            let start = document.getElementById('historyStartDate').value;
+            let end = document.getElementById('historyEndDate').value;
+            
+            let url = '/api/get_history_logs';
+            if(start && end) url += `?start=${start}&end=${end}`;
             
             fetch(url).then(r=>r.json()).then(data => {
                 let html = '';
                 if(data.length === 0) {
-                    html = '<tr><td colspan="9" class="text-muted py-4">No history records found.</td></tr>';
+                    html = '<tr><td colspan="9" class="text-muted py-4">No audit logs found.</td></tr>';
                 } else {
-                    data.forEach(p => {
-                        let mats = p.materials ? p.materials.map((m,i)=> `L${i+1}: ${m.gsm} - ${m.name}`).join('<br>') : '';
-                        let sizeStr = p.selected_reel_size + ' x ' + (p.cut_length || '-');
-                        let statusBadge = p.status === 'Dispatched' ? 'bg-success' : (p.status === 'Live Planning' ? 'bg-secondary' : 'bg-primary');
+                    data.forEach(log => {
+                        let mats = Array.isArray(log.materials) ? log.materials.map(m=>m.name).join(', ') : '';
                         html += `<tr>
-                            <td>${p.created_at}</td>
-                            <td class="fw-bold">${p.po_no}</td>
-                            <td>${p.customer_name}</td>
-                            <td class="font-monospace text-danger">${sizeStr}</td>
-                            <td><span class="badge bg-secondary">${p.ply} Ply</span></td>
-                            <td class="fw-bold">${p.qty}</td>
-                            <td class="small text-start font-monospace">${mats}</td>
-                            <td><span class="badge ${statusBadge}">${p.status}</span></td>
-                            <td class="fw-bold text-dark">${p.ad_number || '-'}</td>
+                            <td>${log.timestamp || '-'}</td>
+                            <td class="fw-bold">${log.po_no || '-'}</td>
+                            <td>${log.customer_name || '-'}</td>
+                            <td>${log.size_info || '-'}</td>
+                            <td>${log.ply || '-'}</td>
+                            <td class="fw-bold text-danger">${log.dispatched_qty || log.qty || '-'}</td>
+                            <td><small>${mats}</small></td>
+                            <td><span class="badge bg-success">${log.status || 'Dispatched'}</span></td>
+                            <td class="fw-bold">${log.ad_number || '-'}</td>
                         </tr>`;
                     });
                 }
                 document.getElementById('historyLogsTableBody').innerHTML = html;
-                filterHistoryTable(); // Apply existing text filters if not reset
+                filterHistoryTable();
+            }).catch(e => {
+                document.getElementById('historyLogsTableBody').innerHTML = '<tr><td colspan="9" class="text-danger py-4">Error loading history logs.</td></tr>';
             });
         }
 
-        document.addEventListener("DOMContentLoaded", function() {
-            renderRuntimePlansTable();
-        });
+        function renderBalancePOTable() {
+            document.getElementById('generic-tab-title').innerHTML = "<i class='bi bi-exclamation-triangle-fill text-warning'></i> Balance PO Dashboard";
+            document.getElementById('generic-stage-container').innerHTML = "<p class='text-muted p-4'>Balance PO active monitoring system.</p>";
+        }
+
     </script>
 </body>
 </html>
