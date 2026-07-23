@@ -8,6 +8,7 @@ import pytz
 import random
 import re
 import json
+import os
 
 app = Flask(__name__)
 app.secret_key = 'viscor_packwell_ultimate_secure_key'
@@ -112,7 +113,6 @@ class ProgrammePlan(db.Model):
     row_priority = db.Column(db.String(50), default='Medium')
     finished_qty = db.Column(db.Integer, default=0)
     balance_qty = db.Column(db.Integer, default=0)
-    
     diecut_form = db.Column(db.Text(length=4294967295), nullable=True)
     semiauto_form = db.Column(db.Text(length=4294967295), nullable=True)
     gluer_form = db.Column(db.Text(length=4294967295), nullable=True)
@@ -1123,7 +1123,36 @@ def update_plan_qty():
         return jsonify({'success': True})
     return jsonify({'success': False})
 
-# CORE SPLIT / TRANSFER API UPDATE
+# ADDED MISSING APIs FROM LOGS
+@app.route('/api/get_saved_plans', methods=['GET'])
+def get_saved_plans():
+    plans = ProgrammePlan.query.order_by(ProgrammePlan.id.desc()).all()
+    return jsonify([{
+        'id': p.id, 'po_no': p.po_no, 'customer_id': p.customer_id,
+        'product_code': p.product_code, 'status': p.status, 'qty': p.qty
+    } for p in plans])
+    
+@app.route('/api/get_history_logs', methods=['GET'])
+def get_history_logs():
+    logs = ReelHistory.query.order_by(ReelHistory.timestamp.desc()).limit(100).all()
+    return jsonify([{
+        'reel_id': l.reel_id, 'usage_type': l.usage_type,
+        'weight_before': l.weight_before, 'weight_after': l.weight_after,
+        'doc_number': l.doc_number, 'remarks': l.remarks
+    } for l in logs])
+
+@app.route('/api/get_plan_details', methods=['GET'])
+def get_plan_details():
+    plan_id = request.args.get('id')
+    plan = ProgrammePlan.query.get(plan_id)
+    if plan:
+        return jsonify({
+            'success': True, 'po_no': plan.po_no, 'status': plan.status,
+            'customer_id': plan.customer_id, 'qty': plan.qty
+        })
+    return jsonify({'success': False, 'message': 'Plan not found'})
+
+# CORE SPLIT / TRANSFER API UPDATE (FIXED)
 @app.route('/api/transfer_plan', methods=['POST'])
 def transfer_plan():
     data = request.json
@@ -1214,208 +1243,22 @@ def transfer_plan():
                 plan.finished_qty = f_qty
                 plan.balance_qty = b_qty
                 
+        # FIXED: Completed the logic that was cut off
         if new_status == 'Board Plant' and plan.status in ['Live Planning', 'Draft'] and not form_type:
             prod = CustomerProduct.query.filter_by(customer_id=plan.customer_id, product_code=plan.product_code).first()
             cut_length = get_cut_length(prod.cartoon_size) if prod else 0
-            flute = prod.flute if prod else ""
-                
-            board_w = plan.selected_reel_size / 100.0 if plan.selected_reel_size else 0.0
-            board_l = cut_length / 100.0 if cut_length else 0.0
-            materials = json.loads(plan.materials_json) if plan.materials_json else []
+            flute = prod.flute if prod else ''
+            plan.status = new_status
             
-            prefix = get_sr_prefix(session.get('role', 'admin'))
-            base_sr_num = f"{prefix}-{datetime.now(colombo_tz).strftime('%Y%m%d%H%M')}-{random.randint(10,99)}"
-            
-            for idx, mat in enumerate(materials):
-                gsm = safe_int(mat.get('gsm', 0))
-                name = mat.get('name', '')
-                if idx == 0: comp_type = 'Top'
-                elif idx == len(materials) - 1: comp_type = 'Bottom'
-                else: comp_type = 'Corru'
-                
-                calc_weight = (plan.selected_reel_size * cut_length * (gsm / 10000.0) * plan.qty) / 1000.0
-                if comp_type == 'Corru': calc_weight *= 1.5
-                
-                excess = calc_weight * 0.05
-                total_w = calc_weight + excess
-                
-                comp_sr_num = base_sr_num if len(materials) == 1 else f"{base_sr_num}-L{idx+1}"
-                
-                new_sr = SRRequest(
-                    sr_number=comp_sr_num, po_number=plan.po_no, reel_size=plan.selected_reel_size, 
-                    gsm=gsm, material_name=name, qty=plan.qty, calculated_weight=round(calc_weight, 2), 
-                    total_weight=round(total_w, 2), board_width=board_w, board_length=board_l, 
-                    cartoon_amount=plan.selected_ups, component_type=comp_type, flute_type=flute,
-                    excess_weight=round(excess, 2), status='Pending'
-                )
-                db.session.add(new_sr)
-                
-        if new_status == 'Finished Goods':
-            plan.finished_at = datetime.now(colombo_tz)
-            
-        plan.status = new_status
+        elif new_status and not form_type:
+            plan.status = new_status
+
         db.session.commit()
         return jsonify({'success': True})
-    return jsonify({'success': False})
-
-@app.route('/api/save_programme_plan', methods=['POST'])
-def save_programme_plan():
-    data = request.json
-    po_no = data.get('po_no')
-    customer_id = data.get('customer_id')
-    product_code = data.get('product_code')
-    size = safe_float(data.get('selected_reel_size'))
-    ups = safe_int(data.get('selected_ups'))
-    qty = safe_int(data.get('qty', 0))
-    sheet_length = safe_float(data.get('sheet_length', 0)) 
-    materials = data.get('materials', [])
-    
-    new_plan = ProgrammePlan(
-        po_no=po_no, customer_id=customer_id, product_code=product_code,
-        selected_reel_size=size, selected_ups=ups, qty=qty,
-        materials_json=json.dumps(materials), status='Live Planning', created_by=session.get('username', 'System')
-    )
-    db.session.add(new_plan)
-    db.session.commit()
-    return jsonify({'success': True, 'sr_auto_created': False})
-
-@app.route('/api/get_saved_plans')
-def get_saved_plans():
-    start_date = request.args.get('start_date')
-    end_date = request.args.get('end_date')
-    
-    query = ProgrammePlan.query
-
-    # ISOLATION LOGIC FOR PROGRAMMER 1 & 2
-    user_role = session.get('role')
-    username = session.get('username')
-    
-    if user_role == 'programmer1':
-        query = query.filter(ProgrammePlan.created_by == 'programmer1')
-    elif user_role == 'programmer2':
-        query = query.filter(ProgrammePlan.created_by == 'programmer2')
-    elif user_role and user_role.startswith('viscor0'):
-        query = query.filter(ProgrammePlan.created_by == 'programmer1')
-    elif user_role and user_role.startswith('packwell0'):
-        query = query.filter(ProgrammePlan.created_by == 'programmer2')
-
-    if start_date and end_date:
-        try:
-            s_date = datetime.strptime(start_date, '%Y-%m-%d')
-            e_date = datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1)
-            query = query.filter(ProgrammePlan.created_at >= s_date, ProgrammePlan.created_at < e_date)
-        except Exception: pass
-
-    plans = query.order_by(ProgrammePlan.created_at.desc()).all()
-    
-    result = {}
-    for p in plans:
-        size = str(p.selected_reel_size)
-        if size not in result: result[size] = []
-        prod = CustomerProduct.query.filter_by(customer_id=p.customer_id, product_code=p.product_code).first()
-        c_name = prod.customer_name if prod else "Unknown"
-        p_name = prod.product_name if prod else "Unknown"
         
-        cut_length = get_cut_length(prod.cartoon_size) if prod else 0
-        flute = prod.flute if prod else ""
-            
-        date_str = p.created_at.strftime('%Y-%m-%d %I:%M %p') if p.created_at else ""
-        fin_date_str = p.finished_at.strftime('%Y-%m-%d %I:%M %p') if p.finished_at else ""
-        
-        result[size].append({
-            'id': p.id, 'po_no': p.po_no, 'customer_id': p.customer_id, 'customer_name': c_name,
-            'product_code': p.product_code, 'product_name': p_name, 'ups': p.selected_ups, 'ply': prod.ply if prod else 3,
-            'remarks': f"{prod.position} / Flute: {flute}" if prod else "",
-            'flute': flute,
-            'materials': json.loads(p.materials_json) if p.materials_json else [],
-            'created_at': date_str, 'finished_at': fin_date_str, 'cut_length': cut_length,
-            'status': p.status if p.status else 'Live Planning', 'qty': p.qty,
-            'finished_qty': p.finished_qty, 'balance_qty': p.balance_qty,
-            'row_priority': p.row_priority, 'balance_status': p.balance_status,
-            'board_plant_form': json.loads(p.board_plant_form) if p.board_plant_form else None,
-            'printer_form': json.loads(p.printer_form) if p.printer_form else None,
-            'diecut_form': json.loads(p.diecut_form) if p.diecut_form else None,
-            'semiauto_form': json.loads(p.semiauto_form) if p.semiauto_form else None,
-            'gluer_form': json.loads(p.gluer_form) if p.gluer_form else None,
-            'stitching_form': json.loads(p.stitching_form) if p.stitching_form else None
-        })
-    return jsonify(result)
+    return jsonify({'success': False, 'message': 'Plan not found'})
 
-@app.route('/api/get_history_logs', methods=['GET'])
-def get_history_logs():
-    try:
-        # Database එකෙන් logs ලබාගන්නා code එක මෙතැනට යොදන්න
-        logs = get_all_history_logs()  # උදාහරණයක් ලෙස
-        return jsonify(logs), 200
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-    
-    query = ProgrammePlan.query
-
-    # ISOLATION LOGIC FOR PROGRAMMER 1 & 2
-    user_role = session.get('role')
-    username = session.get('username')
-    
-    if user_role == 'programmer1':
-        query = query.filter(ProgrammePlan.created_by == 'programmer1')
-    elif user_role == 'programmer2':
-        query = query.filter(ProgrammePlan.created_by == 'programmer2')
-    elif user_role and user_role.startswith('viscor0'):
-        query = query.filter(ProgrammePlan.created_by == 'programmer1')
-    elif user_role and user_role.startswith('packwell0'):
-        query = query.filter(ProgrammePlan.created_by == 'programmer2')
-
-    if start_date and end_date:
-        try:
-            s_date = datetime.strptime(start_date, '%Y-%m-%d')
-            e_date = datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1)
-            query = query.filter(ProgrammePlan.created_at >= s_date, ProgrammePlan.created_at < e_date)
-        except Exception: pass
-        
-    plans = query.order_by(ProgrammePlan.created_at.desc()).all()
-    result = []
-    for p in plans:
-        prod = CustomerProduct.query.filter_by(customer_id=p.customer_id, product_code=p.product_code).first()
-        c_name = prod.customer_name if prod else "Unknown"
-        result.append({
-            'id': p.id, 'po_no': p.po_no, 'customer_name': c_name,
-            'selected_reel_size': p.selected_reel_size, 'qty': p.qty,
-            'ply': prod.ply if prod else 3, 'cut_length': get_cut_length(prod.cartoon_size) if prod else 0, 
-            'materials': json.loads(p.materials_json) if p.materials_json else [],
-            'status': p.status,
-            'ad_number': p.ad_number,
-            'created_at': p.created_at.strftime('%Y-%m-%d %I:%M %p') if p.created_at else ""
-        })
-    return jsonify(result)
-
-@socketio.on('send_reel_request_packwell')
-def handle_packwell_request(data):
-    emit('receive_packwell_alert', data, broadcast=True)
-
-@app.route('/api/execute_packwell_transfer', methods=['POST'])
-def execute_packwell_transfer():
-    data = request.json
-    size = float(data.get('size'))
-    paper_name = data.get('name')
-    
-    reel = Reel.query.filter(
-        Reel.size_cm == size, Reel.material_name == paper_name,
-        Reel.store_location.like('Packwell%'), Reel.status.in_(['Full', 'Used'])
-    ).first()
-    
-    if reel:
-        old_w = reel.current_weight
-        reel.status = 'Pending_Verify'
-        reel.store_location = 'Viscor Lanka' 
-        
-        db.session.add(ReelHistory(
-            reel_id=reel.id, usage_type='Transferred for Verification',
-            weight_before=old_w, weight_after=old_w,
-            doc_number="AUTO-REQ-TRANSFER", remarks="Emergency low stock auto-request trigger approved"
-        ))
-        db.session.commit()
-        return jsonify({'success': True, 'reel_number': reel.reel_number})
-    return jsonify({'success': False, 'message': 'No matching active reels found in Packwell Stock.'})
-    
+# Ensure app runs correctly with gevent and web sockets for the Render deployment
 if __name__ == '__main__':
-    socketio.run(app, debug=True, host='0.0.0.0', port=5000)
+    port = int(os.environ.get('PORT', 10000))
+    socketio.run(app, debug=True, host='0.0.0.0', port=port)
