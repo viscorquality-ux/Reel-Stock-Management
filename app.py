@@ -1315,6 +1315,41 @@ def get_saved_plans():
         })
     return jsonify(result)
 
+@app.route('/api/get_history_logs', methods=['GET'])
+def get_history_logs():
+    """ 
+    API endpoint to fetch history logs and fix the 404 error 
+    """
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    
+    query = ReelHistory.query.join(Reel)
+    query = apply_location_filter(query, Reel)
+    
+    if start_date and end_date:
+        try:
+            s_date = datetime.strptime(start_date, '%Y-%m-%d')
+            e_date = datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1)
+            query = query.filter(ReelHistory.timestamp >= s_date, ReelHistory.timestamp < e_date)
+        except Exception: pass
+        
+    logs = query.order_by(ReelHistory.timestamp.desc()).all()
+    
+    result = []
+    for log in logs:
+        result.append({
+            'id': log.id,
+            'reel_number': log.reel.reel_number if log.reel else "Unknown",
+            'usage_type': log.usage_type,
+            'weight_before': log.weight_before,
+            'weight_after': log.weight_after,
+            'doc_number': log.doc_number,
+            'remarks': log.remarks,
+            'timestamp': log.timestamp.strftime('%Y-%m-%d %I:%M %p') if log.timestamp else ""
+        })
+        
+    return jsonify(result)
+
 @app.route('/api/get_historical_planning_records', methods=['GET'])
 def get_historical_planning_records():
     start_date = request.args.get('start_date')
