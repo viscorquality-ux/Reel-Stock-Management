@@ -1146,12 +1146,39 @@ def update_plan_qty():
 
 @app.route('/api/get_saved_plans', methods=['GET'])
 def get_saved_plans():
-    plans = ProgrammePlan.query.order_by(ProgrammePlan.id.desc()).all()
+    # Join ProgrammePlan with CustomerProduct to fetch missing details
+    plans = db.session.query(ProgrammePlan, CustomerProduct)\
+        .outerjoin(CustomerProduct, (ProgrammePlan.customer_id == CustomerProduct.customer_id) & (ProgrammePlan.product_code == CustomerProduct.product_code))\
+        .order_by(ProgrammePlan.id.desc()).all()
+        
     return jsonify([{
-        'id': p.id, 'po_no': p.po_no, 'customer_id': p.customer_id,
-        'product_code': p.product_code, 'status': p.status, 'qty': p.qty
+        'id': p.ProgrammePlan.id, 
+        'po_no': p.ProgrammePlan.po_no, 
+        'customer_id': p.ProgrammePlan.customer_id,
+        'customer_name': p.CustomerProduct.customer_name if p.CustomerProduct else 'Unknown',
+        'product_code': p.ProgrammePlan.product_code, 
+        'product_name': p.CustomerProduct.product_name if p.CustomerProduct else 'Unknown',
+        'status': p.ProgrammePlan.status, 
+        'qty': p.ProgrammePlan.qty,
+        'selected_reel_size': p.ProgrammePlan.selected_reel_size,
+        'selected_ups': p.ProgrammePlan.selected_ups,
+        'materials_json': p.ProgrammePlan.materials_json,
+        'cartoon_size': p.CustomerProduct.cartoon_size if p.CustomerProduct else 'Unknown',
+        'flute': p.CustomerProduct.flute if p.CustomerProduct else 'Unknown',
+        'ply': p.CustomerProduct.ply if p.CustomerProduct else 0,
+        'board_plant_form': p.ProgrammePlan.board_plant_form,
+        'printer_form': p.ProgrammePlan.printer_form,
+        'diecut_form': p.ProgrammePlan.diecut_form,
+        'semiauto_form': p.ProgrammePlan.semiauto_form,
+        'gluer_form': p.ProgrammePlan.gluer_form,
+        'stitching_form': p.ProgrammePlan.stitching_form,
+        'row_priority': p.ProgrammePlan.row_priority,
+        'finished_qty': p.ProgrammePlan.finished_qty,
+        'balance_qty': p.ProgrammePlan.balance_qty,
+        'balance_status': p.ProgrammePlan.balance_status,
+        'ad_number': p.ProgrammePlan.ad_number
     } for p in plans])
-    
+
 @app.route('/api/get_history_logs', methods=['GET'])
 def get_history_logs():
     logs = ReelHistory.query.order_by(ReelHistory.timestamp.desc()).limit(100).all()
@@ -1166,9 +1193,27 @@ def get_plan_details():
     plan_id = request.args.get('id')
     plan = ProgrammePlan.query.get(plan_id)
     if plan:
+        prod = CustomerProduct.query.filter_by(customer_id=plan.customer_id, product_code=plan.product_code).first()
         return jsonify({
-            'success': True, 'po_no': plan.po_no, 'status': plan.status,
-            'customer_id': plan.customer_id, 'qty': plan.qty
+            'success': True, 
+            'po_no': plan.po_no, 
+            'status': plan.status,
+            'customer_id': plan.customer_id, 
+            'customer_name': prod.customer_name if prod else 'Unknown',
+            'qty': plan.qty,
+            'selected_reel_size': plan.selected_reel_size,
+            'selected_ups': plan.selected_ups,
+            'materials_json': plan.materials_json,
+            'cartoon_size': prod.cartoon_size if prod else 'Unknown',
+            'flute': prod.flute if prod else 'Unknown',
+            'ply': prod.ply if prod else 0,
+            'board_plant_form': plan.board_plant_form,
+            'printer_form': plan.printer_form,
+            'diecut_form': plan.diecut_form,
+            'semiauto_form': plan.semiauto_form,
+            'gluer_form': plan.gluer_form,
+            'stitching_form': plan.stitching_form,
+            'row_priority': plan.row_priority
         })
     return jsonify({'success': False, 'message': 'Plan not found'})
 
