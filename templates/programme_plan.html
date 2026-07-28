@@ -306,11 +306,27 @@
         let globalBoxWidth = 0;
         let isTwoDimensions = false; 
         let activePlanSuggestedUps = 1;
-        const currentRole = document.getElementById('loggedRole') ? document.getElementById('loggedRole').innerText.trim().toLowerCase() : '';
+        const currentRole = document.getElementById('loggedRole').innerText.trim().toLowerCase();
         let globalAllPlans = {};
         let uiPriorities = { bpTabs: {}, printerRows: {} }; 
         const currentIsoDate = new Date().toISOString().split('T')[0];
 
+        // Helper function to safely parse plans payload from backend API
+        function normalizePlansData(data) {
+            let grouped = {};
+            if (Array.isArray(data)) {
+                data.forEach(p => {
+                    let sz = p.selected_reel_size || 'General';
+                    if (!grouped[sz]) grouped[sz] = [];
+                    grouped[sz].push(p);
+                });
+            } else if (typeof data === 'object' && data !== null) {
+                grouped = data;
+            }
+            return grouped;
+        }
+
+        // --- NEW CENTRALIZED RBAC LOGIC ---
         function canAct(stage) {
             if (currentRole === 'admin') return true;
             if (currentRole === 'programmer1' || currentRole === 'programmer2') {
@@ -336,11 +352,9 @@
         }
 
         const activeReels = [
-            {% if full_reels is defined and used_reels is defined %}
             {% for reel in full_reels + used_reels %}
             { type: {{ reel.reel_type|tojson if reel.reel_type else ""|tojson }}, name: {{ reel.material_name|tojson if reel.material_name else ""|tojson }} },
             {% endfor %}
-            {% endif %}
         ];
 
         const paperTypeMapping = {
@@ -527,25 +541,23 @@
                 body: JSON.stringify({ size: selectedReelSize, qty: currentQty, sheet_length: parsedSheetLength, materials: materialsArray })
             }).then(r=>r.json()).then(data => {
                 let html = '';
-                if(data && data.results) {
-                    data.results.forEach(res => {
-                        let icon = res.has_stock ? `<span class="tick-icon">&#10004; Passed</span>` : `<span class="cross-icon">&#10008; Short</span>`;
-                        let reqActionHtml = '-';
-                        if (res.shortage > 0 && currentRole === 'programmer1') {
-                            reqActionHtml = `<button class="btn btn-sm btn-danger py-0 fw-bold no-print" onclick="reqPackwellTransfer(${selectedReelSize}, '${res.name}')"><i class="bi bi-send-exclamation"></i> Req Packwell</button>`;
-                        }
-                        html += `<tr>
-                            <td class="fw-bold">${res.layer}</td>
-                            <td><strong>${res.name}</strong></td>
-                            <td>${res.gsm}</td>
-                            <td>${icon}</td>
-                            <td class="text-primary fw-bold">${res.required_weight} kg</td>
-                            <td class="text-success fw-bold">${res.available_stock} kg</td>
-                            <td><span class="badge ${res.shortage > 0 ? 'bg-danger':'bg-success'}">Shortage: ${res.shortage} kg</span></td>
-                            <td class="no-print">${reqActionHtml}</td>
-                        </tr>`;
-                    });
-                }
+                data.results.forEach(res => {
+                    let icon = res.has_stock ? `<span class="tick-icon">&#10004; Passed</span>` : `<span class="cross-icon">&#10008; Short</span>`;
+                    let reqActionHtml = '-';
+                    if (res.shortage > 0 && currentRole === 'programmer1') {
+                        reqActionHtml = `<button class="btn btn-sm btn-danger py-0 fw-bold no-print" onclick="reqPackwellTransfer(${selectedReelSize}, '${res.name}')"><i class="bi bi-send-exclamation"></i> Req Packwell</button>`;
+                    }
+                    html += `<tr>
+                        <td class="fw-bold">${res.layer}</td>
+                        <td><strong>${res.name}</strong></td>
+                        <td>${res.gsm}</td>
+                        <td>${icon}</td>
+                        <td class="text-primary fw-bold">${res.required_weight} kg</td>
+                        <td class="text-success fw-bold">${res.available_stock} kg</td>
+                        <td><span class="badge ${res.shortage > 0 ? 'bg-danger':'bg-success'}">Shortage: ${res.shortage} kg</span></td>
+                        <td class="no-print">${reqActionHtml}</td>
+                    </tr>`;
+                });
                 document.getElementById('detailedStockBody').innerHTML = html;
                 document.getElementById('stockStatusSummaryPanel').style.display = 'block';
             });
@@ -640,14 +652,18 @@
         }
 
         function validateAndTransferToBP(id) {
-            let displayQty = document.getElementById(`qty_display_${id}`).innerText;
-            let inputQty = document.getElementById(`qty_input_${id}`).value;
+            let displayElem = document.getElementById(`qty_display_${id}`);
+            let inputElem = document.getElementById(`qty_input_${id}`);
+            let displayQty = displayElem ? displayElem.innerText : '';
+            let inputQty = inputElem ? inputElem.value : '';
             let finalQty = parseInt(displayQty) || parseInt(inputQty);
 
             if (!finalQty || finalQty <= 0) {
                 alert("⚠️ Qty (Quantity) Input is Mandatory! Please enter and save the quantity before transferring.");
-                editQty(id);
-                document.getElementById(`qty_input_${id}`).focus();
+                if (inputElem) {
+                    editQty(id);
+                    inputElem.focus();
+                }
                 return;
             }
             transferPlan(id, 'Board Plant');
@@ -669,11 +685,11 @@
             }).then(r=>r.json()).then(res => {
                 if(res.success) {
                     alert(`✅ Successfully processed and transferred to Stage.`);
-                    if(formType === 'printer') document.getElementById('printers-tab')?.click();
-                    else if(formType === 'gluer' || formType === 'stitching') document.getElementById('finishing-tab')?.click();
-                    else if(formType === 'diecut' || formType === 'semiauto') document.getElementById('diecut-tab')?.click();
-                    else if(newStatus === 'Dispatched') document.getElementById('history-tab')?.click();
-                    else document.querySelector('.nav-link.active')?.click(); 
+                    if(formType === 'printer') document.getElementById('printers-tab').click();
+                    else if(formType === 'gluer' || formType === 'stitching') document.getElementById('finishing-tab').click();
+                    else if(formType === 'diecut' || formType === 'semiauto') document.getElementById('diecut-tab').click();
+                    else if(newStatus === 'Dispatched') document.getElementById('history-tab').click();
+                    else document.querySelector('.nav-link.active').click(); 
                 }
             });
         }
@@ -706,24 +722,17 @@
 
         // ---------- TAB RENDERERS ----------
         function renderRuntimePlansTable() {
-            fetch('/api/get_saved_plans')
-            .then(r => r.json())
-            .then(data => {
-                globalAllPlans = data;
+            fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
+                let groupedData = normalizePlansData(data);
+                globalAllPlans = groupedData;
                 let html = '';
                 let indexCounter = 0;
-
-                if (!data || Object.keys(data).length === 0) {
-                    document.getElementById('savedPlansWrapperContainer').innerHTML = `<div class="text-center text-muted p-4">No active live execution plans scheduled.</div>`;
-                    return;
-                }
-
-                for (const [size, plans] of Object.entries(data)) {
+                
+                for (const [size, plans] of Object.entries(groupedData)) {
                     if (!Array.isArray(plans)) continue;
-
                     let filtered = plans.filter(p => !p.status || p.status === 'Live Planning' || p.status === 'Draft');
-                    if (filtered.length === 0) continue;
-
+                    if(filtered.length === 0) continue;
+                    
                     indexCounter++;
                     let bandUniqueId = `size_band_block_${indexCounter}`;
                     html += `
@@ -743,25 +752,19 @@
                                     </tr>
                                 </thead>
                                 <tbody>`;
-
+                    
                     filtered.forEach(p => {
                         let cutLen = p.cut_length || p.sheet_length || 'N/A';
                         let sheetSizeCalculatedFormula = `${size} cm &times; ${cutLen} cm`;
                         
-                        // Safely parse materials
                         let mats = [];
                         if (Array.isArray(p.materials)) {
                             mats = p.materials;
                         } else if (typeof p.materials === 'string') {
                             try { mats = JSON.parse(p.materials); } catch(e) { mats = []; }
-                        } else if (p.materials_json) {
-                            try { mats = JSON.parse(p.materials_json); } catch(e) { mats = []; }
                         }
-
-                        let combinationSpecsString = mats.length > 0
-                            ? mats.map((m, i) => `L${i+1}: ${m.gsm || ''} - ${m.name || m.material_name || ''}`).join('<br>')
-                            : 'N/A';
-
+                        
+                        let combinationSpecsString = mats.map((m,i)=> `L${i+1}: ${(m && m.gsm) ? m.gsm : ''} - ${(m && m.name) ? m.name : ''}`).join('<br>');
                         let hasQty = p.qty && p.qty > 0;
                         
                         let qtyEditHtml = canAct('Live Planning') ? `
@@ -777,10 +780,10 @@
                             
                         html += `
                             <tr>
-                                <td class="fw-bold text-primary">${p.po_no || '-'}</td>
-                                <td class="text-start">${p.customer_name || p.customer_id || 'N/A'}</td>
+                                <td class="fw-bold text-primary">${p.po_no || ''}</td>
+                                <td class="text-start">${p.customer_name || ''}</td>
                                 <td class="fw-bold bg-light text-danger font-monospace">${sheetSizeCalculatedFormula}</td>
-                                <td><span class="badge bg-secondary">${p.ply || 3} Ply</span></td>
+                                <td><span class="badge bg-secondary">${p.ply || ''} Ply</span></td>
                                 <td class="text-start ps-2 font-monospace" style="font-size: 0.82rem;">${combinationSpecsString}</td>
                                 <td><div class="d-flex justify-content-center align-items-center">${qtyEditHtml}</div></td>
                                 <td class="text-muted text-start" style="font-size:0.82rem;">${p.remarks || 'N/A'}</td>
@@ -790,30 +793,31 @@
                     html += `</tbody></table></div></div>`;
                 }
                 document.getElementById('savedPlansWrapperContainer').innerHTML = html || `<div class="text-center text-muted p-4">No active live execution plans scheduled.</div>`;
-            })
-            .catch(err => {
-                console.error("Error loading plans:", err);
-                document.getElementById('savedPlansWrapperContainer').innerHTML = `<div class="text-center text-danger p-4"><i class="bi bi-exclamation-octagon fs-3 d-block mb-2"></i>Data load failed. Please verify API response.</div>`;
+            }).catch(err => {
+                console.error("Error rendering live planning table:", err);
+                document.getElementById('savedPlansWrapperContainer').innerHTML = `<div class="text-center text-muted p-4">No active live execution plans scheduled or error fetching data.</div>`;
             });
             
-            if(currentRole === 'viscor01' || currentRole === 'packwell01') document.getElementById('board-plant-tab')?.click();
-            if(currentRole === 'viscor02' || currentRole === 'packwell02') document.getElementById('printers-tab')?.click();
-            if(currentRole === 'viscor03' || currentRole === 'packwell03') document.getElementById('diecut-tab')?.click();
-            if(currentRole === 'viscor04' || currentRole === 'packwell04') document.getElementById('finishing-tab')?.click();
-            if(currentRole === 'viscor05' || currentRole === 'packwell05') document.getElementById('finished-tab')?.click();
+            if(currentRole === 'viscor01' || currentRole === 'packwell01') document.getElementById('board-plant-tab').click();
+            if(currentRole === 'viscor02' || currentRole === 'packwell02') document.getElementById('printers-tab').click();
+            if(currentRole === 'viscor03' || currentRole === 'packwell03') document.getElementById('diecut-tab').click();
+            if(currentRole === 'viscor04' || currentRole === 'packwell04') document.getElementById('finishing-tab').click();
+            if(currentRole === 'viscor05' || currentRole === 'packwell05') document.getElementById('finished-tab').click();
         }
 
         function renderBoardPlantTable() {
             document.getElementById('generic-tab-title').innerHTML = "<i class='bi bi-tools'></i> Board Plant Stage";
             fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
-                globalAllPlans = data;
+                let groupedData = normalizePlansData(data);
+                globalAllPlans = groupedData;
                 let hasAnyRecords = false;
                 
                 let navHtml = '<ul class="nav nav-pills mb-3" id="bp-size-tabs" role="tablist">';
                 let contentHtml = '<div class="tab-content" id="bp-size-tabsContent">';
                 
                 let first = true;
-                for (const [size, plans] of Object.entries(data)) {
+                for (const [size, plans] of Object.entries(groupedData)) {
+                    if (!Array.isArray(plans)) continue;
                     let bpPlans = plans.filter(p => p.status === 'Board Plant');
                     if (bpPlans.length === 0) continue;
                     
@@ -853,7 +857,8 @@
                     `;
 
                     bpPlans.forEach(p => {
-                        let sheetSizeCalculated = `${size} cm &times; ${p.cut_length || 'N/A'} cm`;
+                        let cutLen = p.cut_length || p.sheet_length || 'N/A';
+                        let sheetSizeCalculated = `${size} cm &times; ${cutLen} cm`;
                         let actHtml = canAct('Board Plant') ? `<button class="btn btn-sm btn-success fw-bold" onclick="showBoardPlantForm(${p.id})">Create a Job Card</button>` : `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
 
                         contentHtml += `
@@ -888,12 +893,24 @@
         function showBoardPlantForm(id) {
             document.getElementById(`job_card_row_${id}`).style.display = 'table-row';
             let plan;
-            for (const key in globalAllPlans) { let f = globalAllPlans[key].find(x => x.id === id); if(f) plan = f; }
+            for (const key in globalAllPlans) { 
+                if (Array.isArray(globalAllPlans[key])) {
+                    let f = globalAllPlans[key].find(x => x.id === id); 
+                    if(f) plan = f; 
+                }
+            }
             if(!plan) return;
+
+            let mats = [];
+            if (Array.isArray(plan.materials)) {
+                mats = plan.materials;
+            } else if (typeof plan.materials === 'string') {
+                try { mats = JSON.parse(plan.materials); } catch(e) { mats = []; }
+            }
 
             let reelRowsHtml = '';
             for(let i=1; i<=5; i++) {
-                let matName = (plan.materials && plan.materials[i-1]) ? plan.materials[i-1].name : '';
+                let matName = (mats && mats[i-1]) ? mats[i-1].name : '';
                 reelRowsHtml += `
                 <tr>
                     <td class="fw-bold">${i}</td>
@@ -992,7 +1009,8 @@
         function renderPrintersTable() {
             document.getElementById('generic-tab-title').innerHTML = "<i class='bi bi-printer'></i> Printers Stage";
             fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
-                globalAllPlans = data;
+                let groupedData = normalizePlansData(data);
+                globalAllPlans = groupedData;
                 
                 let html = `
                 <div class="mb-3 d-flex justify-content-between align-items-center">
@@ -1016,7 +1034,8 @@
                     <tbody>`;
                 
                 let hasRecords = false;
-                for (const [size, plans] of Object.entries(data)) {
+                for (const [size, plans] of Object.entries(groupedData)) {
+                    if (!Array.isArray(plans)) continue;
                     plans.filter(p => p.status === 'Printers').forEach(p => {
                         hasRecords = true;
                         let rowPriority = uiPriorities.printerRows[p.id] || '';
@@ -1065,7 +1084,12 @@
         function showPrinterForm(id) {
             document.getElementById(`print_card_row_${id}`).style.display = 'table-row';
             let plan;
-            for (const key in globalAllPlans) { let f = globalAllPlans[key].find(x => x.id === id); if(f) plan = f; }
+            for (const key in globalAllPlans) { 
+                if (Array.isArray(globalAllPlans[key])) {
+                    let f = globalAllPlans[key].find(x => x.id === id); 
+                    if(f) plan = f; 
+                }
+            }
             if(!plan) return;
 
             let formHtml = `
@@ -1161,9 +1185,10 @@
         function renderDieCutSemiAutoTable() {
             document.getElementById('generic-tab-title').innerHTML = "<i class='bi bi-gear'></i> Die Cut & Semi Auto Stage";
             fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
-                globalAllPlans = data;
-                let dcRows = buildSpecificRows(data, 'Die Cut', 'dc');
-                let saRows = buildSpecificRows(data, 'Semi Auto', 'sa');
+                let groupedData = normalizePlansData(data);
+                globalAllPlans = groupedData;
+                let dcRows = buildSpecificRows(groupedData, 'Die Cut', 'dc');
+                let saRows = buildSpecificRows(groupedData, 'Semi Auto', 'sa');
                 
                 let html = `
                 <div class="mb-3 d-flex justify-content-between align-items-center">
@@ -1199,6 +1224,7 @@
             let rows = '';
             let hasRecords = false;
             for (const [size, plans] of Object.entries(data)) {
+                if (!Array.isArray(plans)) continue;
                 plans.filter(p => p.status === statusVal).forEach(p => {
                     hasRecords = true;
                     let actionMethod = formPrefix === 'dc' ? `showDieCutForm(${p.id})` : `showSemiAutoForm(${p.id})`;
@@ -1220,7 +1246,12 @@
         function showDieCutForm(id) {
             document.getElementById(`dc_row_${id}`).style.display = 'table-row';
             let plan;
-            for (const key in globalAllPlans) { let f = globalAllPlans[key].find(x => x.id === id); if(f) plan = f; }
+            for (const key in globalAllPlans) { 
+                if (Array.isArray(globalAllPlans[key])) {
+                    let f = globalAllPlans[key].find(x => x.id === id); 
+                    if(f) plan = f; 
+                }
+            }
             if(!plan) return;
 
             let formHtml = `
@@ -1276,7 +1307,12 @@
         function showSemiAutoForm(id) {
             document.getElementById(`sa_row_${id}`).style.display = 'table-row';
             let plan;
-            for (const key in globalAllPlans) { let f = globalAllPlans[key].find(x => x.id === id); if(f) plan = f; }
+            for (const key in globalAllPlans) { 
+                if (Array.isArray(globalAllPlans[key])) {
+                    let f = globalAllPlans[key].find(x => x.id === id); 
+                    if(f) plan = f; 
+                }
+            }
             if(!plan) return;
 
             let formHtml = `
@@ -1346,12 +1382,14 @@
         function renderFinishingTable() {
             document.getElementById('generic-tab-title').innerHTML = "<i class='bi bi-boxes'></i> Finishing Stage";
             fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
-                globalAllPlans = data;
+                let groupedData = normalizePlansData(data);
+                globalAllPlans = groupedData;
                 
                 let gluerRows = ''; 
                 let stitchingRows = '';
                 
-                for (const [size, plans] of Object.entries(data)) {
+                for (const [size, plans] of Object.entries(groupedData)) {
+                    if (!Array.isArray(plans)) continue;
                     plans.filter(p => p.status === 'Gluer').forEach(p => {
                         let actHtml = canAct('Gluer') ? `<button class="btn btn-sm btn-success fw-bold shadow-sm" onclick="showGluerForm(${p.id})">Proceed Stage</button>` : `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
                         gluerRows += `
@@ -1407,7 +1445,13 @@
 
         function showGluerForm(id) {
             document.getElementById(`gluer_row_${id}`).style.display = 'table-row';
-            let plan; for (const k in globalAllPlans) { let f = globalAllPlans[k].find(x => x.id === id); if(f) plan = f; }
+            let plan; 
+            for (const k in globalAllPlans) { 
+                if (Array.isArray(globalAllPlans[k])) {
+                    let f = globalAllPlans[k].find(x => x.id === id); 
+                    if(f) plan = f; 
+                }
+            }
             if(!plan) return;
             let formHtml = `
             <div class="card card-body bg-light m-3 border-success text-start shadow-sm position-relative">
@@ -1443,7 +1487,13 @@
 
         function showStitchingForm(id) {
             document.getElementById(`stitching_row_${id}`).style.display = 'table-row';
-            let plan; for (const k in globalAllPlans) { let f = globalAllPlans[k].find(x => x.id === id); if(f) plan = f; }
+            let plan; 
+            for (const k in globalAllPlans) { 
+                if (Array.isArray(globalAllPlans[k])) {
+                    let f = globalAllPlans[k].find(x => x.id === id); 
+                    if(f) plan = f; 
+                }
+            }
             if(!plan) return;
             let formHtml = `
             <div class="card card-body bg-light m-3 border-success text-start shadow-sm position-relative">
@@ -1480,12 +1530,14 @@
         function renderGenericTable(stageName) {
             document.getElementById('generic-tab-title').innerHTML = `<i class='bi bi-check-circle'></i> ${stageName} Stage`;
             fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
+                let groupedData = normalizePlansData(data);
                 let html = `
                 <table class="table table-bordered table-striped align-middle text-center mb-0">
                     <thead class="table-dark small"><tr><th>PO No</th><th>Customer</th><th>Size</th><th>Qty</th><th>Action</th></tr></thead>
                     <tbody>`;
                 let hasRecords = false;
-                for (const [size, plans] of Object.entries(data)) {
+                for (const [size, plans] of Object.entries(groupedData)) {
+                    if (!Array.isArray(plans)) continue;
                     plans.filter(p => p.status === stageName).forEach(p => {
                         hasRecords = true;
                         let btnHtml = (stageName === 'Finished Goods' && canAct('Finished Goods')) ? 
@@ -1503,12 +1555,14 @@
         function renderBalancePOTable() {
             document.getElementById('generic-tab-title').innerHTML = "<i class='bi bi-exclamation-triangle-fill'></i> Balance PO Queue";
             fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
+                let groupedData = normalizePlansData(data);
                 let html = `
                 <table class="table table-bordered table-striped align-middle text-center mb-0">
                     <thead class="table-dark small"><tr><th>PO No</th><th>Customer</th><th>Original Qty</th><th>Balance Qty</th><th>Action</th></tr></thead>
                     <tbody>`;
                 let hasRecords = false;
-                for (const [size, plans] of Object.entries(data)) {
+                for (const [size, plans] of Object.entries(groupedData)) {
+                    if (!Array.isArray(plans)) continue;
                     plans.filter(p => p.status === 'Balance PO').forEach(p => {
                         hasRecords = true;
                         html += `<tr><td class="fw-bold text-primary">${p.po_no}</td><td>${p.customer_name}</td><td>${p.original_qty || '-'}</td><td><span class="badge bg-danger fs-6">${p.qty}</span></td>
@@ -1547,8 +1601,16 @@
                 let html = '';
                 data.forEach(p => {
                     let dStr = p.saved_at ? new Date(parseInt(p.saved_at)).toLocaleString() : '-';
-                    let matStr = (p.materials||[]).map((m,i)=>`L${i+1}:${m.name}`).join(', ');
-                    html += `<tr><td>${dStr}</td><td class="fw-bold">${p.po_no}</td><td>${p.customer_name}</td><td>${p.selected_reel_size}cm</td><td>${p.ply}</td><td>${p.qty}</td><td class="small">${matStr}</td><td><span class="badge bg-dark">${p.status}</span></td><td>${p.id}</td></tr>`;
+                    
+                    let mats = [];
+                    if (Array.isArray(p.materials)) {
+                        mats = p.materials;
+                    } else if (typeof p.materials === 'string') {
+                        try { mats = JSON.parse(p.materials); } catch(e) { mats = []; }
+                    }
+                    
+                    let matStr = mats.map((m,i)=>`L${i+1}:${m.name || ''}`).join(', ');
+                    html += `<tr><td>${dStr}</td><td class="fw-bold">${p.po_no || ''}</td><td>${p.customer_name || ''}</td><td>${p.selected_reel_size || ''}cm</td><td>${p.ply || ''}</td><td>${p.qty || ''}</td><td class="small">${matStr}</td><td><span class="badge bg-dark">${p.status || ''}</span></td><td>${p.id}</td></tr>`;
                 });
                 tbody.innerHTML = html;
                 filterHistoryTable();
