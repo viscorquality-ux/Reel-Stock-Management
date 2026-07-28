@@ -1221,25 +1221,26 @@ def get_plan_details():
 @app.route('/api/clear_temp_data', methods=['GET'])
 def clear_temp_data():
     try:
-        # මකා නොදැමිය යුතු Database Tables වල නම්
-        # (ඔබේ Database එකේ ඇති නිවැරදි නම් මෙහි යොදන්න. උදා: 'customer_product', 'active_stock')
-        tables_to_keep = ['customer_product', 'active_stock'] 
+        # මෙහි ඔබේ මකා දැමිය යුතු Models වල නම් පමණක් ඇතුළත් කරන්න
+        # (CustomerProduct සහ ActiveStock මෙයට ඇතුළත් නොකරන්න)
         
-        deleted_tables = []
-        for table in reversed(db.metadata.sorted_tables):
-            if table.name not in tables_to_keep:
-                db.session.execute(table.delete())
-                deleted_tables.append(table.name)
+        db.session.query(ProgrammePlan).delete()
+        db.session.query(ReelHistory).delete()
         
+        # තවත් මකා දැමිය යුතු Models තිබේ නම් පහතින් එකතු කරන්න
+        # db.session.query(YourOtherModelName).delete()
+
         db.session.commit()
         return jsonify({
             'success': True, 
-            'message': 'Data cleared successfully!',
-            'cleared_tables': deleted_tables
+            'message': 'Temporary data cleared successfully using Models!'
         })
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'message': str(e)})
+        return jsonify({
+            'success': False, 
+            'message': f'Error: {str(e)}'
+        })
 
 @app.route('/api/transfer_plan', methods=['POST'])
 def transfer_plan():
