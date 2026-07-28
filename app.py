@@ -128,7 +128,6 @@ with app.app_context():
         try:
             db.session.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}"))
             db.session.commit()
-            print(f"Added column {column} to {table}")
         except Exception:
             db.session.rollback()
             
@@ -467,7 +466,6 @@ def sr_request():
             excess_per_comp = excess_w_total / len(valid_materials)
 
             for idx, mat in enumerate(valid_materials):
-                # Corrected weight calculation from cm to m²
                 calc_weight = (((b_width * b_length) / 10000.0) * (mat['gsm'] / 1000.0)) / cartoon_amt * qty
                 if mat['comp_type'] == 'Corru':
                     calc_weight = calc_weight * 1.5
@@ -1114,8 +1112,6 @@ def check_stock_detailed():
     papers_data = db.session.query(Reel.material_name).filter(Reel.status.in_(['Full', 'Used'])).distinct().all()
     return jsonify({'results': results, 'all_papers': [p.material_name for p in papers_data]})
 
-
-# -- NEW ROUTE ADDED HERE TO FIX THE 404 ERROR --
 @app.route('/api/save_programme_plan', methods=['POST'])
 def save_programme_plan():
     data = request.json
@@ -1137,7 +1133,6 @@ def save_programme_plan():
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)})
-# -----------------------------------------------
 
 @app.route('/api/update_plan_qty', methods=['POST'])
 def update_plan_qty():
@@ -1177,7 +1172,6 @@ def get_plan_details():
         })
     return jsonify({'success': False, 'message': 'Plan not found'})
 
-# CORE SPLIT / TRANSFER API UPDATE (COMPLETED AND FIXED LOGIC)
 @app.route('/api/transfer_plan', methods=['POST'])
 def transfer_plan():
     data = request.json
@@ -1195,7 +1189,6 @@ def transfer_plan():
             if dispatch_type == 'partial' and 0 < dispatch_qty < plan.qty:
                 rem_qty = plan.qty - dispatch_qty
                 
-                # Dispatched Entry created for Audit History
                 dispatched_plan = ProgrammePlan(
                     po_no=plan.po_no, customer_id=plan.customer_id, product_code=plan.product_code,
                     selected_reel_size=plan.selected_reel_size, selected_ups=plan.selected_ups,
@@ -1210,7 +1203,6 @@ def transfer_plan():
                 )
                 db.session.add(dispatched_plan)
                 
-                # Update current plan with remaining Qty (stays in Finished Goods)
                 plan.qty = rem_qty
                 plan.finished_qty = rem_qty
             else:
@@ -1268,7 +1260,6 @@ def transfer_plan():
                 plan.finished_qty = f_qty
                 plan.balance_qty = b_qty
                 
-        # Handle initial stage transition logic
         if new_status == 'Board Plant' and plan.status in ['Live Planning', 'Draft'] and not form_type:
             prod = CustomerProduct.query.filter_by(customer_id=plan.customer_id, product_code=plan.product_code).first()
             cut_length = get_cut_length(prod.cartoon_size) if prod else 0
