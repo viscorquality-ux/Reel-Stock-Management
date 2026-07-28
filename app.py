@@ -136,7 +136,7 @@ with app.app_context():
         try:
             db.session.execute(text(f"ALTER TABLE {table} MODIFY COLUMN {column} LONGTEXT"))
             db.session.commit()
-        except Exception as e:
+        except Exception:
             db.session.rollback()
 
     add_column_if_not_exists("programme_plan", "materials_json", "LONGTEXT")
@@ -467,7 +467,8 @@ def sr_request():
             excess_per_comp = excess_w_total / len(valid_materials)
 
             for idx, mat in enumerate(valid_materials):
-                calc_weight = ((b_width * b_length) * (mat['gsm'] / 1000.0)) / cartoon_amt * qty
+                # Corrected weight calculation from cm to m²
+                calc_weight = (((b_width * b_length) / 10000.0) * (mat['gsm'] / 1000.0)) / cartoon_amt * qty
                 if mat['comp_type'] == 'Corru':
                     calc_weight = calc_weight * 1.5
 
@@ -540,7 +541,7 @@ def edit_sr(id):
         cartoon_amt = safe_float(request.form.get('cartoon_amount'), sr.cartoon_amount)
         if cartoon_amt <= 0: cartoon_amt = 1.0
             
-        calc_weight = ((b_width * b_length) * (gsm / 1000.0)) / cartoon_amt * qty
+        calc_weight = (((b_width * b_length) / 10000.0) * (gsm / 1000.0)) / cartoon_amt * qty
         if comp_type == 'Corru': calc_weight = calc_weight * 1.5
             
         sr.board_width = b_width
@@ -1123,7 +1124,6 @@ def update_plan_qty():
         return jsonify({'success': True})
     return jsonify({'success': False})
 
-# ADDED MISSING APIs FROM LOGS
 @app.route('/api/get_saved_plans', methods=['GET'])
 def get_saved_plans():
     plans = ProgrammePlan.query.order_by(ProgrammePlan.id.desc()).all()
@@ -1152,7 +1152,7 @@ def get_plan_details():
         })
     return jsonify({'success': False, 'message': 'Plan not found'})
 
-# CORE SPLIT / TRANSFER API UPDATE (FIXED)
+# CORE SPLIT / TRANSFER API UPDATE (COMPLETED AND FIXED LOGIC)
 @app.route('/api/transfer_plan', methods=['POST'])
 def transfer_plan():
     data = request.json
@@ -1223,8 +1223,8 @@ def transfer_plan():
             
             balance_target = form_data.get('balance_target', 'Board Plant')
             if process_balance == 'yes' and not form_data.get('balance_target'):
-                if form_type == 'printer': balance_target = 'Board Plant'
-                elif form_type == 'diecut' or form_type == 'semiauto': balance_target = 'Board Plant'
+                if form_type in ['printer', 'diecut', 'semiauto']: 
+                    balance_target = 'Board Plant'
             
             if b_qty > 0 and process_balance == 'yes':
                 new_plan = ProgrammePlan(
@@ -1243,11 +1243,20 @@ def transfer_plan():
                 plan.finished_qty = f_qty
                 plan.balance_qty = b_qty
                 
-        # FIXED: Completed the logic that was cut off
+        # Handle initial stage transition logic
         if new_status == 'Board Plant' and plan.status in ['Live Planning', 'Draft'] and not form_type:
             prod = CustomerProduct.query.filter_by(customer_id=plan.customer_id, product_code=plan.product_code).first()
             cut_length = get_cut_length(prod.cartoon_size) if prod else 0
             flute = prod.flute if prod else ''
+            
+            if not plan.board_plant_form:
+                initial_bp = {
+                    'cut_length': cut_length,
+                    'flute': flute,
+                    'finished_qty': 0,
+                    'balance_qty': plan.qty
+                }
+                plan.board_plant_form = json.dumps(initial_bp)
             plan.status = new_status
             
         elif new_status and not form_type:
@@ -1258,7 +1267,6 @@ def transfer_plan():
         
     return jsonify({'success': False, 'message': 'Plan not found'})
 
-# Ensure app runs correctly with gevent and web sockets for the Render deployment
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
     socketio.run(app, debug=True, host='0.0.0.0', port=port)
