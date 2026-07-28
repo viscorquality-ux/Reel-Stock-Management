@@ -1202,6 +1202,7 @@ def get_plan_details():
             'customer_name': prod.customer_name if prod else 'Unknown',
             'qty': plan.qty,
             'selected_reel_size': plan.selected_reel_size,
+            'cutting_length': p.ProgrammePlan.cutting_length,
             'selected_ups': plan.selected_ups,
             'materials_json': plan.materials_json,
             'cartoon_size': prod.cartoon_size if prod else 'Unknown',
