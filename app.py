@@ -981,28 +981,6 @@ def programme_plan():
                            used_reels=used_reels)
 
 # API ENDPOINTS FOR PRODUCTS
-@app.route('/api/clear_temp_data', methods=['GET'])
-def clear_temp_data():
-    try:
-        # 1. Programme Plan දත්ත මකා දැමීම
-        db.session.query(ProgrammePlan).delete()
-        
-        # 2. Reel History දත්ත මකා දැමීම
-        db.session.query(ReelHistory).delete()
-        
-        # 3. Reel Table එක සහ SrRequest අතර ඇති සම්බන්ධය ඉවත් කිරීම
-        # (මෙමගින් Active Stock එක මැකෙන්නේ නැත, සම්බන්ධය පමණක් ඉවත් වේ)
-        db.session.query(Reel).update({Reel.sr_request_id: None})
-        
-        # 4. දැන් ආරක්ෂිතව SR Request දත්ත මකා දැමීම
-        db.session.query(SRRequest).delete()
-        
-        db.session.commit()
-        return "✅ Temporary data and SR Requests cleared successfully!"
-    except Exception as e:
-        db.session.rollback()
-        return f"❌ Error occurred: {str(e)}"
-        
 @app.route('/api/get_products', methods=['GET'])
 def get_products():
     products = CustomerProduct.query.all()
