@@ -981,6 +981,19 @@ def programme_plan():
                            used_reels=used_reels)
 
 # API ENDPOINTS FOR PRODUCTS
+@app.route('/api/clear_temp_data', methods=['GET'])
+def clear_temp_data():
+    try:
+        # මකා දැමිය යුතු Tables වල දත්ත
+        db.session.query(ProgrammePlan).delete()
+        db.session.query(ReelHistory).delete()
+        
+        db.session.commit()
+        return "✅ Temporary data cleared successfully!"
+    except Exception as e:
+        db.session.rollback()
+        return f"❌ Error occurred: {str(e)}"
+        
 @app.route('/api/get_products', methods=['GET'])
 def get_products():
     products = CustomerProduct.query.all()
