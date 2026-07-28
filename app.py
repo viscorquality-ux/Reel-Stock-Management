@@ -995,7 +995,7 @@ def clear_temp_data():
         db.session.query(Reel).update({Reel.sr_request_id: None})
         
         # 4. දැන් ආරක්ෂිතව SR Request දත්ත මකා දැමීම
-        db.session.query(SrRequest).delete()
+        db.session.query(SRRequest).delete()
         
         db.session.commit()
         return "✅ Temporary data and SR Requests cleared successfully!"
