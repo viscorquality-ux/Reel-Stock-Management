@@ -1114,6 +1114,31 @@ def check_stock_detailed():
     papers_data = db.session.query(Reel.material_name).filter(Reel.status.in_(['Full', 'Used'])).distinct().all()
     return jsonify({'results': results, 'all_papers': [p.material_name for p in papers_data]})
 
+
+# -- NEW ROUTE ADDED HERE TO FIX THE 404 ERROR --
+@app.route('/api/save_programme_plan', methods=['POST'])
+def save_programme_plan():
+    data = request.json
+    try:
+        new_plan = ProgrammePlan(
+            po_no=data.get('po_no', ''),
+            customer_id=data.get('customer_id', ''),
+            product_code=data.get('product_code', ''),
+            selected_reel_size=safe_float(data.get('selected_reel_size')),
+            selected_ups=safe_int(data.get('selected_ups')),
+            qty=safe_int(data.get('qty', 0)),
+            materials_json=data.get('materials_json', ''), 
+            status=data.get('status', 'Draft'),
+            created_by=session.get('username', 'System')
+        )
+        db.session.add(new_plan)
+        db.session.commit()
+        return jsonify({'success': True, 'id': new_plan.id})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)})
+# -----------------------------------------------
+
 @app.route('/api/update_plan_qty', methods=['POST'])
 def update_plan_qty():
     data = request.json
