@@ -984,12 +984,18 @@ def programme_plan():
 @app.route('/api/clear_temp_data', methods=['GET'])
 def clear_temp_data():
     try:
-        # මකා දැමිය යුතු Tables වල දත්ත
+        # 1. Programme Plan දත්ත මකා දැමීම
         db.session.query(ProgrammePlan).delete()
+        
+        # 2. Reel History දත්ත මකා දැමීම
         db.session.query(ReelHistory).delete()
         
+        # 3. Active Stock හි SR Request දත්ත මකා දැමීම
+        # (ඔබේ app.py හි SR Request Model එකේ නම 'SrRequest' ලෙස නැත්නම් නිවැරදි නම යොදන්න)
+        db.session.query(SRRequest).delete() 
+        
         db.session.commit()
-        return "✅ Temporary data cleared successfully!"
+        return "✅ Temporary data and SR Requests cleared successfully!"
     except Exception as e:
         db.session.rollback()
         return f"❌ Error occurred: {str(e)}"
