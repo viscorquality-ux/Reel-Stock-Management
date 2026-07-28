@@ -232,6 +232,7 @@ def login():
             "viscor03": ("viscor@0123", "viscor03"),
             "viscor04": ("viscor@1234", "viscor04"),
             "viscor05": ("viscor@2345", "viscor05"),
+            # NEW PACKWELL USERS
             "packwell01": ("packwell@1234", "packwell01"),
             "packwell02": ("packwell@2345", "packwell02"),
             "packwell03": ("packwell@3456", "packwell03"),
@@ -1134,36 +1135,8 @@ def transfer_plan():
         form_type = data.get('form_type')
         
         if new_status == 'Dispatched':
-            ad_no = data.get('ad_number', '')
-            dispatch_type = data.get('dispatch_type', 'full')
-            dispatch_qty = safe_int(data.get('dispatch_qty'), plan.qty)
-            
-            if dispatch_type == 'partial' and 0 < dispatch_qty < plan.qty:
-                rem_qty = plan.qty - dispatch_qty
-                
-                # Dispatched Entry created for Audit History
-                dispatched_plan = ProgrammePlan(
-                    po_no=plan.po_no, customer_id=plan.customer_id, product_code=plan.product_code,
-                    selected_reel_size=plan.selected_reel_size, selected_ups=plan.selected_ups,
-                    qty=dispatch_qty, finished_qty=dispatch_qty, balance_qty=0,
-                    materials_json=plan.materials_json, status='Dispatched',
-                    balance_status=plan.balance_status, created_by=plan.created_by,
-                    created_at=plan.created_at, finished_at=datetime.now(colombo_tz),
-                    ad_number=ad_no, row_priority=plan.row_priority,
-                    board_plant_form=plan.board_plant_form, printer_form=plan.printer_form,
-                    diecut_form=plan.diecut_form, semiauto_form=plan.semiauto_form,
-                    gluer_form=plan.gluer_form, stitching_form=plan.stitching_form
-                )
-                db.session.add(dispatched_plan)
-                
-                # Update current plan with remaining Qty (stays in Finished Goods)
-                plan.qty = rem_qty
-                plan.finished_qty = rem_qty
-            else:
-                plan.ad_number = ad_no
-                plan.status = 'Dispatched'
-                plan.finished_at = datetime.now(colombo_tz)
-                
+            plan.ad_number = data.get('ad_number', '')
+            plan.status = 'Dispatched'
             db.session.commit()
             return jsonify({'success': True})
         
@@ -1286,7 +1259,7 @@ def get_saved_plans():
     
     query = ProgrammePlan.query
 
-    # ISOLATION LOGIC FOR PROGRAMMER 1 & 2
+    # --- ISOLATION LOGIC FOR PROGRAMMER 1 & 2 ---
     user_role = session.get('role')
     username = session.get('username')
     
@@ -1298,6 +1271,7 @@ def get_saved_plans():
         query = query.filter(ProgrammePlan.created_by == 'programmer1')
     elif user_role and user_role.startswith('packwell0'):
         query = query.filter(ProgrammePlan.created_by == 'programmer2')
+    # --------------------------------------------
 
     if start_date and end_date:
         try:
@@ -1341,18 +1315,14 @@ def get_saved_plans():
         })
     return jsonify(result)
 
-@app.route('/api/get_history_logs', methods=['GET'])
-def get_history_logs():
-    try:
-        # Database එකෙන් logs ලබාගන්නා code එක මෙතැනට යොදන්න
-        logs = get_all_history_logs()  # උදාහරණයක් ලෙස
-        return jsonify(logs), 200
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+@app.route('/api/get_historical_planning_records', methods=['GET'])
+def get_historical_planning_records():
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
     
     query = ProgrammePlan.query
 
-    # ISOLATION LOGIC FOR PROGRAMMER 1 & 2
+    # --- ISOLATION LOGIC FOR PROGRAMMER 1 & 2 ---
     user_role = session.get('role')
     username = session.get('username')
     
@@ -1364,6 +1334,7 @@ def get_history_logs():
         query = query.filter(ProgrammePlan.created_by == 'programmer1')
     elif user_role and user_role.startswith('packwell0'):
         query = query.filter(ProgrammePlan.created_by == 'programmer2')
+    # --------------------------------------------
 
     if start_date and end_date:
         try:
