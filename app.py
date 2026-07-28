@@ -990,9 +990,12 @@ def clear_temp_data():
         # 2. Reel History දත්ත මකා දැමීම
         db.session.query(ReelHistory).delete()
         
-        # 3. Active Stock හි SR Request දත්ත මකා දැමීම
-        # (ඔබේ app.py හි SR Request Model එකේ නම 'SrRequest' ලෙස නැත්නම් නිවැරදි නම යොදන්න)
-        db.session.query(SRRequest).delete() 
+        # 3. Reel Table එක සහ SrRequest අතර ඇති සම්බන්ධය ඉවත් කිරීම
+        # (මෙමගින් Active Stock එක මැකෙන්නේ නැත, සම්බන්ධය පමණක් ඉවත් වේ)
+        db.session.query(Reel).update({Reel.sr_request_id: None})
+        
+        # 4. දැන් ආරක්ෂිතව SR Request දත්ත මකා දැමීම
+        db.session.query(SrRequest).delete()
         
         db.session.commit()
         return "✅ Temporary data and SR Requests cleared successfully!"
