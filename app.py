@@ -1217,6 +1217,29 @@ def get_plan_details():
             'row_priority': plan.row_priority
         })
     return jsonify({'success': False, 'message': 'Plan not found'})
+    
+@app.route('/api/clear_temp_data', methods=['GET'])
+def clear_temp_data():
+    try:
+        # මකා නොදැමිය යුතු Database Tables වල නම්
+        # (ඔබේ Database එකේ ඇති නිවැරදි නම් මෙහි යොදන්න. උදා: 'customer_product', 'active_stock')
+        tables_to_keep = ['customer_product', 'active_stock'] 
+        
+        deleted_tables = []
+        for table in reversed(db.metadata.sorted_tables):
+            if table.name not in tables_to_keep:
+                db.session.execute(table.delete())
+                deleted_tables.append(table.name)
+        
+        db.session.commit()
+        return jsonify({
+            'success': True, 
+            'message': 'Data cleared successfully!',
+            'cleared_tables': deleted_tables
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)})
 
 @app.route('/api/transfer_plan', methods=['POST'])
 def transfer_plan():
