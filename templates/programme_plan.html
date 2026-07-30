@@ -339,6 +339,7 @@
         let selectedReelSize = 0;
         let globalBoxLength = 0;
         let globalBoxWidth = 0;
+        let globalBoxHeight = 0; 
         let isTwoDimensions = false; 
         let activePlanSuggestedUps = 1;
         const currentRole = document.getElementById('loggedRole') ? document.getElementById('loggedRole').innerText.trim().toLowerCase() : '';
@@ -350,6 +351,7 @@
         let isSampleMode = false;
         let sampleCustName = "";
         let globalSampleSheetLength = 0;
+        let globalRequiredSize = 0; // Added to handle manual reel calculations
 
         function canAct(stage) {
             if (currentRole === 'admin') return true;
@@ -486,12 +488,28 @@
                     
                     let optionsHtml = '';
                     if (data.options && Array.isArray(data.options)) {
+                        if (data.options.length > 0) {
+                            globalRequiredSize = parseFloat(data.options[0].required_size) || 0;
+                        }
+                        
                         data.options.forEach(o => {
                             optionsHtml += `<tr>
                                 <td class="fw-bold text-dark">${o.ups} Ups</td><td>${o.required_size} cm</td><td class="text-primary fw-bold">${o.suggested_reel} cm</td><td>${o.wastage} cm</td>
                                 <td><button class="btn btn-sm btn-primary fw-bold" onclick="selectSuggestedReelOption(${o.suggested_reel}, ${o.ups})">Select Option</button></td>
                             </tr>`;
                         });
+
+                        // Manual Reel Input Row Implementation
+                        if (globalRequiredSize > 0) {
+                            optionsHtml += `
+                            <tr class="table-warning">
+                                <td class="fw-bold text-dark" id="manualUpsDisplay">-</td>
+                                <td>${globalRequiredSize} cm</td>
+                                <td><input type="number" id="manualReelInput" class="form-control form-control-sm text-center fw-bold border-warning" placeholder="Enter Reel Size (Manual)" oninput="calculateManualReel()"></td>
+                                <td id="manualWasteDisplay" class="text-danger fw-bold">-</td>
+                                <td><button class="btn btn-sm btn-success fw-bold" id="manualSelectBtn" onclick="selectManualReel()" disabled>Select Manual Option</button></td>
+                            </tr>`;
+                        }
                     }
                     
                     const optsBody = document.getElementById('suggestedOptionsBody');
@@ -527,9 +545,9 @@
             targetPly = ply;
             globalBoxLength = l;
             globalBoxWidth = w;
+            globalBoxHeight = h; 
             isTwoDimensions = false;
 
-            // සාමාන්‍ය ක්‍රියාවලියට (Live Planning) සමානව Backend API එක හරහා දත්ත ලබා ගැනීම.
             fetch('/api/calculate_sample_options', {
                 method: 'POST',
                 headers: {
@@ -546,16 +564,26 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    globalSampleSheetLength = data.sheet_length;
+                    
+                    // Specific cutting length calculation mapped exactly based on ply config
+                    if (ply === 5) {
+                        globalSampleSheetLength = (globalBoxWidth + globalBoxHeight) * 2 + 7;
+                    } else {
+                        globalSampleSheetLength = (globalBoxWidth + globalBoxHeight) * 2 + 6;
+                    }
                     
                     const summaryEl = document.getElementById('selectedMetaSummary');
                     if (summaryEl) {
                         summaryEl.style.display = 'block';
-                        summaryEl.innerHTML = `<i class="bi bi-box-seam"></i> Sample Box: ${custName} | Ply: ${ply} | Sheet Length: ${globalSampleSheetLength} cm`;
+                        summaryEl.innerHTML = `<i class="bi bi-box-seam"></i> Sample Box: ${custName} | Ply: ${ply} | Cutting Length: ${globalSampleSheetLength} cm`;
                     }
 
                     let optionsHtml = '';
                     if (data.options && Array.isArray(data.options)) {
+                        if (data.options.length > 0) {
+                            globalRequiredSize = parseFloat(data.options[0].required_size) || 0;
+                        }
+
                         data.options.forEach(o => {
                             optionsHtml += `<tr>
                                 <td class="fw-bold text-dark">${o.ups} Ups</td>
@@ -565,6 +593,18 @@
                                 <td><button class="btn btn-sm btn-primary fw-bold" onclick="selectSuggestedReelOption(${o.suggested_reel}, ${o.ups})">Select Option</button></td>
                             </tr>`;
                         });
+
+                        // Manual Reel Input Row Implementation
+                        if (globalRequiredSize > 0) {
+                            optionsHtml += `
+                            <tr class="table-warning">
+                                <td class="fw-bold text-dark" id="manualUpsDisplay">-</td>
+                                <td>${globalRequiredSize} cm</td>
+                                <td><input type="number" id="manualReelInput" class="form-control form-control-sm text-center fw-bold border-warning" placeholder="Enter Reel Size (Manual)" oninput="calculateManualReel()"></td>
+                                <td id="manualWasteDisplay" class="text-danger fw-bold">-</td>
+                                <td><button class="btn btn-sm btn-success fw-bold" id="manualSelectBtn" onclick="selectManualReel()" disabled>Select Manual Option</button></td>
+                            </tr>`;
+                        }
                     }
                     
                     const optsBody = document.getElementById('suggestedOptionsBody');
@@ -586,6 +626,37 @@
             selectedReelSize = size;
             activePlanSuggestedUps = ups;
             buildCombinationCustomizerRows();
+        }
+
+        // Feature: Support calculate and select manual custom reel size
+        function calculateManualReel() {
+            let manualReel = parseFloat(document.getElementById('manualReelInput').value);
+            if (!manualReel || manualReel <= 0 || !globalRequiredSize) {
+                document.getElementById('manualUpsDisplay').innerText = '-';
+                document.getElementById('manualWasteDisplay').innerText = '-';
+                document.getElementById('manualSelectBtn').disabled = true;
+                return;
+            }
+            let ups = Math.floor(manualReel / globalRequiredSize);
+            if (ups < 1) {
+                document.getElementById('manualUpsDisplay').innerText = '0 Ups';
+                document.getElementById('manualWasteDisplay').innerText = 'Invalid';
+                document.getElementById('manualSelectBtn').disabled = true;
+            } else {
+                let waste = manualReel - (globalRequiredSize * ups);
+                document.getElementById('manualUpsDisplay').innerText = ups + ' Ups';
+                document.getElementById('manualWasteDisplay').innerText = waste.toFixed(2) + ' cm';
+                document.getElementById('manualSelectBtn').disabled = false;
+                document.getElementById('manualSelectBtn').setAttribute('data-size', manualReel);
+                document.getElementById('manualSelectBtn').setAttribute('data-ups', ups);
+            }
+        }
+
+        function selectManualReel() {
+            let btn = document.getElementById('manualSelectBtn');
+            let size = parseFloat(btn.getAttribute('data-size'));
+            let ups = parseInt(btn.getAttribute('data-ups'));
+            selectSuggestedReelOption(size, ups);
         }
 
         function filterPaperNamesByLayerType(layerIndex) {
@@ -653,7 +724,11 @@
             
             let parsedSheetLength;
             if (isSampleMode) {
-                parsedSheetLength = globalSampleSheetLength;
+                if (targetPly === 5) {
+                    parsedSheetLength = (globalBoxWidth + globalBoxHeight) * 2 + 7;
+                } else {
+                    parsedSheetLength = (globalBoxWidth + globalBoxHeight) * 2 + 6;
+                }
             } else {
                 parsedSheetLength = isTwoDimensions ? (globalBoxLength + 2) : ((globalBoxWidth + globalBoxLength) * 2 + 6);
             }
@@ -702,18 +777,24 @@
             });
             
             let parsedSheetLength;
-            let poNo, custId, prodCode;
+            let poNo, custId, prodCode, cName;
 
             if (isSampleMode) {
-                parsedSheetLength = globalSampleSheetLength;
+                if (targetPly === 5) {
+                    parsedSheetLength = (globalBoxWidth + globalBoxHeight) * 2 + 7;
+                } else {
+                    parsedSheetLength = (globalBoxWidth + globalBoxHeight) * 2 + 6;
+                }
                 poNo = "SMPL-" + Math.floor(1000 + Math.random() * 9000); 
                 custId = sampleCustName;
+                cName = sampleCustName; // Explicitly map to DB Customer Name field
                 prodCode = "SAMPLE-BOX";
             } else {
                 parsedSheetLength = isTwoDimensions ? (globalBoxLength + 2) : ((globalBoxWidth + globalBoxLength) * 2 + 6);
                 poNo = document.getElementById('po_no').value.trim();
                 custId = document.getElementById('customer_id').value.trim();
                 prodCode = document.getElementById('product_code').value.trim();
+                cName = undefined; // System handles native extraction
             }
             
             const payload = {
@@ -726,6 +807,11 @@
                 sheet_length: parsedSheetLength,
                 materials: materialsArray
             };
+
+            // Force push custom customer name field to ensure correct DB logging for SMPL items
+            if (cName !== undefined) {
+                payload.customer_name = cName;
+            }
             
             fetch('/api/save_programme_plan', {
                 method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
@@ -1673,7 +1759,7 @@
                     </div>
                     
                     <div class="d-flex justify-content-end gap-2 mt-3">
-                        <button type="submit" class="btn btn-primary fw-bold px-4">Save & Complete Stitching Stage (To Finished Goods)</button>
+                        <button type="submit" class="btn btn-primary fw-bold px-4">Save & Complete Stitching Stage</button>
                     </div>
                 </form>
             </div>`;
@@ -1702,83 +1788,104 @@
         }
 
         function renderBalancePOTable() {
-            document.getElementById('generic-tab-title').innerHTML = "<i class='bi bi-exclamation-triangle-fill text-warning me-1'></i> Balance PO Stage";
-            fetch('/api/get_saved_plans').then(r => r.json()).then(data => {
-                globalAllPlans = data;
+            document.getElementById('generic-tab-title').innerHTML = "<i class='bi bi-exclamation-triangle-fill text-warning'></i> Balance PO Dashboard";
+            fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
                 let html = `
-                <table class="table table-bordered table-striped align-middle text-center mb-0">
+                <div class="mb-3 d-flex justify-content-between align-items-center">
+                    <span class="text-secondary fw-bold"><i class="bi bi-funnel"></i> Filter Job Cards</span>
+                    <div class="input-group shadow-sm w-25">
+                        <span class="input-group-text bg-warning text-dark border-warning"><i class="bi bi-search"></i></span>
+                        <input type="text" id="balanceSearch" class="form-control border-warning" placeholder="Search PO No..." onkeyup="filterByPONo('balanceTable', 'balanceSearch', 0)">
+                    </div>
+                </div>
+                <div class="table-responsive">
+                <table id="balanceTable" class="table table-bordered table-striped align-middle text-center mb-0">
                     <thead class="table-dark small">
-                        <tr>
-                            <th>PO No</th>
-                            <th>Customer Name</th>
-                            <th>Sheet Size / Reel</th>
-                            <th>Ply</th>
-                            <th>Balance Qty</th>
-                            <th>Action</th>
-                        </tr>
+                        <tr><th>PO No</th><th>Customer</th><th>Size Config</th><th>Ply</th><th>Missing Balance Qty</th><th>Requested Stage Target</th><th>Remarks</th><th>Action</th></tr>
                     </thead>
                     <tbody>`;
+                
                 let hasRecords = false;
                 for (const [size, plans] of Object.entries(data)) {
                     plans.filter(p => p.status === 'Balance PO').forEach(p => {
                         hasRecords = true;
+                        let config = `${size} cm &times; ${p.cut_length || 'N/A'} cm`;
                         let actHtml = canAct('Balance PO') ? 
-                            `<button class="btn btn-sm btn-primary fw-bold" onclick="transferPlan(${p.id}, 'Board Plant')">Re-Transfer to Board Plant</button>` : 
-                            `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
+                            `<button class="btn btn-sm btn-primary fw-bold px-3 py-1 text-uppercase" onclick="reTriggerBalancePO(${p.id}, '${p.target_stage_for_balance || 'Board Plant'}')">Send to ${p.target_stage_for_balance || 'Board Plant'}</button>` 
+                            : `<span class="badge bg-secondary">View Only</span>`;
                         html += `
                         <tr>
-                            <td class="fw-bold text-primary">${p.po_no}</td>
-                            <td>${p.customer_name}</td>
-                            <td>${size} cm</td>
-                            <td><span class="badge bg-secondary">${p.ply} Ply</span></td>
-                            <td><span class="badge bg-danger fs-6">${p.qty}</span></td>
+                            <td class="fw-bold text-danger">${p.po_no}</td><td>${p.customer_name}</td>
+                            <td class="font-monospace">${config}</td><td><span class="badge bg-secondary">${p.ply} Ply</span></td>
+                            <td><span class="badge bg-warning text-dark fs-6">${p.qty}</span></td>
+                            <td class="fw-bold text-primary">${p.target_stage_for_balance || 'Board Plant'}</td>
+                            <td class="small text-muted">${p.remarks || 'Insufficient completion at previous stage'}</td>
                             <td>${actHtml}</td>
                         </tr>`;
                     });
                 }
-                html += `</tbody></table>`;
-                document.getElementById('generic-stage-container').innerHTML = hasRecords ? html : "<p class='text-muted p-3'>No active Balance PO jobs pending.</p>";
+                html += `</tbody></table></div>`;
+                document.getElementById('generic-stage-container').innerHTML = hasRecords ? html : "<div class="text-center text-muted p-4">No Balance POs pending.</div>";
             });
         }
 
-        function renderGenericTable(stageName) {
-            document.getElementById('generic-tab-title').innerHTML = `<i class='bi bi-box-seam me-1'></i> ${stageName} Stage`;
-            fetch('/api/get_saved_plans').then(r => r.json()).then(data => {
-                globalAllPlans = data;
+        function reTriggerBalancePO(id, targetStage) {
+            if(!confirm(`Are you sure you want to push this Balance PO to ${targetStage}?`)) return;
+            fetch('/api/transfer_plan', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ id: id, status: targetStage, form_type: 'balance_push' })
+            }).then(r=>r.json()).then(res => {
+                if(res.success) {
+                    alert(`✅ Balance PO successfully routed to ${targetStage}!`);
+                    renderBalancePOTable();
+                }
+            });
+        }
+
+        function renderGenericTable(status) {
+            let icon = 'bi-check-circle-fill';
+            document.getElementById('generic-tab-title').innerHTML = `<i class='bi ${icon} text-success'></i> ${status} Stage Dashboard`;
+            
+            fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
                 let html = `
-                <table class="table table-bordered table-striped align-middle text-center mb-0">
+                <div class="mb-3 d-flex justify-content-between align-items-center">
+                    <span class="text-secondary fw-bold"><i class="bi bi-funnel"></i> Filter Job Cards</span>
+                    <div class="input-group shadow-sm w-25">
+                        <span class="input-group-text bg-dark text-white border-dark"><i class="bi bi-search"></i></span>
+                        <input type="text" id="genericSearch" class="form-control border-dark" placeholder="Search PO No..." onkeyup="filterByPONo('genericTable', 'genericSearch', 0)">
+                    </div>
+                </div>
+                <div class="table-responsive">
+                <table id="genericTable" class="table table-bordered table-striped align-middle text-center mb-0">
                     <thead class="table-dark small">
-                        <tr>
-                            <th>PO No</th>
-                            <th>Customer & Product</th>
-                            <th>Qty</th>
-                            <th>AD Number</th>
-                            <th>Action</th>
-                        </tr>
+                        <tr><th>PO No</th><th>Customer</th><th>Size Config</th><th>Ply</th><th>Final Qty</th><th>Integrated Prod Doc</th><th>Dispatch AD Form</th></tr>
                     </thead>
                     <tbody>`;
+                
                 let hasRecords = false;
                 for (const [size, plans] of Object.entries(data)) {
-                    plans.filter(p => p.status === stageName).forEach(p => {
+                    plans.filter(p => p.status === status).forEach(p => {
                         hasRecords = true;
-                        let actHtml = canAct(stageName) ? 
-                            `<div class="d-flex justify-content-center gap-2">
-                                <input type="text" id="ad_no_${p.id}" class="form-control form-control-sm" style="max-width:140px;" placeholder="AD Number">
-                                <button class="btn btn-sm btn-success fw-bold" onclick="dispatchFinishedGoods(${p.id})">Dispatch Job</button>
-                            </div>` : 
-                            `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
+                        let config = `${size} cm &times; ${p.cut_length || 'N/A'} cm`;
+                        
+                        let actHtml = canAct(status) ? `
+                            <div class="input-group input-group-sm mx-auto" style="max-width: 200px;">
+                                <input type="text" id="ad_no_${p.id}" class="form-control border-primary fw-bold" placeholder="AD No..." required>
+                                <button class="btn btn-primary fw-bold" onclick="dispatchFinishedGoods(${p.id})">Dispatch</button>
+                            </div>` : `<span class="badge bg-secondary">View Only</span>`;
+
                         html += `
                         <tr>
-                            <td class="fw-bold text-primary">${p.po_no}</td>
-                            <td>${p.customer_name} - ${p.product_name||''}</td>
+                            <td class="fw-bold text-primary">${p.po_no}</td><td>${p.customer_name}</td>
+                            <td class="font-monospace">${config}</td><td><span class="badge bg-secondary">${p.ply} Ply</span></td>
                             <td><span class="badge bg-success fs-6">${p.qty}</span></td>
-                            <td class="text-muted">${p.ad_number || 'Pending'}</td>
+                            <td><button class="btn btn-sm btn-outline-dark fw-bold shadow-sm" onclick="viewStageAttachment(${p.id})"><i class="bi bi-file-earmark-text text-danger"></i> View Log</button></td>
                             <td>${actHtml}</td>
                         </tr>`;
                     });
                 }
-                html += `</tbody></table>`;
-                document.getElementById('generic-stage-container').innerHTML = hasRecords ? html : `<p class='text-muted p-3'>No jobs currently in ${stageName}.</p>`;
+                html += `</tbody></table></div>`;
+                document.getElementById('generic-stage-container').innerHTML = hasRecords ? html : "<p class='text-muted p-3'>No items available here.</p>";
             });
         }
 
@@ -1789,73 +1896,93 @@
                 document.getElementById('historySearchPO').value = '';
                 document.getElementById('historySearchCustomer').value = '';
             }
-            const sDate = document.getElementById('historyStartDate') ? document.getElementById('historyStartDate').value : '';
-            const eDate = document.getElementById('historyEndDate') ? document.getElementById('historyEndDate').value : '';
 
-            fetch(`/api/get_history_logs?start=${sDate}&end=${eDate}`)
-            .then(r => r.json())
-            .then(data => {
-                let html = '';
-                if (data && data.length > 0) {
-                    data.forEach(item => {
-                        html += `
-                        <tr>
-                            <td>${item.timestamp || item.created_at || '-'}</td>
-                            <td class="fw-bold text-primary">${item.po_no}</td>
-                            <td>${item.customer_name}</td>
-                            <td>${item.size || '-'}</td>
-                            <td>${item.ply || '-'}</td>
-                            <td>${item.qty || '-'}</td>
-                            <td class="small text-start">${item.materials || '-'}</td>
-                            <td><span class="badge bg-success">${item.status || 'Dispatched'}</span></td>
-                            <td>${item.ad_number || '-'}</td>
-                        </tr>`;
-                    });
-                } else {
-                    html = `<tr><td colspan="9" class="text-muted py-4">No history logs found for the selected filter.</td></tr>`;
+            let start = document.getElementById('historyStartDate').value;
+            let end = document.getElementById('historyEndDate').value;
+            let url = '/api/get_plan_history';
+            
+            if (start && end) url += `?start=${start}&end=${end}`;
+
+            fetch(url).then(r=>r.json()).then(data => {
+                let tbody = document.getElementById('historyLogsTableBody');
+                if(!data || data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="9" class="text-muted py-4">No historical logs found for this timeframe.</td></tr>';
+                    return;
                 }
-                document.getElementById('historyLogsTableBody').innerHTML = html;
-            })
-            .catch(err => {
-                document.getElementById('historyLogsTableBody').innerHTML = `<tr><td colspan="9" class="text-muted py-4">No history records loaded.</td></tr>`;
+
+                let html = '';
+                data.forEach(p => {
+                    let dateStr = new Date(p.created_at).toLocaleString();
+                    let combinationSpecsString = (p.materials && Array.isArray(p.materials)) ? p.materials.map((m,i)=> `L${i+1}: ${m.gsm}-${m.name}`).join('<br>') : '-';
+                    html += `
+                    <tr>
+                        <td class="text-muted" style="font-size:0.8rem;">${dateStr}</td>
+                        <td class="fw-bold text-primary">${p.po_no}</td>
+                        <td class="text-start">${p.customer_name}</td>
+                        <td class="font-monospace bg-light">${p.selected_reel_size} &times; ${p.cut_length || 'N/A'}</td>
+                        <td>${p.ply} Ply</td>
+                        <td class="fw-bold">${p.qty}</td>
+                        <td class="text-start font-monospace" style="font-size:0.75rem;">${combinationSpecsString}</td>
+                        <td><span class="badge bg-success px-2 py-1"><i class="bi bi-check2-all"></i> Dispatched</span></td>
+                        <td class="fw-bold text-danger">${p.ad_number || 'N/A'}</td>
+                    </tr>
+                    `;
+                });
+                tbody.innerHTML = html;
+                filterHistoryTable();
             });
         }
 
         function viewStageAttachment(id) {
             let plan;
-            for (const key in globalAllPlans) {
-                let f = globalAllPlans[key].find(x => x.id === id);
-                if (f) plan = f;
+            for (const key in globalAllPlans) { let f = globalAllPlans[key].find(x => x.id === id); if(f) plan = f; }
+            if(!plan) return;
+
+            let c = `<div class="container-fluid p-2">
+                        <div class="row mb-4 bg-light p-3 rounded border">
+                            <div class="col-3"><strong>PO No:</strong> <br><span class="text-primary fw-bold">${plan.po_no}</span></div>
+                            <div class="col-4"><strong>Customer:</strong> <br>${plan.customer_name}</div>
+                            <div class="col-3"><strong>Final Qty:</strong> <br><span class="badge bg-danger fs-6">${plan.qty}</span></div>
+                            <div class="col-2"><strong>Ply:</strong> <br>${plan.ply} Ply</div>
+                        </div>`;
+            
+            if(plan.board_plant_form) c += buildLogCard('Board Plant Entry', plan.board_plant_form, 'secondary');
+            if(plan.printer_form) c += buildLogCard('Printers Entry', plan.printer_form, 'success');
+            if(plan.diecut_form) c += buildLogCard('Die Cut Entry', plan.diecut_form, 'primary');
+            if(plan.semiauto_form) c += buildLogCard('Semi Auto Entry', plan.semiauto_form, 'secondary');
+            if(plan.gluer_form) c += buildLogCard('Gluer Entry', plan.gluer_form, 'success');
+            if(plan.stitching_form) c += buildLogCard('Stitching Entry', plan.stitching_form, 'primary');
+
+            if(!plan.board_plant_form && !plan.printer_form && !plan.diecut_form && !plan.semiauto_form && !plan.gluer_form && !plan.stitching_form) {
+                c += `<div class="alert alert-info">No production stage data recorded yet.</div>`;
             }
-            if (!plan) return;
 
-            let bodyHtml = `
-            <div class="p-3">
-                <h5 class="text-primary fw-bold border-bottom pb-2">Plan / Stage Info Details</h5>
-                <div class="row g-3">
-                    <div class="col-md-4"><strong>PO Number:</strong> ${plan.po_no}</div>
-                    <div class="col-md-4"><strong>Customer:</strong> ${plan.customer_name}</div>
-                    <div class="col-md-4"><strong>Product Code:</strong> ${plan.product_name || plan.product_code || 'N/A'}</div>
-                    <div class="col-md-4"><strong>Ply:</strong> ${plan.ply}</div>
-                    <div class="col-md-4"><strong>Qty:</strong> ${plan.qty}</div>
-                    <div class="col-md-4"><strong>Current Status:</strong> <span class="badge bg-info">${plan.status}</span></div>
-                </div>
-                <hr>
-                <h6 class="fw-bold">Stage Execution Log Data:</h6>
-                <pre class="bg-light p-3 border rounded small">${JSON.stringify(plan, null, 2)}</pre>
-            </div>`;
-
-            document.getElementById('attachmentModalBody').innerHTML = bodyHtml;
-            let modal = new bootstrap.Modal(document.getElementById('viewAttachmentModal'));
-            modal.show();
+            c += `</div>`;
+            document.getElementById('attachmentModalBody').innerHTML = c;
+            new bootstrap.Modal(document.getElementById('viewAttachmentModal')).show();
         }
 
-        // Initialize table on page load
-        document.addEventListener('DOMContentLoaded', () => {
-            if (document.getElementById('live-planning-tab')) {
-                renderRuntimePlansTable();
+        function buildLogCard(title, dataObj, color) {
+            let trs = '';
+            for(let key in dataObj) {
+                if(key === 'saved_at' || key === 'target_tab' || key === 'po_no' || key === 'cust_prod' || key === 'qty') continue;
+                let displayKey = key.replace(/_/g, ' ').toUpperCase();
+                trs += `<tr><th class="w-50 bg-light small text-muted">${displayKey}</th><td class="fw-bold small">${dataObj[key]}</td></tr>`;
             }
-        });
+            let ts = dataObj.saved_at ? new Date(parseInt(dataObj.saved_at)).toLocaleString() : 'N/A';
+            return `
+            <div class="card mb-3 border-${color} shadow-sm">
+                <div class="card-header bg-${color} text-white py-2 d-flex justify-content-between align-items-center">
+                    <span class="fw-bold">${title}</span>
+                    <span class="badge bg-white text-dark small">Saved: ${ts}</span>
+                </div>
+                <div class="card-body p-0 table-responsive">
+                    <table class="table table-bordered table-sm mb-0"><tbody>${trs}</tbody></table>
+                </div>
+            </div>`;
+        }
+
+        socket.on('stock_matrix_update', () => { renderRuntimePlansTable(); });
     </script>
 </body>
 </html>
