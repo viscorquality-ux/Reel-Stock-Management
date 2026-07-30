@@ -116,11 +116,11 @@
             {% endif %}
 
             {% if session.get('role') in ['admin', 'programmer1', 'programmer2', 'super1', 'super2', 'viscor04', 'packwell04'] %}
-           <li class="nav-item" role="presentation">
-    			<button class="nav-link fw-bold text-uppercase {% if session.get('role') in ['viscor04', 'packwell04'] %}active{% endif %}" id="finishing-tab" data-bs-toggle="tab" data-bs-target="#generic-tab-content" type="button" role="tab" onclick="renderFinishingTable()">
-        			4. Finishing Stage
-    			</button>
-			</li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link fw-bold text-uppercase {% if session.get('role') in ['viscor04', 'packwell04'] %}active{% endif %}" id="finishing-tab" data-bs-toggle="tab" data-bs-target="#generic-tab-content" type="button" role="tab" onclick="renderFinishingTable()">
+                    4. Finishing Stage
+                </button>
+            </li>
             {% endif %}
 
             {% if session.get('role') in ['admin', 'programmer1', 'programmer2', 'super1', 'super2'] %}
@@ -174,7 +174,7 @@
                             </div>
                         </div>
                         
-                        <!-- NEW SAMPLE MEMO BOX -->
+                        <!-- SAMPLE MEMO BOX -->
                         <div class="card border-0 shadow-sm mb-4" id="sampleMemoPanel">
                             <div class="card-header bg-success text-white fw-bold py-3"><i class="bi bi-box-seam me-1"></i> Sample Memo Box</div>
                             <div class="card-body p-4 bg-light-subtle">
@@ -327,7 +327,7 @@
             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body" id="attachmentModalBody">
-             </div>
+          </div>
         </div>
       </div>
     </div>
@@ -341,16 +341,15 @@
         let globalBoxWidth = 0;
         let isTwoDimensions = false; 
         let activePlanSuggestedUps = 1;
-        const currentRole = document.getElementById('loggedRole').innerText.trim().toLowerCase();
+        const currentRole = document.getElementById('loggedRole') ? document.getElementById('loggedRole').innerText.trim().toLowerCase() : '';
         let globalAllPlans = {};
         let uiPriorities = { bpTabs: {}, printerRows: {} }; 
         const currentIsoDate = new Date().toISOString().split('T')[0];
 
-        // --- NEW VARIABLES FOR SAMPLE MEMO ---
+        // --- VARIABLES FOR SAMPLE MEMO ---
         let isSampleMode = false;
         let sampleCustName = "";
         let globalSampleSheetLength = 0;
-        // -------------------------------------
 
         function canAct(stage) {
             if (currentRole === 'admin') return true;
@@ -403,7 +402,9 @@
         }
 
         function filterByPONo(tableId, inputId, colIndex = 0) {
-            let filter = document.getElementById(inputId).value.toUpperCase();
+            let inputEl = document.getElementById(inputId);
+            if (!inputEl) return;
+            let filter = inputEl.value.toUpperCase();
             let table = document.getElementById(tableId);
             if(!table) return;
             let tr = table.getElementsByTagName("tr");
@@ -457,43 +458,64 @@
 
         function searchMasterProduct() {
             isSampleMode = false;
-            const cid = document.getElementById('customer_id').value.trim();
-            const pcode = document.getElementById('product_code').value.trim();
+            const po = document.getElementById('po_no') ? document.getElementById('po_no').value.trim() : "";
+            const cid = document.getElementById('customer_id') ? document.getElementById('customer_id').value.trim() : "";
+            const pcode = document.getElementById('product_code') ? document.getElementById('product_code').value.trim() : "";
             
-            fetch(`/api/get_product_info?customer_id=${cid}&product_code=${pcode}`)
-            .then(r=>r.json()).then(data => {
+            if (!cid && !pcode && !po) {
+                alert("⚠️ Please enter PO Number, Customer Reference ID, or Product Match Code.");
+                return;
+            }
+
+            fetch(`/api/get_product_info?po_no=${encodeURIComponent(po)}&customer_id=${encodeURIComponent(cid)}&product_code=${encodeURIComponent(pcode)}`)
+            .then(r => r.json())
+            .then(data => {
                 if(data.success) {
-                    targetPly = data.ply;
+                    targetPly = data.ply || 3;
                     let dims = data.carton_size ? data.carton_size.match(/\d+\.?\d*/g) : (data.cartoon_size ? data.cartoon_size.match(/\d+\.?\d*/g) : null);
                     
                     globalBoxLength = dims && dims.length > 0 ? parseFloat(dims[0]) : 30;
                     globalBoxWidth = dims && dims.length > 1 ? parseFloat(dims[1]) : 20;
                     isTwoDimensions = dims && dims.length === 2; 
 
-                    document.getElementById('selectedMetaSummary').style.display = 'block';
-                    document.getElementById('selectedMetaSummary').innerHTML = `<i class="bi bi-info-circle"></i> Loaded Matrix: ${data.customer_name} | Ply: ${data.ply} | Flute: ${data.flute}`;
+                    const summaryEl = document.getElementById('selectedMetaSummary');
+                    if (summaryEl) {
+                        summaryEl.style.display = 'block';
+                        summaryEl.innerHTML = `<i class="bi bi-info-circle"></i> Loaded Matrix: ${data.customer_name || 'N/A'} | Ply: ${data.ply || 3} | Flute: ${data.flute || 'N/A'}`;
+                    }
                     
                     let optionsHtml = '';
-                    data.options.forEach(o => {
-                        optionsHtml += `<tr>
-                            <td class="fw-bold text-dark">${o.ups} Ups</td><td>${o.required_size} cm</td><td class="text-primary fw-bold">${o.suggested_reel} cm</td><td>${o.wastage} cm</td>
-                            <td><button class="btn btn-sm btn-primary fw-bold" onclick="selectSuggestedReelOption(${o.suggested_reel}, ${o.ups})">Select Option</button></td>
-                        </tr>`;
-                    });
-                    document.getElementById('suggestedOptionsBody').innerHTML = optionsHtml;
-                    document.getElementById('optionsCardPanel').style.display = 'block';
-                } else { alert(data.message); }
+                    if (data.options && Array.isArray(data.options)) {
+                        data.options.forEach(o => {
+                            optionsHtml += `<tr>
+                                <td class="fw-bold text-dark">${o.ups} Ups</td><td>${o.required_size} cm</td><td class="text-primary fw-bold">${o.suggested_reel} cm</td><td>${o.wastage} cm</td>
+                                <td><button class="btn btn-sm btn-primary fw-bold" onclick="selectSuggestedReelOption(${o.suggested_reel}, ${o.ups})">Select Option</button></td>
+                            </tr>`;
+                        });
+                    }
+                    
+                    const optsBody = document.getElementById('suggestedOptionsBody');
+                    if (optsBody) optsBody.innerHTML = optionsHtml;
+                    
+                    const optsPanel = document.getElementById('optionsCardPanel');
+                    if (optsPanel) optsPanel.style.display = 'block';
+                } else { 
+                    alert(data.message || "Product specification not found."); 
+                }
+            })
+            .catch(err => {
+                console.error("Error searching master product:", err);
+                alert("❌ Error fetching product specification matrix.");
             });
         }
 
-        // --- NEW FUNCTION: CALCULATE SAMPLE MEMO ---
         function calculateSampleMemo() {
-            let custName = document.getElementById('sample_customer').value.trim();
+            let custName = document.getElementById('sample_customer') ? document.getElementById('sample_customer').value.trim() : "";
             let l = parseFloat(document.getElementById('sample_l').value) || 0;
             let w = parseFloat(document.getElementById('sample_w').value) || 0;
             let h = parseFloat(document.getElementById('sample_h').value) || 0;
-            let ply = parseInt(document.getElementById('sample_ply').value);
-            let pos = document.getElementById('sample_pos').value.toLowerCase();
+            let ply = parseInt(document.getElementById('sample_ply').value) || 3;
+            let pos = (document.getElementById('sample_pos').value || 'internal').toLowerCase();
 
             if (!custName || l <= 0 || w <= 0 || h <= 0) {
                 alert("⚠️ Please enter Customer Name and valid dimensions (L, W, H).");
@@ -510,8 +532,11 @@
             let extra = (ply === 3) ? 6 : (ply === 5 ? 7 : 6);
             globalSampleSheetLength = (l + w) * 2 + extra;
             
-            document.getElementById('selectedMetaSummary').style.display = 'block';
-            document.getElementById('selectedMetaSummary').innerHTML = `<i class="bi bi-box-seam"></i> Sample Box: ${custName} | Ply: ${ply} | Sheet Length: ${globalSampleSheetLength} cm`;
+            const summaryEl = document.getElementById('selectedMetaSummary');
+            if (summaryEl) {
+                summaryEl.style.display = 'block';
+                summaryEl.innerHTML = `<i class="bi bi-box-seam"></i> Sample Box: ${custName} | Ply: ${ply} | Sheet Length: ${globalSampleSheetLength} cm`;
+            }
 
             let optionsHtml = '';
             for (let ups = 1; ups <= 5; ups++) {
@@ -543,10 +568,12 @@
                 }
             }
             
-            document.getElementById('suggestedOptionsBody').innerHTML = optionsHtml;
-            document.getElementById('optionsCardPanel').style.display = 'block';
+            const optsBody = document.getElementById('suggestedOptionsBody');
+            if (optsBody) optsBody.innerHTML = optionsHtml;
+            
+            const optsPanel = document.getElementById('optionsCardPanel');
+            if (optsPanel) optsPanel.style.display = 'block';
         }
-        // -------------------------------------------
 
         function selectSuggestedReelOption(size, ups) {
             selectedReelSize = size;
@@ -636,23 +663,25 @@
                 body: JSON.stringify({ size: selectedReelSize, qty: currentQty, sheet_length: parsedSheetLength, materials: materialsArray })
             }).then(r=>r.json()).then(data => {
                 let html = '';
-                data.results.forEach(res => {
-                    let icon = res.has_stock ? `<span class="tick-icon">&#10004; Passed</span>` : `<span class="cross-icon">&#10008; Short</span>`;
-                    let reqActionHtml = '-';
-                    if (res.shortage > 0 && currentRole === 'programmer1') {
-                        reqActionHtml = `<button class="btn btn-sm btn-danger py-0 fw-bold no-print" onclick="reqPackwellTransfer(${selectedReelSize}, '${res.name}')"><i class="bi bi-send-exclamation"></i> Req Packwell</button>`;
-                    }
-                    html += `<tr>
-                        <td class="fw-bold">${res.layer}</td>
-                        <td><strong>${res.name}</strong></td>
-                        <td>${res.gsm}</td>
-                        <td>${icon}</td>
-                        <td class="text-primary fw-bold">${res.required_weight} kg</td>
-                        <td class="text-success fw-bold">${res.available_stock} kg</td>
-                        <td><span class="badge ${res.shortage > 0 ? 'bg-danger':'bg-success'}">Shortage: ${res.shortage} kg</span></td>
-                        <td class="no-print">${reqActionHtml}</td>
-                    </tr>`;
-                });
+                if (data.results) {
+                    data.results.forEach(res => {
+                        let icon = res.has_stock ? `<span class="tick-icon">&#10004; Passed</span>` : `<span class="cross-icon">&#10008; Short</span>`;
+                        let reqActionHtml = '-';
+                        if (res.shortage > 0 && currentRole === 'programmer1') {
+                            reqActionHtml = `<button class="btn btn-sm btn-danger py-0 fw-bold no-print" onclick="reqPackwellTransfer(${selectedReelSize}, '${res.name}')"><i class="bi bi-send-exclamation"></i> Req Packwell</button>`;
+                        }
+                        html += `<tr>
+                            <td class="fw-bold">${res.layer}</td>
+                            <td><strong>${res.name}</strong></td>
+                            <td>${res.gsm}</td>
+                            <td>${icon}</td>
+                            <td class="text-primary fw-bold">${res.required_weight} kg</td>
+                            <td class="text-success fw-bold">${res.available_stock} kg</td>
+                            <td><span class="badge ${res.shortage > 0 ? 'bg-danger':'bg-success'}">Shortage: ${res.shortage} kg</span></td>
+                            <td class="no-print">${reqActionHtml}</td>
+                        </tr>`;
+                    });
+                }
                 document.getElementById('detailedStockBody').innerHTML = html;
                 document.getElementById('stockStatusSummaryPanel').style.display = 'block';
             });
@@ -842,7 +871,7 @@
                     
                     filtered.forEach(p => {
                         let sheetSizeCalculatedFormula = `${size} cm &times; ${p.cut_length || 'N/A'} cm`;
-                        let combinationSpecsString = p.materials.map((m,i)=> `L${i+1}: ${m.gsm} - ${m.name}`).join('<br>');
+                        let combinationSpecsString = p.materials ? p.materials.map((m,i)=> `L${i+1}: ${m.gsm} - ${m.name}`).join('<br>') : '';
                         let hasQty = p.qty && p.qty > 0;
                         
                         let qtyEditHtml = canAct('Live Planning') ? `
@@ -1002,8 +1031,8 @@
                         </div>
                         <div class="col-md-5 text-center border-start border-end">
                             <span class="small text-muted fw-bold d-block text-uppercase">Customer / Product Name</span>
-                            <span class="fw-bold text-dark fs-6">${plan.customer_name} - ${plan.product_name}</span>
-                            <input type="hidden" name="cust_prod" value="${plan.customer_name} - ${plan.product_name}">
+                            <span class="fw-bold text-dark fs-6">${plan.customer_name} - ${plan.product_name||''}</span>
+                            <input type="hidden" name="cust_prod" value="${plan.customer_name} - ${plan.product_name||''}">
                         </div>
                         <div class="col-md-3 text-center">
                             <span class="small text-muted fw-bold d-block text-uppercase">Programme Qty</span>
@@ -1114,7 +1143,7 @@
                                 <input type="number" class="form-control form-control-sm mx-auto text-center" style="width: 55px; font-size: 0.85rem;" min="1" placeholder="#" onchange="uiPriorities.printerRows['${p.id}'] = this.value" value="${rowPriority}">
                             </td>
                             <td class="fw-bold text-primary">${p.po_no}</td>
-                            <td>${p.customer_name} - ${p.product_name}</td>
+                            <td>${p.customer_name} - ${p.product_name||''}</td>
                             <td><span class="badge bg-secondary fs-6">${p.qty}</span></td>
                             <td><button class="btn btn-sm btn-outline-info fw-bold" onclick="viewStageAttachment(${p.id})"><i class="bi bi-eye"></i> View Log</button></td>
                             <td>${actHtml}</td>
@@ -1125,7 +1154,7 @@
                     });
                 }
                 html += `</tbody></table>`;
-                document.getElementById('generic-stage-container').innerHTML = hasRecords ? html : "<p class='text-muted'>No jobs in Printers.</p>";
+                document.getElementById('generic-stage-container').innerHTML = hasRecords ? html : "<p class='text-muted p-3'>No jobs in Printers.</p>";
             });
         }
 
@@ -1443,7 +1472,7 @@
                         let actHtml = canAct('Gluer') ? `<button class="btn btn-sm btn-success fw-bold shadow-sm" onclick="showGluerForm(${p.id})">Proceed Stage</button>` : `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
                         gluerRows += `
                         <tr>
-                            <td class="fw-bold text-primary">${p.po_no}</td><td>${p.customer_name} - ${p.product_name}</td><td><span class="badge bg-secondary fs-6">${p.qty}</span></td>
+                            <td class="fw-bold text-primary">${p.po_no}</td><td>${p.customer_name} - ${p.product_name||''}</td><td><span class="badge bg-secondary fs-6">${p.qty}</span></td>
                             <td><button class="btn btn-sm btn-info fw-bold text-white shadow-sm" onclick="viewStageAttachment(${p.id})"><i class="bi bi-file-earmark-text"></i> View Log</button></td>
                             <td>${actHtml}</td>
                         </tr>
@@ -1454,7 +1483,7 @@
                         let actHtml = canAct('Stitching') ? `<button class="btn btn-sm btn-primary fw-bold shadow-sm" onclick="showStitchingForm(${p.id})">Proceed Stage</button>` : `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
                         stitchingRows += `
                         <tr>
-                            <td class="fw-bold text-primary">${p.po_no}</td><td>${p.customer_name} - ${p.product_name}</td><td><span class="badge bg-secondary fs-6">${p.qty}</span></td>
+                            <td class="fw-bold text-primary">${p.po_no}</td><td>${p.customer_name} - ${p.product_name||''}</td><td><span class="badge bg-secondary fs-6">${p.qty}</span></td>
                             <td><button class="btn btn-sm btn-info fw-bold text-white shadow-sm" onclick="viewStageAttachment(${p.id})"><i class="bi bi-file-earmark-text"></i> View Log</button></td>
                             <td>${actHtml}</td>
                         </tr>
@@ -1637,7 +1666,7 @@
                     </div>
                     
                     <div class="d-flex justify-content-end gap-2 mt-3">
-                        <button type="submit" class="btn btn-dark fw-bold px-4">Save & Complete Stitching Stage (To Finished Goods)</button>
+                        <button type="submit" class="btn btn-primary fw-bold px-4">Save & Complete Stitching Stage (To Finished Goods)</button>
                     </div>
                 </form>
             </div>`;
@@ -1666,94 +1695,83 @@
         }
 
         function renderBalancePOTable() {
-            document.getElementById('generic-tab-title').innerHTML = "<i class='bi bi-exclamation-triangle-fill text-warning'></i> Balance PO Dashboard";
-            fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
+            document.getElementById('generic-tab-title').innerHTML = "<i class='bi bi-exclamation-triangle-fill text-warning me-1'></i> Balance PO Stage";
+            fetch('/api/get_saved_plans').then(r => r.json()).then(data => {
                 globalAllPlans = data;
                 let html = `
                 <table class="table table-bordered table-striped align-middle text-center mb-0">
                     <thead class="table-dark small">
                         <tr>
-                            <th>Original PO No</th>
-                            <th>Customer & Product</th>
-                            <th>Requested Stage (Target)</th>
-                            <th>Original Qty</th>
-                            <th>Balance Qty (New Target)</th>
+                            <th>PO No</th>
+                            <th>Customer Name</th>
+                            <th>Sheet Size / Reel</th>
+                            <th>Ply</th>
+                            <th>Balance Qty</th>
                             <th>Action</th>
                         </tr>
                     </thead>
                     <tbody>`;
-                
                 let hasRecords = false;
                 for (const [size, plans] of Object.entries(data)) {
                     plans.filter(p => p.status === 'Balance PO').forEach(p => {
                         hasRecords = true;
-                        let bStage = p.balance_target_stage || 'Live Planning';
-                        let actHtml = canAct('Balance PO') ? `<button class="btn btn-sm btn-warning fw-bold text-dark" onclick="processBalancePO(${p.id}, '${bStage}')">Release to ${bStage}</button>` : `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
-                        
+                        let actHtml = canAct('Balance PO') ? 
+                            `<button class="btn btn-sm btn-primary fw-bold" onclick="transferPlan(${p.id}, 'Board Plant')">Re-Transfer to Board Plant</button>` : 
+                            `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
                         html += `
                         <tr>
-                            <td class="fw-bold text-danger">${p.po_no} (BAL)</td>
-                            <td>${p.customer_name} - ${p.product_name}</td>
-                            <td><span class="badge bg-danger fs-6">${bStage}</span></td>
-                            <td><span class="text-muted text-decoration-line-through">${p.original_qty || '-'}</span></td>
-                            <td><span class="badge bg-danger fs-5">${p.qty}</span></td>
+                            <td class="fw-bold text-primary">${p.po_no}</td>
+                            <td>${p.customer_name}</td>
+                            <td>${size} cm</td>
+                            <td><span class="badge bg-secondary">${p.ply} Ply</span></td>
+                            <td><span class="badge bg-danger fs-6">${p.qty}</span></td>
                             <td>${actHtml}</td>
                         </tr>`;
                     });
                 }
                 html += `</tbody></table>`;
-                document.getElementById('generic-stage-container').innerHTML = hasRecords ? html : "<div class="text-center text-muted p-4"><i class='bi bi-check-circle fs-3 d-block mb-2'></i>No Balance PO requests currently pending.</div>";
+                document.getElementById('generic-stage-container').innerHTML = hasRecords ? html : "<p class='text-muted p-3'>No active Balance PO jobs pending.</p>";
             });
         }
 
-        function processBalancePO(id, targetStage) {
-            if(!confirm(`Are you sure you want to release this Balance PO back to the ${targetStage} stage?`)) return;
-            fetch('/api/transfer_plan', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ id: id, status: targetStage })
-            }).then(r=>r.json()).then(res => {
-                if(res.success) {
-                    alert(`✅ Balance PO successfully released to ${targetStage}!`);
-                    document.getElementById('balance-tab').click();
-                }
-            });
-        }
-
-        function renderGenericTable(statusVal) {
-            document.getElementById('generic-tab-title').innerText = statusVal + " Stage";
-            fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
+        function renderGenericTable(stageName) {
+            document.getElementById('generic-tab-title').innerHTML = `<i class='bi bi-box-seam me-1'></i> ${stageName} Stage`;
+            fetch('/api/get_saved_plans').then(r => r.json()).then(data => {
                 globalAllPlans = data;
                 let html = `
-                <div class="mb-3 d-flex justify-content-between align-items-center">
-                    <span class="text-secondary fw-bold"><i class="bi bi-funnel"></i> Filter Finished Job Cards</span>
-                    <div class="input-group shadow-sm w-25">
-                        <span class="input-group-text bg-dark text-white border-dark"><i class="bi bi-search"></i></span>
-                        <input type="text" id="finishedSearch" class="form-control border-dark" placeholder="Search PO No..." onkeyup="filterByPONo('finishedTable', 'finishedSearch', 0)">
-                    </div>
-                </div>
-                <table id="finishedTable" class="table table-bordered table-striped align-middle text-center mb-0">
-                    <thead class="table-dark small"><tr><th>PO No</th><th>Customer</th><th>Size</th><th>Qty</th><th>Attachment</th><th>Action</th></tr></thead>
+                <table class="table table-bordered table-striped align-middle text-center mb-0">
+                    <thead class="table-dark small">
+                        <tr>
+                            <th>PO No</th>
+                            <th>Customer & Product</th>
+                            <th>Qty</th>
+                            <th>AD Number</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
                     <tbody>`;
                 let hasRecords = false;
                 for (const [size, plans] of Object.entries(data)) {
-                    plans.filter(p => p.status === statusVal).forEach(p => {
+                    plans.filter(p => p.status === stageName).forEach(p => {
                         hasRecords = true;
-                        let actHtml = canAct('Finished Goods') ? `
-                            <div class="d-flex justify-content-center align-items-center gap-2">
-                                <input type="text" id="ad_no_${p.id}" class="form-control form-control-sm border-dark fw-bold text-center" style="max-width:130px;" placeholder="Manual AD No">
-                                <button class="btn btn-sm btn-dark fw-bold px-3 shadow-sm" onclick="dispatchFinishedGoods(${p.id})"><i class="bi bi-truck me-1"></i> Dispatch</button>
-                            </div>` : `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
-                        
+                        let actHtml = canAct(stageName) ? 
+                            `<div class="d-flex justify-content-center gap-2">
+                                <input type="text" id="ad_no_${p.id}" class="form-control form-control-sm" style="max-width:140px;" placeholder="AD Number">
+                                <button class="btn btn-sm btn-success fw-bold" onclick="dispatchFinishedGoods(${p.id})">Dispatch Job</button>
+                            </div>` : 
+                            `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
                         html += `
                         <tr>
-                            <td class="fw-bold text-success">${p.po_no}</td><td>${p.customer_name}</td><td>${size} cm</td><td><span class="badge bg-success fs-6">${p.qty}</span></td>
-                            <td><button class="btn btn-sm btn-outline-dark fw-bold" onclick="viewStageAttachment(${p.id})"><i class="bi bi-file-earmark-text"></i> View Log</button></td>
+                            <td class="fw-bold text-primary">${p.po_no}</td>
+                            <td>${p.customer_name} - ${p.product_name||''}</td>
+                            <td><span class="badge bg-success fs-6">${p.qty}</span></td>
+                            <td class="text-muted">${p.ad_number || 'Pending'}</td>
                             <td>${actHtml}</td>
                         </tr>`;
                     });
                 }
                 html += `</tbody></table>`;
-                document.getElementById('generic-stage-container').innerHTML = hasRecords ? html : "<p class='text-muted'>No jobs in Finished Goods.</p>";
+                document.getElementById('generic-stage-container').innerHTML = hasRecords ? html : `<p class='text-muted p-3'>No jobs currently in ${stageName}.</p>`;
             });
         }
 
@@ -1764,92 +1782,73 @@
                 document.getElementById('historySearchPO').value = '';
                 document.getElementById('historySearchCustomer').value = '';
             }
-            let sDate = document.getElementById('historyStartDate').value;
-            let eDate = document.getElementById('historyEndDate').value;
-            let url = '/api/get_history_logs';
-            if (sDate || eDate) url += `?start=${sDate}&end=${eDate}`;
+            const sDate = document.getElementById('historyStartDate') ? document.getElementById('historyStartDate').value : '';
+            const eDate = document.getElementById('historyEndDate') ? document.getElementById('historyEndDate').value : '';
 
-            fetch(url).then(r=>r.json()).then(data => {
-                globalAllPlans = { "History": data }; 
+            fetch(`/api/get_history_logs?start=${sDate}&end=${eDate}`)
+            .then(r => r.json())
+            .then(data => {
                 let html = '';
-                if(data.length === 0) {
-                    html = '<tr><td colspan="9" class="text-muted py-4">No history records found for the selected filter.</td></tr>';
-                } else {
-                    data.forEach(p => {
-                        let sheetSizeCalculated = p.cut_length ? `${p.reel_size} cm &times; ${p.cut_length} cm` : `${p.reel_size} cm (Reel)`;
-                        let combinationSpecsString = (p.materials && Array.isArray(p.materials)) ? p.materials.map((m,i)=> `L${i+1}: ${m.gsm} - ${m.name}`).join('<br>') : '-';
-                        let localTime = new Date(p.created_at).toLocaleString();
-                        
+                if (data && data.length > 0) {
+                    data.forEach(item => {
                         html += `
                         <tr>
-                            <td class="text-muted" style="font-size:0.75rem;">${localTime}</td>
-                            <td class="fw-bold text-dark">${p.po_no}</td>
-                            <td>${p.customer_name}</td>
-                            <td class="fw-bold text-danger font-monospace" style="font-size:0.8rem;">${sheetSizeCalculated}</td>
-                            <td><span class="badge bg-secondary">${p.ply} Ply</span></td>
-                            <td><span class="badge bg-dark fs-6">${p.qty}</span></td>
-                            <td class="text-start font-monospace" style="font-size: 0.75rem;">${combinationSpecsString}</td>
-                            <td><span class="badge bg-success"><i class="bi bi-check-circle me-1"></i> Dispatched</span><br><button class="btn btn-sm btn-link p-0 mt-1" style="font-size:0.75rem;" onclick="viewStageAttachment(${p.id})">View Forms</button></td>
-                            <td class="fw-bold text-primary">${p.ad_number || 'N/A'}</td>
-                        </tr>
-                        <tr id="history_row_${p.id}" style="display:none;" class="no-print bg-light">
-                            <td colspan="9" class="p-3 border-0 text-start" id="history_container_${p.id}"></td>
+                            <td>${item.timestamp || item.created_at || '-'}</td>
+                            <td class="fw-bold text-primary">${item.po_no}</td>
+                            <td>${item.customer_name}</td>
+                            <td>${item.size || '-'}</td>
+                            <td>${item.ply || '-'}</td>
+                            <td>${item.qty || '-'}</td>
+                            <td class="small text-start">${item.materials || '-'}</td>
+                            <td><span class="badge bg-success">${item.status || 'Dispatched'}</span></td>
+                            <td>${item.ad_number || '-'}</td>
                         </tr>`;
                     });
+                } else {
+                    html = `<tr><td colspan="9" class="text-muted py-4">No history logs found for the selected filter.</td></tr>`;
                 }
                 document.getElementById('historyLogsTableBody').innerHTML = html;
-                if(!reset) filterHistoryTable(); 
+            })
+            .catch(err => {
+                document.getElementById('historyLogsTableBody').innerHTML = `<tr><td colspan="9" class="text-muted py-4">No history records loaded.</td></tr>`;
             });
         }
 
         function viewStageAttachment(id) {
             let plan;
-            for (const key in globalAllPlans) { let f = globalAllPlans[key].find(x => x.id === id); if(f) plan = f; }
-            if(!plan) { alert("Data could not be loaded for attachment view."); return; }
+            for (const key in globalAllPlans) {
+                let f = globalAllPlans[key].find(x => x.id === id);
+                if (f) plan = f;
+            }
+            if (!plan) return;
 
-            let bodyHtml = `<div class="row g-3">`;
+            let bodyHtml = `
+            <div class="p-3">
+                <h5 class="text-primary fw-bold border-bottom pb-2">Plan / Stage Info Details</h5>
+                <div class="row g-3">
+                    <div class="col-md-4"><strong>PO Number:</strong> ${plan.po_no}</div>
+                    <div class="col-md-4"><strong>Customer:</strong> ${plan.customer_name}</div>
+                    <div class="col-md-4"><strong>Product Code:</strong> ${plan.product_name || plan.product_code || 'N/A'}</div>
+                    <div class="col-md-4"><strong>Ply:</strong> ${plan.ply}</div>
+                    <div class="col-md-4"><strong>Qty:</strong> ${plan.qty}</div>
+                    <div class="col-md-4"><strong>Current Status:</strong> <span class="badge bg-info">${plan.status}</span></div>
+                </div>
+                <hr>
+                <h6 class="fw-bold">Stage Execution Log Data:</h6>
+                <pre class="bg-light p-3 border rounded small">${JSON.stringify(plan, null, 2)}</pre>
+            </div>`;
 
-            if(plan.board_plant_form) {
-                bodyHtml += `<div class="col-md-12"><div class="card border-primary shadow-sm"><div class="card-header bg-primary text-white fw-bold py-2"><i class="bi bi-tools me-2"></i>Board Plant Quality Entry</div><div class="card-body p-3 small"><pre class="mb-0 bg-light p-2 rounded border" style="white-space: pre-wrap; font-family: monospace;">${JSON.stringify(plan.board_plant_form, null, 2)}</pre></div></div></div>`;
-            }
-            if(plan.printer_form) {
-                bodyHtml += `<div class="col-md-12"><div class="card border-success shadow-sm"><div class="card-header bg-success text-white fw-bold py-2"><i class="bi bi-printer me-2"></i>Printer Stage Entry</div><div class="card-body p-3 small"><pre class="mb-0 bg-light p-2 rounded border" style="white-space: pre-wrap; font-family: monospace;">${JSON.stringify(plan.printer_form, null, 2)}</pre></div></div></div>`;
-            }
-            if(plan.diecut_form) {
-                bodyHtml += `<div class="col-md-12"><div class="card border-info shadow-sm"><div class="card-header bg-info text-white fw-bold py-2"><i class="bi bi-gear me-2"></i>Die Cut Stage Entry</div><div class="card-body p-3 small"><pre class="mb-0 bg-light p-2 rounded border" style="white-space: pre-wrap; font-family: monospace;">${JSON.stringify(plan.diecut_form, null, 2)}</pre></div></div></div>`;
-            }
-            if(plan.semiauto_form) {
-                bodyHtml += `<div class="col-md-12"><div class="card border-secondary shadow-sm"><div class="card-header bg-secondary text-white fw-bold py-2"><i class="bi bi-gear-fill me-2"></i>Semi Auto Stage Entry</div><div class="card-body p-3 small"><pre class="mb-0 bg-light p-2 rounded border" style="white-space: pre-wrap; font-family: monospace;">${JSON.stringify(plan.semiauto_form, null, 2)}</pre></div></div></div>`;
-            }
-            if(plan.gluer_form) {
-                bodyHtml += `<div class="col-md-12"><div class="card border-warning shadow-sm"><div class="card-header bg-warning text-dark fw-bold py-2"><i class="bi bi-box-seam me-2"></i>Gluer Stage Entry</div><div class="card-body p-3 small"><pre class="mb-0 bg-light p-2 rounded border" style="white-space: pre-wrap; font-family: monospace;">${JSON.stringify(plan.gluer_form, null, 2)}</pre></div></div></div>`;
-            }
-            if(plan.stitching_form) {
-                bodyHtml += `<div class="col-md-12"><div class="card border-danger shadow-sm"><div class="card-header bg-danger text-white fw-bold py-2"><i class="bi bi-boxes me-2"></i>Stitching Stage Entry</div><div class="card-body p-3 small"><pre class="mb-0 bg-light p-2 rounded border" style="white-space: pre-wrap; font-family: monospace;">${JSON.stringify(plan.stitching_form, null, 2)}</pre></div></div></div>`;
-            }
-            
-            if(!plan.board_plant_form && !plan.printer_form && !plan.diecut_form && !plan.semiauto_form && !plan.gluer_form && !plan.stitching_form) {
-                bodyHtml += `<div class="col-12"><div class="alert alert-secondary mb-0">No production tracking form logs found for this job ID.</div></div>`;
-            }
-
-            bodyHtml += `</div>`;
             document.getElementById('attachmentModalBody').innerHTML = bodyHtml;
-            new bootstrap.Modal(document.getElementById('viewAttachmentModal')).show();
+            let modal = new bootstrap.Modal(document.getElementById('viewAttachmentModal'));
+            modal.show();
         }
 
-        socket.on('stock_update', function() { if(selectedReelSize) triggerStockWeightAudit(); });
-        socket.on('plan_update', function() {
-            let activeTab = document.querySelector('.nav-link.active').id;
-            if(activeTab === 'live-planning-tab') renderRuntimePlansTable();
-            else if(activeTab === 'board-plant-tab') renderBoardPlantTable();
-            else if(activeTab === 'printers-tab') renderPrintersTable();
-            else if(activeTab === 'diecut-tab') renderDieCutSemiAutoTable();
-            else if(activeTab === 'finishing-tab') renderFinishingTable();
-            else if(activeTab === 'balance-tab') renderBalancePOTable();
-            else if(activeTab === 'finished-tab') renderGenericTable('Finished Goods');
+        // Initialize table on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            if (document.getElementById('live-planning-tab')) {
+                renderRuntimePlansTable();
+            }
         });
-
-        renderRuntimePlansTable();
     </script>
 </body>
 </html>
