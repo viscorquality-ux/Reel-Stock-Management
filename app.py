@@ -1008,7 +1008,7 @@ def update_product_api():
         prod.cartoon_size = data.get('cartoon_size')
         prod.position = data.get('position')
         prod.flute = data.get('flute')
-        prod.ply = int(data.get('ply'))
+        prod.ply = int(data.get('ply', 3))
         db.session.commit()
         return jsonify({'success': True})
     return jsonify({'success': False, 'message': 'Product not found'})
