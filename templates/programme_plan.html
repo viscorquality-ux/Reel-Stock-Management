@@ -1641,3 +1641,20 @@
                 <tr><th class="bg-light">Balance Qty</th><td colspan="3" class="text-danger fw-bold">${saData.balance_qty || '0'}</td></tr>
             </table>
             <h6 class="fw-bold mt-3 pb-1 text-secondary"><i class="bi bi-patch-check me-1"></i> Semi Auto QC</h6>
+	 
+        document.addEventListener('DOMContentLoaded', () => {
+            const activeTab = document.querySelector('.nav-tabs .nav-link.active');
+            if (activeTab) {
+                if (activeTab.id === 'live-planning-tab') renderRuntimePlansTable();
+                else if (activeTab.id === 'board-plant-tab') renderBoardPlantTable();
+                else if (activeTab.id === 'printers-tab') renderPrintersTable();
+                else if (activeTab.id === 'diecut-tab') renderDieCutSemiAutoTable();
+                else if (activeTab.id === 'finishing-tab') renderFinishingTable();
+            } else {
+                renderRuntimePlansTable();
+            }
+        });
+
+    </script>
+</body>
+</html>
