@@ -774,6 +774,11 @@
                     let safeSize = size.toString().replace('.', '_');
                     let priorityVal = uiPriorities.bpTabs[safeSize] || '';
                     
+                    let printBtnHtml = (currentRole === 'programmer1' || currentRole === 'programmer2') ? 
+                        `<button class="btn btn-sm btn-outline-light no-print py-1" onclick="printSelectedBand('bp_print_band_${safeSize}')">
+                            <i class="bi bi-printer me-1"></i> Print This Band
+                        </button>` : '';
+                    
                     navHtml += `
                     <li class="nav-item" role="presentation">
                         <button class="nav-link ${first?'active':''} fw-bold border mb-2 me-2 d-flex align-items-center shadow-sm" id="bp-tab-${safeSize}" data-bs-toggle="pill" data-bs-target="#bp-content-${safeSize}" type="button" role="tab">
@@ -784,22 +789,24 @@
 
                     contentHtml += `
                     <div class="tab-pane fade ${first?'show active':''}" id="bp-content-${safeSize}" role="tabpanel">
-                        <div class="card mb-4 border border-secondary-subtle shadow-sm">
-                            <div class="card-header bg-secondary text-white fw-bold py-2">
-                                <i class="bi bi-layers me-2"></i> Reel Size Band: ${size} cm
+                        <div class="card mb-4 border border-secondary-subtle shadow-sm" id="bp_print_band_${safeSize}">
+                            <div class="card-header bg-secondary text-white fw-bold py-2 d-flex justify-content-between align-items-center">
+                                <span><i class="bi bi-layers me-2"></i> Reel Size Band: ${size} cm</span>
+                                ${printBtnHtml}
                             </div>
                             <div class="card-body p-0 table-responsive">
                                 <table class="table table-bordered table-striped align-middle text-center mb-0">
                                     <thead class="table-dark small">
                                         <tr>
-                                            <th>Pri</th>
+                                            <th class="no-print">Pri</th>
                                             <th>PO No</th>
                                             <th>Customer</th>
                                             <th>Full Sheet Size</th>
                                             <th>Flute</th>
                                             <th>Ply</th>
+                                            <th>Combination</th>
                                             <th>Qty</th>
-                                            <th>Action</th>
+                                            <th class="no-print">Action</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -807,11 +814,12 @@
 
                     bpPlans.forEach(p => {
                         let sheetSizeCalculated = `${size} cm &times; ${p.cut_length || 'N/A'} cm`;
+                        let combinationSpecsString = (p.materials && Array.isArray(p.materials)) ? p.materials.map((m,i)=> `L${i+1}: ${m.gsm} - ${m.name}`).join('<br>') : '-';
                         let actHtml = canAct('Board Plant') ? `<button class="btn btn-sm btn-success fw-bold" onclick="showBoardPlantForm(${p.id})">Create a Job Card</button>` : `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
 
                         contentHtml += `
                         <tr>
-                            <td onclick="event.stopPropagation()">
+                            <td class="no-print" onclick="event.stopPropagation()">
                                 <input type="number" class="form-control form-control-sm mx-auto text-center" style="width: 55px; font-size: 0.85rem;" min="1" placeholder="#" onchange="saveRowPriority(${p.id}, this.value)" value="${p.row_priority || ''}" title="Row Priority (1, 2, 3...)">
                             </td>
                             <td class="fw-bold text-primary">${p.po_no}</td>
@@ -819,11 +827,12 @@
                             <td class="fw-bold text-danger font-monospace">${sheetSizeCalculated}</td>
                             <td><span class="badge bg-info text-dark">${p.flute || '-'}</span></td>
                             <td><span class="badge bg-secondary">${p.ply} Ply</span></td>
+                            <td class="text-start ps-2 font-monospace" style="font-size: 0.82rem;">${combinationSpecsString}</td>
                             <td><span class="badge bg-secondary fs-6">${p.qty}</span></td>
-                            <td>${actHtml}</td>
+                            <td class="no-print">${actHtml}</td>
                         </tr>
-                        <tr id="job_card_row_${p.id}" style="display:none;">
-                            <td colspan="8" class="p-0 border-0 position-relative" id="job_card_container_${p.id}"></td>
+                        <tr id="job_card_row_${p.id}" style="display:none;" class="no-print">
+                            <td colspan="9" class="p-0 border-0 position-relative" id="job_card_container_${p.id}"></td>
                         </tr>`;
                     });
 
@@ -1640,23 +1649,28 @@
             </table>`;
         }
 
-        function buildGluerViewHTML(stageNo, gData) {
+        function buildGluerViewHTML(stageNo, glData) {
             return `
-            <h5 class="mt-4 mb-2 text-info fw-bold border-bottom border-info pb-1">Stage ${stageNo}: GLUER STAGE</h5>
+            <h5 class="mt-4 mb-2 text-success fw-bold border-bottom border-success pb-1">Stage ${stageNo}: GLUER STAGE</h5>
+            <table class="table table-sm table-bordered mb-2">
+                <tr><th class="bg-light w-25">Gluers Used</th><td colspan="3" class="fw-bold text-primary">${glData.gluer_selected || '-'}</td></tr>
+                <tr><th class="bg-light w-25">Date</th><td>${glData.gl_date || '-'}</td><th class="bg-light w-25">Batch No</th><td>${glData.batch_number || '-'}</td></tr>
+                <tr><th class="bg-light">Pass/Fail</th><td><span class="badge ${glData.pass_fail==='Pass'?'bg-success':'bg-danger'}">${glData.pass_fail || '-'}</span></td><th class="bg-light">EPF No</th><td>${glData.epf_no || '-'}</td></tr>
+                <tr><th class="bg-light">Counter Qty</th><td>${glData.counter_qty || '-'}</td><th class="bg-light">Damaged Qty</th><td>${glData.damaged_qty || '0'}</td></tr>
+                <tr><th class="bg-light">Excess Qty</th><td>${glData.excess || '-'}</td><th class="bg-light">Finished Qty</th><td>${glData.finished_qty || '-'}</td></tr>
+                <tr><th class="bg-light">Balance Qty</th><td colspan="3" class="text-danger fw-bold">${glData.balance_qty || '0'}</td></tr>
+            </table>
+            <h6 class="fw-bold mt-3 pb-1 text-secondary"><i class="bi bi-patch-check me-1"></i> Gluer QC</h6>
             <table class="table table-sm table-bordered mb-4">
-                <tr><th class="bg-light" style="width: 20%;">Date</th><td>${gData.gl_date || '-'}</td><th class="bg-light" style="width: 20%;">Gluers Used</th><td class="fw-bold text-danger">${gData.gluer_selected || '-'}</td></tr>
-                <tr><th class="bg-light">Counter Qty</th><td>${gData.counter_qty || '-'}</td><th class="bg-light">Damaged Qty</th><td>${gData.damaged_qty || '0'}</td></tr>
-                <tr><th class="bg-light">Finished Qty</th><td>${gData.finished_qty || '-'}</td><th class="bg-light">Balance Qty</th><td class="text-danger fw-bold">${gData.balance_qty || '0'}</td></tr>
-                <tr><th class="bg-light">Batch Number</th><td>${gData.batch_number || '-'}</td><th class="bg-light">Pass/Fail</th><td>${gData.pass_fail || '-'}</td></tr>
-                <tr><th class="bg-light">QC Approval</th><td>${gData.qc_approval || '-'}</td><th class="bg-light">Folding</th><td>${gData.folding || '-'}</td></tr>
+                <tr><th class="bg-light w-25">QC Approval</th><td>${glData.qc_approval || '-'}</td><th class="bg-light w-25">Folding</th><td>${glData.folding || '-'}</td></tr>
             </table>`;
         }
 
         function buildStitchingViewHTML(stageNo, stData) {
             return `
-            <h5 class="mt-4 mb-2 text-dark fw-bold border-bottom border-dark pb-1">Stage ${stageNo}: STITCHING STAGE</h5>
+            <h5 class="mt-4 mb-2 text-info fw-bold border-bottom border-info pb-1">Stage ${stageNo}: STITCHING STAGE</h5>
             <table class="table table-sm table-bordered mb-4">
-                <tr><th class="bg-light w-25">Date</th><td>${stData.st_date || '-'}</td><th class="bg-light w-25">Pass/Fail</th><td>${stData.pass_fail || '-'}</td></tr>
+                <tr><th class="bg-light w-25">Date</th><td>${stData.st_date || '-'}</td><th class="bg-light w-25">Pass/Fail</th><td><span class="badge ${stData.pass_fail==='Pass'?'bg-success':'bg-danger'}">${stData.pass_fail || '-'}</span></td></tr>
                 <tr><th class="bg-light">Counter Qty</th><td>${stData.st_counter || '-'}</td><th class="bg-light">Damaged Qty</th><td>${stData.st_damaged || '0'}</td></tr>
                 <tr><th class="bg-light">Finished Qty</th><td>${stData.finished_qty || '-'}</td><th class="bg-light">Balance Qty</th><td class="text-danger fw-bold">${stData.balance_qty || '0'}</td></tr>
             </table>`;
@@ -1664,207 +1678,249 @@
 
         function viewStageAttachment(id) {
             let plan;
-            for (const key in globalAllPlans) { 
-                let f = globalAllPlans[key].find(x => x.id === id); 
-                if(f) plan = f; 
-            }
-            if(!plan) { alert("No plan data found."); return; }
+            for (const key in globalAllPlans) { let f = globalAllPlans[key].find(x => x.id === id); if(f) plan = f; }
+            if(!plan) return;
 
-            // Dynamic extraction and chronological sorting
-            let stages = [];
-            if(plan.board_plant_form) stages.push({ name: 'Board Plant', data: plan.board_plant_form, time: plan.board_plant_form.saved_at || 1 });
-            if(plan.printer_form) stages.push({ name: 'Printers', data: plan.printer_form, time: plan.printer_form.saved_at || 2 });
-            if(plan.diecut_form) stages.push({ name: 'Die Cut', data: plan.diecut_form, time: plan.diecut_form.saved_at || 3 });
-            if(plan.semiauto_form) stages.push({ name: 'Semi Auto', data: plan.semiauto_form, time: plan.semiauto_form.saved_at || 4 });
-            if(plan.gluer_form) stages.push({ name: 'Gluer', data: plan.gluer_form, time: plan.gluer_form.saved_at || 5 });
-            if(plan.stitching_form) stages.push({ name: 'Stitching', data: plan.stitching_form, time: plan.stitching_form.saved_at || 6 });
+            let logs = [];
+            if(plan.board_plant_form) logs.push({ type: 'bp', data: plan.board_plant_form });
+            if(plan.printer_form) logs.push({ type: 'printer', data: plan.printer_form });
+            if(plan.diecut_form) logs.push({ type: 'dc', data: plan.diecut_form });
+            if(plan.semiauto_form) logs.push({ type: 'sa', data: plan.semiauto_form });
+            if(plan.gluer_form) logs.push({ type: 'gl', data: plan.gluer_form });
+            if(plan.stitching_form) logs.push({ type: 'st', data: plan.stitching_form });
 
-            stages.sort((a, b) => a.time - b.time);
+            logs.sort((a, b) => (a.data.saved_at || 0) - (b.data.saved_at || 0));
 
             let html = `
-            <div id="gluerPrintableDocument" class="container-fluid print-friendly">
-                <h4 class="text-center mb-4 text-decoration-underline fw-bold">INTEGRATED PRODUCTION DOCUMENT</h4>
-                
-                <div class="row mb-3 border border-2 p-2 bg-light shadow-sm rounded">
-                    <div class="col-4 text-center border-end"><strong>PO No:</strong> <br><span class="fs-5 text-primary fw-bold">${plan.po_no || '-'}</span></div>
-                    <div class="col-4 text-center border-end"><strong>Customer/Product:</strong> <br><span class="fs-6">${plan.customer_name} - ${plan.product_name}</span></div>
-                    <div class="col-4 text-center"><strong>Target Qty:</strong> <br><span class="fs-5 text-danger fw-bold">${plan.qty || '-'}</span></div>
-                </div>`;
+            <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
+                <div><h4 class="mb-0 fw-bold text-dark"><i class="bi bi-journal-text me-2"></i>Job Log File</h4></div>
+                <div class="text-end">
+                    <span class="badge bg-primary fs-6 mb-1">PO No: ${plan.po_no}</span><br>
+                    <small class="text-muted fw-bold">${plan.customer_name} - ${plan.product_name}</small>
+                </div>
+            </div>`;
 
-            if(stages.length === 0) {
-                html += `<div class="alert alert-secondary text-center fw-bold">No stage data has been recorded yet.</div>`;
+            if(logs.length === 0) {
+                html += `<div class="alert alert-secondary text-center p-4"><i class="bi bi-info-circle fs-3 d-block mb-2"></i>No stage forms have been filled for this job yet.</div>`;
             } else {
-                let currentStageNo = 1;
-                stages.forEach(stage => {
-                    if(stage.name === 'Board Plant') html += buildBoardPlantViewHTML(currentStageNo, stage.data, plan);
-                    else if(stage.name === 'Printers') html += buildPrinterViewHTML(currentStageNo, stage.data);
-                    else if(stage.name === 'Die Cut') html += buildDieCutViewHTML(currentStageNo, stage.data);
-                    else if(stage.name === 'Semi Auto') html += buildSemiAutoViewHTML(currentStageNo, stage.data);
-                    else if(stage.name === 'Gluer') html += buildGluerViewHTML(currentStageNo, stage.data);
-                    else if(stage.name === 'Stitching') html += buildStitchingViewHTML(currentStageNo, stage.data);
-                    currentStageNo++;
+                logs.forEach((log, index) => {
+                    let stageNo = index + 1;
+                    if(log.type === 'bp') html += buildBoardPlantViewHTML(stageNo, log.data, plan);
+                    if(log.type === 'printer') html += buildPrinterViewHTML(stageNo, log.data);
+                    if(log.type === 'dc') html += buildDieCutViewHTML(stageNo, log.data);
+                    if(log.type === 'sa') html += buildSemiAutoViewHTML(stageNo, log.data);
+                    if(log.type === 'gl') html += buildGluerViewHTML(stageNo, log.data);
+                    if(log.type === 'st') html += buildStitchingViewHTML(stageNo, log.data);
                 });
             }
 
-            html += `</div>
-            <div class="text-end mt-4 no-print border-top pt-3">
-                <button class="btn btn-primary fw-bold" onclick="printGluerDocument()"><i class="bi bi-printer"></i> Download / Print Document</button>
-            </div>`;
-
-            let modalBody = document.getElementById('attachmentModalBody');
-            if (modalBody) {
-                modalBody.innerHTML = html;
-                new bootstrap.Modal(document.getElementById('viewAttachmentModal')).show();
-            }
-        } 
+            document.getElementById('attachmentModalBody').innerHTML = html;
+            new bootstrap.Modal(document.getElementById('viewAttachmentModal')).show();
+        }
 
         // ==========================================
-        // BALANCE PO AND FINISHED GOODS TABS
+        // FINISHED GOODS / HISTORY LOGS
+        // ==========================================
+
+        function renderGenericTable(statusFilter) {
+            fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
+                globalAllPlans = data;
+                let html = `
+                <div class="mb-3 d-flex justify-content-between align-items-center">
+                    <span class="text-secondary fw-bold"><i class="bi bi-funnel"></i> Filter Dispatches</span>
+                    <div class="input-group shadow-sm w-25">
+                        <span class="input-group-text bg-dark text-white border-dark"><i class="bi bi-search"></i></span>
+                        <input type="text" id="finishedSearch" class="form-control border-dark" placeholder="Search PO No..." onkeyup="filterByPONo('finishedTable', 'finishedSearch', 0)">
+                    </div>
+                </div>
+                <table id="finishedTable" class="table table-bordered table-striped align-middle text-center mb-0">
+                    <thead class="table-dark small">
+                        <tr><th>PO No</th><th>Customer & Product</th><th>Reel Size</th><th>Qty</th><th>Logs</th><th>Action</th></tr>
+                    </thead>
+                    <tbody>`;
+                let hasRecords = false;
+                for (const [size, plans] of Object.entries(data)) {
+                    plans.filter(p => p.status === statusFilter).forEach(p => {
+                        hasRecords = true;
+                        let actHtml = canAct(statusFilter) ? `
+                            <div class="input-group input-group-sm mx-auto" style="max-width: 220px;">
+                                <input type="text" id="ad_no_${p.id}" class="form-control border-secondary" placeholder="Enter AD Number" required>
+                                <button class="btn btn-dark fw-bold" onclick="dispatchFinishedGoods(${p.id})">Dispatch</button>
+                            </div>
+                        ` : `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
+                        
+                        html += `
+                        <tr>
+                            <td class="fw-bold">${p.po_no}</td>
+                            <td>${p.customer_name} - ${p.product_name}</td>
+                            <td>${size} cm</td>
+                            <td><span class="badge bg-secondary fs-6">${p.qty}</span></td>
+                            <td><button class="btn btn-sm btn-outline-dark fw-bold" onclick="viewStageAttachment(${p.id})"><i class="bi bi-file-earmark-text text-primary"></i> View</button></td>
+                            <td>${actHtml}</td>
+                        </tr>`;
+                    });
+                }
+                html += `</tbody></table>`;
+                document.getElementById('generic-stage-container').innerHTML = hasRecords ? html : `<p class="text-muted">No jobs in ${statusFilter}.</p>`;
+            });
+        }
+
+        function loadHistoryLogs(reset = false) {
+            let start = document.getElementById('historyStartDate');
+            let end = document.getElementById('historyEndDate');
+            if(reset) { start.value = ''; end.value = ''; document.getElementById('historySearchPO').value=''; document.getElementById('historySearchCustomer').value=''; }
+            
+            let url = '/api/get_plan_history';
+            if(start.value && end.value) { url += `?start=${start.value}&end=${end.value}`; }
+            
+            fetch(url).then(r=>r.json()).then(data => {
+                globalAllPlans = { "History": data }; 
+                let html = '';
+                if(data.length === 0) {
+                    html = `<tr><td colspan="9" class="text-muted py-4">No historical audit logs found in the selected range.</td></tr>`;
+                } else {
+                    data.forEach(p => {
+                        let sheetSizeCalculated = `${p.selected_reel_size} cm &times; ${p.cut_length || 'N/A'} cm`;
+                        let combinationSpecsString = (p.materials && Array.isArray(p.materials)) ? p.materials.map((m,i)=> `L${i+1}: ${m.gsm}-${m.name}`).join('<br>') : '-';
+                        html += `
+                        <tr>
+                            <td class="text-muted" style="font-size: 0.8rem;">${p.timestamp || '-'}</td>
+                            <td class="fw-bold text-primary">${p.po_no}</td>
+                            <td class="text-start">${p.customer_name}</td>
+                            <td class="fw-bold bg-light text-danger font-monospace">${sheetSizeCalculated}</td>
+                            <td><span class="badge bg-secondary">${p.ply} Ply</span></td>
+                            <td><span class="badge bg-dark">${p.qty}</span></td>
+                            <td class="text-start font-monospace" style="font-size: 0.78rem;">${combinationSpecsString}</td>
+                            <td>
+                                <span class="badge bg-success mb-1">Dispatched</span><br>
+                                <button class="btn btn-xs btn-outline-secondary py-0" style="font-size: 0.75rem;" onclick="viewStageAttachment(${p.id})"><i class="bi bi-eye"></i> Log</button>
+                            </td>
+                            <td class="fw-bold text-success">${p.ad_number || 'N/A'}</td>
+                        </tr>`;
+                    });
+                }
+                document.getElementById('historyLogsTableBody').innerHTML = html;
+                filterHistoryTable(); 
+            });
+        }
+
+        // ==========================================
+        // BALANCE PO TAB RENDER LOGIC
         // ==========================================
 
         function renderBalancePOTable() {
-            document.getElementById('generic-tab-title').innerHTML = "<i class='bi bi-exclamation-triangle-fill text-warning'></i> Balance PO Pending Registry";
+            document.getElementById('generic-tab-title').innerHTML = "<i class='bi bi-exclamation-triangle-fill text-warning'></i> Balance PO Stage Configuration";
+            
             fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
+                globalAllPlans = data;
                 let html = `
                 <div class="mb-3 d-flex justify-content-between align-items-center">
-                    <span class="text-secondary fw-bold"><i class="bi bi-funnel"></i> Filter Records</span>
+                    <span class="text-secondary fw-bold"><i class="bi bi-funnel"></i> Filter Balance Job Cards</span>
                     <div class="input-group shadow-sm w-25">
                         <span class="input-group-text bg-warning text-dark border-warning"><i class="bi bi-search"></i></span>
                         <input type="text" id="balanceSearch" class="form-control border-warning" placeholder="Search PO No..." onkeyup="filterByPONo('balanceTable', 'balanceSearch', 0)">
                     </div>
                 </div>
-                <div class="table-responsive"><table id="balanceTable" class="table table-bordered table-striped align-middle text-center mb-0"><thead class="table-dark small">
-                    <tr><th>PO No</th><th>Customer & Product Name</th><th>Pending Stage</th><th>Balance Qty</th><th>Action</th></tr></thead><tbody>`;
-                let hasRecords = false;
+                <table id="balanceTable" class="table table-bordered table-striped align-middle text-center mb-0">
+                    <thead class="table-dark small">
+                        <tr>
+                            <th>PO No</th>
+                            <th>Customer & Product</th>
+                            <th>Requested Stage Target</th>
+                            <th>Balance Qty (New Qty)</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
                 
+                let hasRecords = false;
                 for (const [size, plans] of Object.entries(data)) {
                     plans.filter(p => p.status === 'Balance PO').forEach(p => {
                         hasRecords = true;
-                        let targetStage = p.balance_status || 'Board Plant';
-                        let actHtml = canAct('Balance PO') ? `<button class="btn btn-sm btn-primary fw-bold px-3" onclick="transferPlan(${p.id}, '${targetStage}')">Move to ${targetStage} <i class="bi bi-arrow-right"></i></button>` : `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
                         
-                        html += `<tr>
-                            <td class="fw-bold text-warning font-monospace">${p.po_no}</td>
+                        let targetStage = "Unknown";
+                        if(p.gluer_form && p.gluer_form.balance_target) targetStage = p.gluer_form.balance_target;
+                        else if(p.stitching_form && p.stitching_form.balance_target) targetStage = p.stitching_form.balance_target;
+                        else if(p.diecut_form && p.diecut_form.process_balance === 'yes') targetStage = "Board Plant";
+                        else if(p.semiauto_form && p.semiauto_form.process_balance === 'yes') targetStage = "Board Plant";
+                        else if(p.printer_form && p.printer_form.process_balance === 'yes') targetStage = "Board Plant";
+
+                        let balQty = p.qty; 
+
+                        let actHtml = canAct('Balance PO') ? `
+                            <button class="btn btn-sm btn-success fw-bold shadow-sm me-2" onclick="processBalancePO(${p.id}, '${targetStage}')">
+                                <i class="bi bi-arrow-repeat"></i> Issue to ${targetStage}
+                            </button>
+                            <button class="btn btn-sm btn-danger fw-bold shadow-sm" onclick="dropBalancePO(${p.id})">
+                                <i class="bi bi-trash"></i> Drop
+                            </button>
+                        ` : `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
+                        
+                        html += `
+                        <tr>
+                            <td class="fw-bold text-primary">${p.po_no}</td>
                             <td>${p.customer_name} - ${p.product_name}</td>
-                            <td><span class="badge bg-danger-subtle text-danger px-3 py-2"><i class="bi bi-clock-history"></i> At ${targetStage}</span></td>
-                            <td class="text-danger fw-bold fs-5">${p.qty}</td>
+                            <td><span class="badge bg-warning text-dark px-3 py-2 fs-6"><i class="bi bi-signpost-split-fill me-1"></i> Send to: ${targetStage}</span></td>
+                            <td><span class="badge bg-danger fs-5">${balQty}</span></td>
                             <td>${actHtml}</td>
                         </tr>`;
                     });
                 }
-                html += `</tbody></table></div>`;
-                document.getElementById('generic-stage-container').innerHTML = hasRecords ? html : `<p class='text-muted p-3'>No pending Balance PO records.</p>`;
+                html += `</tbody></table>`;
+                document.getElementById('generic-stage-container').innerHTML = hasRecords ? html : `<div class="alert alert-success text-center p-4 fw-bold shadow-sm"><i class="bi bi-check-circle-fill fs-3 d-block mb-2 text-success"></i>All Clear! No pending Balance POs.</div>`;
             });
         }
 
-        function renderGenericTable(statusVal) {
-            document.getElementById('generic-tab-title').innerHTML = `<i class='bi bi-check-circle'></i> ${statusVal} Stage`;
-            fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
-                
-                let html = `
-                <div class="mb-3 d-flex justify-content-between align-items-center">
-                    <span class="text-secondary fw-bold"><i class="bi bi-funnel"></i> Filter Records</span>
-                    <div class="input-group shadow-sm w-25">
-                        <span class="input-group-text bg-dark text-white border-dark"><i class="bi bi-search"></i></span>
-                        <input type="text" id="genericSearch_${statusVal.replace(/\s+/g, '')}" class="form-control border-dark" placeholder="Search PO No..." onkeyup="filterByPONo('genericTable_${statusVal.replace(/\s+/g, '')}', 'genericSearch_${statusVal.replace(/\s+/g, '')}', 0)">
-                    </div>
-                </div>
-                <div class="table-responsive"><table id="genericTable_${statusVal.replace(/\s+/g, '')}" class="table table-bordered table-striped align-middle text-center mb-0"><thead class="table-dark small">`;
-                
-                if(statusVal === 'Finished Goods') {
-                    html += `<tr><th>PO No</th><th>Customer & Product Name</th><th>Finished Goods Qty</th><th>Balance Qty</th><th>Finished Time</th><th>Attachment</th><th>Action (Dispatch)</th></tr></thead><tbody>`;
-                } else {
-                    html += `<tr><th>PO No</th><th>Customer</th><th>Size</th><th>Qty</th><th>Action</th></tr></thead><tbody>`;
+        function processBalancePO(id, targetStage) {
+            if(!confirm(`Are you sure you want to issue this Balance PO as a new entry into '${targetStage}'?`)) return;
+
+            let stageStatusMap = {
+                "Board Plant": "Board Plant",
+                "Printers": "Printers",
+                "Die Cut": "Die Cut"
+            };
+
+            let newStatus = stageStatusMap[targetStage];
+            if(!newStatus) { alert("Invalid Target Stage recognized."); return; }
+
+            fetch('/api/process_balance_po', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ original_id: id, new_status: newStatus })
+            }).then(r=>r.json()).then(res => {
+                if(res.success) {
+                    alert(`✅ Balance PO successfully transferred as a new record to ${newStatus}.`);
+                    document.getElementById('balance-tab').click(); 
+                } else { alert("❌ Failed to process: " + res.error); }
+            });
+        }
+
+        function dropBalancePO(id) {
+            if(!confirm("Are you entirely sure you want to drop and cancel this Balance PO? It will be removed permanently.")) return;
+            
+            fetch('/api/drop_balance_po', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ id: id })
+            }).then(r=>r.json()).then(res => {
+                if(res.success) {
+                    alert(`✅ Balance PO successfully dropped.`);
+                    document.getElementById('balance-tab').click(); 
                 }
-                
-                let hasRecords = false;
-                for (const [size, plans] of Object.entries(data)) {
-                    plans.filter(p => p.status === statusVal).forEach(p => {
-                        hasRecords = true;
-                        if(statusVal === 'Finished Goods') {
-                            let actHtml = canAct('Finished Goods') ? `
-                                <div class="input-group input-group-sm mx-auto" style="max-width: 250px;">
-                                    <input type="text" id="ad_no_${p.id}" class="form-control text-center fw-bold text-primary" placeholder="Enter AD No" required>
-                                    <button class="btn btn-success fw-bold px-3" onclick="dispatchFinishedGoods(${p.id})">Dispatch <i class="bi bi-truck ms-1"></i></button>
-                                </div>
-                            ` : `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
-                            
-                            html += `<tr>
-                                <td class="fw-bold text-success">${p.po_no}</td>
-                                <td class="text-start">${p.customer_name} <br><small class="text-muted">${p.product_name}</small></td>
-                                <td class="text-success fw-bold fs-6">${p.finished_qty || p.qty}</td>
-                                <td class="text-danger fw-bold">${p.balance_qty || 0}</td>
-                                <td class="small font-monospace">${p.finished_at || '-'}</td>
-                                <td><button class="btn btn-sm btn-outline-dark fw-bold shadow-sm" onclick="viewStageAttachment(${p.id})"><i class="bi bi-file-earmark-text text-danger"></i> View Log</button></td>
-                                <td>${actHtml}</td>
-                            </tr>`;
-                        } else {
-                            let nextStage = statusVal === 'Gluer' ? 'Finished Goods' : 'Archived';
-                            html += `<tr><td class="fw-bold">${p.po_no}</td><td>${p.customer_name}</td><td>${size} cm</td><td>${p.qty}</td><td><button class="btn btn-sm btn-primary fw-bold" onclick="transferPlan(${p.id}, '${nextStage}')">Transfer</button></td></tr>`;
-                        }
-                    });
-                }
-                html += `</tbody></table></div>`;
-                document.getElementById('generic-stage-container').innerHTML = hasRecords ? html : `<p class='text-muted p-3'>No jobs currently in ${statusVal}.</p>`;
             });
         }
 
         // ==========================================
-        // PLAN HISTORY AUDIT LOG
+        // INITIALIZATION
         // ==========================================
-        function loadHistoryLogs(reset = false) {
-            document.getElementById('historyLogsTableBody').innerHTML = '<tr><td colspan="9" class="text-muted py-4">Loading history audit logs...</td></tr>';
-            
-            let start = '', end = '';
-            if (!reset) {
-                let startEl = document.getElementById('historyStartDate');
-                let endEl = document.getElementById('historyEndDate');
-                if(startEl) start = startEl.value;
-                if(endEl) end = endEl.value;
-            } else {
-                let startEl = document.getElementById('historyStartDate');
-                let endEl = document.getElementById('historyEndDate');
-                let searchPOEl = document.getElementById('historySearchPO');
-                let searchCustEl = document.getElementById('historySearchCustomer');
-                if(startEl) startEl.value = '';
-                if(endEl) endEl.value = '';
-                if(searchPOEl) searchPOEl.value = '';
-                if(searchCustEl) searchCustEl.value = '';
-            }
-            
-            let url = '/api/get_historical_planning_records';
-            if(start && end) url += `?start_date=${start}&end_date=${end}`;
-            
-            fetch(url).then(r=>r.json()).then(data => {
-                let html = '';
-                if(data.length === 0) {
-                    html = '<tr><td colspan="9" class="text-muted py-4">No history records found.</td></tr>';
-                } else {
-                    data.forEach(p => {
-                        let mats = p.materials ? p.materials.map((m,i)=> `L${i+1}: ${m.gsm} - ${m.name}`).join('<br>') : '';
-                        let sizeStr = p.selected_reel_size + ' x ' + (p.cut_length || '-');
-                        let statusBadge = p.status === 'Dispatched' ? 'bg-success' : (p.status === 'Live Planning' ? 'bg-secondary' : 'bg-primary');
-                        html += `<tr>
-                            <td>${p.created_at}</td>
-                            <td class="fw-bold">${p.po_no}</td>
-                            <td>${p.customer_name}</td>
-                            <td class="font-monospace text-danger">${sizeStr}</td>
-                            <td><span class="badge bg-secondary">${p.ply} Ply</span></td>
-                            <td class="fw-bold">${p.qty}</td>
-                            <td class="small text-start font-monospace">${mats}</td>
-                            <td><span class="badge ${statusBadge}">${p.status}</span></td>
-                            <td class="fw-bold text-dark">${p.ad_number || '-'}</td>
-                        </tr>`;
-                    });
-                }
-                document.getElementById('historyLogsTableBody').innerHTML = html;
-                filterHistoryTable(); // Apply existing text filters if not reset
-            });
-        }
 
-        document.addEventListener("DOMContentLoaded", function() {
-            renderRuntimePlansTable();
+        document.addEventListener('DOMContentLoaded', () => {
+            if(currentRole === 'viscor01' || currentRole === 'packwell01') { document.getElementById('board-plant-tab').click(); }
+            else if(currentRole === 'viscor02' || currentRole === 'packwell02') { document.getElementById('printers-tab').click(); }
+            else if(currentRole === 'viscor03' || currentRole === 'packwell03') { document.getElementById('diecut-tab').click(); }
+            else if(currentRole === 'viscor04' || currentRole === 'packwell04') { document.getElementById('finishing-tab').click(); }
+            else if(currentRole === 'viscor05' || currentRole === 'packwell05') { document.getElementById('finished-tab').click(); }
+            else { renderRuntimePlansTable(); }
         });
+        
     </script>
 </body>
 </html>
