@@ -580,8 +580,6 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    
-                    // Specific cutting length calculation mapped exactly based on ply config
                     if (ply === 5) {
                         globalSampleSheetLength = (globalBoxWidth + globalBoxHeight) * 2 + 7;
                     } else {
@@ -610,7 +608,6 @@
                             </tr>`;
                         });
 
-                        // Manual Reel Input Row Implementation
                         if (globalRequiredSize > 0) {
                             optionsHtml += `
                             <tr class="table-warning">
@@ -629,110 +626,81 @@
                     const optsPanel = document.getElementById('optionsCardPanel');
                     if (optsPanel) optsPanel.style.display = 'block';
                 } else {
-                    alert(data.message || "Error calculating sample options.");
+                    alert("Error calculating sample memo options.");
                 }
             })
-            .catch(err => {
-                console.error("Error calculating sample options:", err);
-                alert("❌ Error fetching sample calculation matrix.");
+            .catch(error => {
+                console.error('Error:', error);
+                alert("Failed to connect to server.");
             });
         }
 
-        function selectSuggestedReelOption(size, ups) {
-            selectedReelSize = size;
-            activePlanSuggestedUps = ups;
-            buildCombinationCustomizerRows();
-        }
+        // --- ADDED MISSING FUNCTIONS BELOW ---
 
-        // Feature: Support calculate and select manual custom reel size
         function calculateManualReel() {
-            let manualReel = parseFloat(document.getElementById('manualReelInput').value);
-            if (!manualReel || manualReel <= 0 || !globalRequiredSize) {
-                document.getElementById('manualUpsDisplay').innerText = '-';
-                document.getElementById('manualWasteDisplay').innerText = '-';
-                document.getElementById('manualSelectBtn').disabled = true;
-                return;
-            }
-            let ups = Math.floor(manualReel / globalRequiredSize);
-            if (ups < 1) {
-                document.getElementById('manualUpsDisplay').innerText = '0 Ups';
-                document.getElementById('manualWasteDisplay').innerText = 'Invalid';
-                document.getElementById('manualSelectBtn').disabled = true;
+            let input = document.getElementById('manualReelInput');
+            let wasteDisplay = document.getElementById('manualWasteDisplay');
+            let btn = document.getElementById('manualSelectBtn');
+            let upsDisplay = document.getElementById('manualUpsDisplay');
+            
+            if(!input || !wasteDisplay || !btn) return;
+            
+            let val = parseFloat(input.value);
+            if(isNaN(val) || val < globalRequiredSize) {
+                wasteDisplay.innerText = "Invalid/Too Small";
+                wasteDisplay.className = "text-danger fw-bold";
+                btn.disabled = true;
+                upsDisplay.innerText = "-";
             } else {
-                let waste = manualReel - (globalRequiredSize * ups);
-                document.getElementById('manualUpsDisplay').innerText = ups + ' Ups';
-                document.getElementById('manualWasteDisplay').innerText = waste.toFixed(2) + ' cm';
-                document.getElementById('manualSelectBtn').disabled = false;
-                document.getElementById('manualSelectBtn').setAttribute('data-size', manualReel);
-                document.getElementById('manualSelectBtn').setAttribute('data-ups', ups);
+                let waste = (val - globalRequiredSize).toFixed(2);
+                wasteDisplay.innerText = waste + " cm";
+                wasteDisplay.className = "text-warning fw-bold";
+                btn.disabled = false;
+                upsDisplay.innerText = activePlanSuggestedUps + " Ups (Approx)"; 
             }
         }
 
         function selectManualReel() {
-            let btn = document.getElementById('manualSelectBtn');
-            let size = parseFloat(btn.getAttribute('data-size'));
-            let ups = parseInt(btn.getAttribute('data-ups'));
-            selectSuggestedReelOption(size, ups);
-        }
-
-        function filterPaperNamesByLayerType(layerIndex) {
-            const typeSelect = document.getElementById(`layer-type-${layerIndex}`);
-            const nameSelect = document.getElementById(`layer-name-${layerIndex}`);
-            if (!typeSelect || !nameSelect) return;
-            const selectedType = typeSelect.value;
-            nameSelect.innerHTML = '';
-            let filteredNames = new Set();
-            activeReels.forEach(reel => {
-                let rType = reel.type ? reel.type.toLowerCase().trim() : "";
-                let sType = selectedType.toLowerCase().trim();
-                let cleanSType = sType.split('(')[0].trim(); 
-                if (rType === sType || rType.includes(cleanSType) || sType.includes(rType)) {
-                    filteredNames.add(reel.name);
-                }
-            });
-            if (filteredNames.size === 0 && paperTypeMapping[selectedType]) {
-                paperTypeMapping[selectedType].forEach(name => filteredNames.add(name));
+            let input = document.getElementById('manualReelInput');
+            if(!input) return;
+            let val = parseFloat(input.value);
+            if(!isNaN(val)) {
+                selectSuggestedReelOption(val, activePlanSuggestedUps || 1);
             }
-            filteredNames.forEach(name => {
-                let opt = document.createElement('option');
-                opt.value = name; opt.textContent = name;
-                nameSelect.appendChild(opt);
-            });
-            triggerStockWeightAudit();
         }
 
-        function buildCombinationCustomizerRows() {
-            document.getElementById('combinationConfigurationPanel').style.display = 'block';
-            let html = '';
-            for(let i = 1; i <= targetPly; i++) {
-                html += `
-                <div class="p-3 border border-light-subtle rounded-3 mb-3 bg-white shadow-sm layer-row" data-layer="L${i}">
-                    <span class="badge bg-dark mb-2 px-2 py-1" style="font-size:0.8rem;">Layer ${i} Specification</span>
-                    <div class="row g-2">
-                        <div class="col-md-3 col-12">
-                            <label class="form-label text-muted small fw-semibold mb-1">Target GSM</label>
-                            <input type="number" id="layer-gsm-${i}" class="form-control form-control-sm layer-gsm fw-bold text-center" placeholder="GSM" value="120" oninput="triggerStockWeightAudit()">
-                        </div>
-                        <div class="col-md-4 col-12">
-                            <label class="form-label text-muted small fw-semibold mb-1">Paper Type</label>
-                            <select id="layer-type-${i}" class="form-select form-select-sm layer-type fw-semibold" onchange="filterPaperNamesByLayerType(${i})">
-                                <option value="Test Liner(T)">Test Liner(T)</option>
-                                <option value="Medium(C)">Medium(C)</option>
-                                <option value="Kraft(K)">Kraft(K)</option>
-                                <option value="White Liner(WT)">White Liner(WT)</option>
-                                <option value="White Kraft (WK)">White Kraft (WK)</option>
-                            </select>
-                        </div>
-                        <div class="col-md-5 col-12">
-                            <label class="form-label text-muted small fw-semibold mb-1">Designated Paper Name</label>
-                            <select id="layer-name-${i}" class="form-select form-select-sm layer-name fw-bold text-primary" onchange="triggerStockWeightAudit()">
-                            </select>
-                        </div>
-                    </div>
+        function selectSuggestedReelOption(reel, ups) {
+            selectedReelSize = reel;
+            activePlanSuggestedUps = ups;
+            
+            const optionsPanel = document.getElementById('optionsCardPanel');
+            const configPanel = document.getElementById('combinationConfigurationPanel');
+            const container = document.getElementById('dynamicComboRowsContainer');
+            
+            if (optionsPanel) optionsPanel.style.display = 'none';
+            if (configPanel) configPanel.style.display = 'block';
+            
+            if(container) {
+                let html = `<div class='alert alert-info mb-3'>
+                    <strong>Selected Reel:</strong> <span class="badge bg-primary fs-6">${reel} cm</span> | 
+                    <strong>Ups:</strong> <span class="badge bg-secondary fs-6">${ups}</span>
                 </div>`;
+                
+                // Generates generic L1, L2, L3 layout for presentation
+                for(let i=1; i<=targetPly; i++) {
+                    html += `
+                    <div class="row g-2 mb-2 align-items-center bg-white p-2 border rounded shadow-sm">
+                        <div class="col-2 fw-bold text-center border-end">L${i}</div>
+                        <div class="col-5">
+                            <input type="text" class="form-control form-control-sm" placeholder="Material Type (e.g. Test Liner)" id="mat_name_${i}">
+                        </div>
+                        <div class="col-5">
+                            <input type="number" class="form-control form-control-sm" placeholder="GSM" id="mat_gsm_${i}">
+                        </div>
+                    </div>`;
+                }
+                container.innerHTML = html;
             }
-            document.getElementById('dynamicComboRowsContainer').innerHTML = html;
-            for(let i = 1; i <= targetPly; i++) { filterPaperNamesByLayerType(i); }
         }
 
         function triggerStockWeightAudit() {
