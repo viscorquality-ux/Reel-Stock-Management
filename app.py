@@ -202,13 +202,14 @@ def safe_int(val, default=0):
         return int(float(val))
     except (ValueError, TypeError): return int(default)
 
-def get_cut_length(cartoon_size):
+def get_cut_length(cartoon_size, ply=3):
     if not cartoon_size: return 0
     dims = [float(x) for x in re.findall(r'\d+\.?\d*', str(cartoon_size))]
+    add_cm = 6 if ply == 3 else (7 if ply == 5 else 6)
     if len(dims) == 2:
         return dims[0] + 2  
     elif len(dims) >= 3:
-        return ((dims[1] + dims[0]) * 2) + 6
+        return ((dims[1] + dims[0]) * 2) + add_cm
     return 0
 
 @app.route('/', methods=['GET', 'POST'])
@@ -232,7 +233,6 @@ def login():
             "viscor03": ("viscor@0123", "viscor03"),
             "viscor04": ("viscor@1234", "viscor04"),
             "viscor05": ("viscor@2345", "viscor05"),
-            # NEW PACKWELL USERS
             "packwell01": ("packwell@1234", "packwell01"),
             "packwell02": ("packwell@2345", "packwell02"),
             "packwell03": ("packwell@3456", "packwell03"),
@@ -910,7 +910,6 @@ def reset_db_now():
     else:
         return "❌ Access Denied: Unauthorized Reset Attempt.", 403
 
-# API FOR ROW PRIORITY
 @app.route('/api/update_row_priority', methods=['POST'])
 def update_row_priority():
     data = request.json
@@ -980,7 +979,6 @@ def programme_plan():
                            full_reels=full_reels, 
                            used_reels=used_reels)
 
-# API ENDPOINTS FOR PRODUCTS
 @app.route('/api/get_products', methods=['GET'])
 def get_products():
     products = CustomerProduct.query.all()
@@ -1058,6 +1056,81 @@ def get_product_info():
         return jsonify({"success": True, "customer_name": product.customer_name, "product_name": product.product_name, "cartoon_size": product.cartoon_size, "ply": product.ply, "flute": product.flute, "position": product.position, "options": options})
     return jsonify({"success": False, "message": "Product not found"})
 
+# --- SAMPLE PLANNING API ENDPOINTS ---
+@app.route('/api/calculate_sample_options', methods=['POST'])
+def calculate_sample_options():
+    data = request.json
+    l = safe_float(data.get('length'))
+    w = safe_float(data.get('width'))
+    h = safe_float(data.get('height'))
+    ply = safe_int(data.get('ply'), 3)
+    position = data.get('position', 'internal').strip().lower()
+    
+    options = []
+    for ups in range(1, 6):
+        if position == 'internal':
+            if ply == 3:
+                req_size = ((w + 0.4) + (h + 0.3)) * ups + 2
+            elif ply == 5:
+                req_size = ((w + 0.8) + (h + 0.3)) * ups + 2
+            else:
+                req_size = (w + h) * ups + 2
+        else: 
+            req_size = (w + h) * ups + 2
+            
+        for std in range(75, 155, 5):
+            if std >= req_size:
+                options.append({'ups': ups, 'required_size': round(req_size, 2), 'suggested_reel': std, 'wastage': round(std - req_size, 2)})
+                break
+                
+    add_cm = 6 if ply == 3 else (7 if ply == 5 else 6)
+    sheet_length = ((w + l) * 2) + add_cm
+    
+    return jsonify({'success': True, 'options': options, 'sheet_length': round(sheet_length, 2)})
+
+@app.route('/api/save_sample_memo', methods=['POST'])
+def save_sample_memo():
+    data = request.json
+    customer_name = data.get('customer_name', 'Sample Customer')
+    l = safe_float(data.get('length'))
+    w = safe_float(data.get('width'))
+    h = safe_float(data.get('height'))
+    ply = safe_int(data.get('ply'), 3)
+    position = data.get('position', 'internal')
+    size = safe_float(data.get('selected_reel_size'))
+    ups = safe_int(data.get('selected_ups'))
+    qty = safe_int(data.get('qty', 1))
+    
+    sample_po = f"SMP-{datetime.now(colombo_tz).strftime('%y%m%d%H%M')}-{random.randint(10,99)}"
+    
+    materials = [
+        {'name': 'Test Liner(T)', 'gsm': 120, 'type': 'Top'},
+        {'name': 'Medium(C)', 'gsm': 140, 'type': 'Corru'},
+        {'name': 'Test Liner(T)', 'gsm': 120, 'type': 'Bottom'}
+    ] if ply == 3 else [
+        {'name': 'Kraft(K)', 'gsm': 150, 'type': 'Top'},
+        {'name': 'Medium(C)', 'gsm': 140, 'type': 'Corru'},
+        {'name': 'Test Liner(T)', 'gsm': 120, 'type': 'Corru'},
+        {'name': 'Medium(C)', 'gsm': 140, 'type': 'Corru'},
+        {'name': 'Kraft(K)', 'gsm': 150, 'type': 'Bottom'}
+    ]
+    
+    new_plan = ProgrammePlan(
+        po_no=sample_po,
+        customer_id=customer_name,
+        product_code=f"SMP-{ply}PLY-{position.upper()}",
+        selected_reel_size=size,
+        selected_ups=ups,
+        qty=qty,
+        materials_json=json.dumps(materials),
+        status='Sample Memo',
+        created_by=session.get('username', 'System')
+    )
+    db.session.add(new_plan)
+    db.session.commit()
+    return jsonify({'success': True, 'po_no': sample_po})
+# ------------------------------------
+
 @app.route('/api/check_stock_detailed', methods=['POST'])
 def check_stock_detailed():
     data = request.json
@@ -1124,7 +1197,6 @@ def update_plan_qty():
         return jsonify({'success': True})
     return jsonify({'success': False})
 
-# CORE SPLIT / TRANSFER API UPDATE
 @app.route('/api/transfer_plan', methods=['POST'])
 def transfer_plan():
     data = request.json
@@ -1187,10 +1259,11 @@ def transfer_plan():
                 plan.finished_qty = f_qty
                 plan.balance_qty = b_qty
                 
-        if new_status == 'Board Plant' and plan.status in ['Live Planning', 'Draft'] and not form_type:
+        if new_status == 'Board Plant' and plan.status in ['Live Planning', 'Draft', 'Sample Memo'] and not form_type:
             prod = CustomerProduct.query.filter_by(customer_id=plan.customer_id, product_code=plan.product_code).first()
-            cut_length = get_cut_length(prod.cartoon_size) if prod else 0
-            flute = prod.flute if prod else ""
+            ply_val = prod.ply if prod else (5 if '5PLY' in plan.product_code else 3)
+            cut_length = get_cut_length(prod.cartoon_size, ply_val) if prod else 60.0
+            flute = prod.flute if prod else "B"
                 
             board_w = plan.selected_reel_size / 100.0 if plan.selected_reel_size else 0.0
             board_l = cut_length / 100.0 if cut_length else 0.0
@@ -1259,7 +1332,6 @@ def get_saved_plans():
     
     query = ProgrammePlan.query
 
-    # --- ISOLATION LOGIC FOR PROGRAMMER 1 & 2 ---
     user_role = session.get('role')
     username = session.get('username')
     
@@ -1271,7 +1343,6 @@ def get_saved_plans():
         query = query.filter(ProgrammePlan.created_by == 'programmer1')
     elif user_role and user_role.startswith('packwell0'):
         query = query.filter(ProgrammePlan.created_by == 'programmer2')
-    # --------------------------------------------
 
     if start_date and end_date:
         try:
@@ -1286,20 +1357,28 @@ def get_saved_plans():
     for p in plans:
         size = str(p.selected_reel_size)
         if size not in result: result[size] = []
-        prod = CustomerProduct.query.filter_by(customer_id=p.customer_id, product_code=p.product_code).first()
-        c_name = prod.customer_name if prod else "Unknown"
-        p_name = prod.product_name if prod else "Unknown"
         
-        cut_length = get_cut_length(prod.cartoon_size) if prod else 0
-        flute = prod.flute if prod else ""
+        if p.status == 'Sample Memo':
+            c_name = p.customer_id
+            p_name = "Sample Production"
+            ply_val = 5 if '5PLY' in p.product_code else 3
+            cut_length = 60.0
+            flute = "Sample"
+        else:
+            prod = CustomerProduct.query.filter_by(customer_id=p.customer_id, product_code=p.product_code).first()
+            c_name = prod.customer_name if prod else "Unknown"
+            p_name = prod.product_name if prod else "Unknown"
+            ply_val = prod.ply if prod else 3
+            cut_length = get_cut_length(prod.cartoon_size, ply_val) if prod else 0
+            flute = prod.flute if prod else ""
             
         date_str = p.created_at.strftime('%Y-%m-%d %I:%M %p') if p.created_at else ""
         fin_date_str = p.finished_at.strftime('%Y-%m-%d %I:%M %p') if p.finished_at else ""
         
         result[size].append({
             'id': p.id, 'po_no': p.po_no, 'customer_id': p.customer_id, 'customer_name': c_name,
-            'product_code': p.product_code, 'product_name': p_name, 'ups': p.selected_ups, 'ply': prod.ply if prod else 3,
-            'remarks': f"{prod.position} / Flute: {flute}" if prod else "",
+            'product_code': p.product_code, 'product_name': p_name, 'ups': p.selected_ups, 'ply': ply_val,
+            'remarks': f"Sample Memo" if p.status == 'Sample Memo' else (f"{prod.position} / Flute: {flute}" if prod else ""),
             'flute': flute,
             'materials': json.loads(p.materials_json) if p.materials_json else [],
             'created_at': date_str, 'finished_at': fin_date_str, 'cut_length': cut_length,
@@ -1322,7 +1401,6 @@ def get_historical_planning_records():
     
     query = ProgrammePlan.query
 
-    # --- ISOLATION LOGIC FOR PROGRAMMER 1 & 2 ---
     user_role = session.get('role')
     username = session.get('username')
     
@@ -1334,7 +1412,6 @@ def get_historical_planning_records():
         query = query.filter(ProgrammePlan.created_by == 'programmer1')
     elif user_role and user_role.startswith('packwell0'):
         query = query.filter(ProgrammePlan.created_by == 'programmer2')
-    # --------------------------------------------
 
     if start_date and end_date:
         try:
@@ -1346,12 +1423,20 @@ def get_historical_planning_records():
     plans = query.order_by(ProgrammePlan.created_at.desc()).all()
     result = []
     for p in plans:
-        prod = CustomerProduct.query.filter_by(customer_id=p.customer_id, product_code=p.product_code).first()
-        c_name = prod.customer_name if prod else "Unknown"
+        if p.status == 'Sample Memo':
+            c_name = p.customer_id
+            ply_val = 5 if '5PLY' in p.product_code else 3
+            cut_length = 60.0
+        else:
+            prod = CustomerProduct.query.filter_by(customer_id=p.customer_id, product_code=p.product_code).first()
+            c_name = prod.customer_name if prod else "Unknown"
+            ply_val = prod.ply if prod else 3
+            cut_length = get_cut_length(prod.cartoon_size, ply_val) if prod else 0
+
         result.append({
             'id': p.id, 'po_no': p.po_no, 'customer_name': c_name,
             'selected_reel_size': p.selected_reel_size, 'qty': p.qty,
-            'ply': prod.ply if prod else 3, 'cut_length': get_cut_length(prod.cartoon_size) if prod else 0, 
+            'ply': ply_val, 'cut_length': cut_length, 
             'materials': json.loads(p.materials_json) if p.materials_json else [],
             'status': p.status,
             'ad_number': p.ad_number,
