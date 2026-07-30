@@ -505,66 +505,42 @@
                             globalRequiredSize = parseFloat(data.options[0].required_size) || 0;
                         }
                         
-                        data.options.forEach(opt => {
-                            optionsHtml += `
-                            <tr>
-                                <td>${opt.ups}</td>
-                                <td>${opt.required_size} cm</td>
-                                <td>${opt.suggested_reel} cm</td>
-                                <td>${opt.wastage} cm</td>
-                                <td>
-                                    <button class="btn btn-sm btn-outline-primary fw-bold" onclick="selectReelSize(${opt.suggested_reel}, ${opt.ups})">
-                                        Select
-                                    </button>
-                                </td>
+                        data.options.forEach(o => {
+                            optionsHtml += `<tr>
+                                <td class="fw-bold text-dark">${o.ups} Ups</td><td>${o.required_size} cm</td><td class="text-primary fw-bold">${o.suggested_reel} cm</td><td>${o.wastage} cm</td>
+                                <td><button class="btn btn-sm btn-primary fw-bold" onclick="selectSuggestedReelOption(${o.suggested_reel}, ${o.ups})">Select Option</button></td>
                             </tr>`;
                         });
-                        
-                        document.getElementById('suggestedOptionsBody').innerHTML = optionsHtml;
-                        document.getElementById('optionsCardPanel').style.display = 'block';
-                    } else {
-                        document.getElementById('suggestedOptionsBody').innerHTML = `<tr><td colspan="5" class="text-danger fw-bold py-3">No suitable options found for this dimension.</td></tr>`;
-                        document.getElementById('optionsCardPanel').style.display = 'block';
+
+                        // Manual Reel Input Row Implementation
+                        if (globalRequiredSize > 0) {
+                            optionsHtml += `
+                            <tr class="table-warning">
+                                <td class="fw-bold text-dark" id="manualUpsDisplay">-</td>
+                                <td>${globalRequiredSize} cm</td>
+                                <td><input type="number" id="manualReelInput" class="form-control form-control-sm text-center fw-bold border-warning" placeholder="Enter Reel Size (Manual)" oninput="calculateManualReel()"></td>
+                                <td id="manualWasteDisplay" class="text-danger fw-bold">-</td>
+                                <td><button class="btn btn-sm btn-success fw-bold" id="manualSelectBtn" onclick="selectManualReel()" disabled>Select Manual Option</button></td>
+                            </tr>`;
+                        }
                     }
-                } else {
-                    alert("❌ " + (data.message || "Product not found"));
+                    
+                    const optsBody = document.getElementById('suggestedOptionsBody');
+                    if (optsBody) optsBody.innerHTML = optionsHtml;
+                    
+                    const optsPanel = document.getElementById('optionsCardPanel');
+                    if (optsPanel) optsPanel.style.display = 'block';
+                    
+                    console.log("🎨 [DEBUG] UI Updated successfully.");
+                } else { 
+                    alert(data.message || "Product specification not found."); 
                 }
             })
             .catch(err => {
-                console.error("Fetch error:", err);
-                alert("❌ An error occurred while communicating with the server.");
+                console.error("❌ [DEBUG] Error searching master product:", err);
+                alert("❌ Error fetching product specification matrix. Please check the console (F12) for details.");
             });
-        };
-
-                // Manual Reel Input Row Implementation
-                if (globalRequiredSize > 0) {
-                    optionsHtml += `
-                    <tr class="table-warning">
-                        <td class="fw-bold text-dark" id="manualUpsDisplay">-</td>
-                        <td>${globalRequiredSize} cm</td>
-                        <td><input type="number" id="manualReelInput" class="form-control form-control-sm text-center fw-bold border-warning" placeholder="Enter Reel Size (Manual)" oninput="calculateManualReel()"></td>
-                        <td id="manualWasteDisplay" class="text-danger fw-bold">-</td>
-                        <td><button class="btn btn-sm btn-success fw-bold" id="manualSelectBtn" onclick="selectManualReel()" disabled>Select Manual Option</button></td>
-                    </tr>`;
-                }
-            }
-            
-            const optsBody = document.getElementById('suggestedOptionsBody');
-            if (optsBody) optsBody.innerHTML = optionsHtml;
-            
-            const optsPanel = document.getElementById('optionsCardPanel');
-            if (optsPanel) optsPanel.style.display = 'block';
-            
-            console.log("🎨 [DEBUG] UI Updated successfully.");
-        } else { 
-            alert(data.message || "Product specification not found."); 
         }
-    })
-    .catch(err => {
-        console.error("❌ [DEBUG] Error searching master product:", err);
-        alert("❌ Error fetching product specification matrix. Please check the console (F12) for details.");
-    });
-}
 
         function calculateSampleMemo() {
             let custName = document.getElementById('sample_customer') ? document.getElementById('sample_customer').value.trim() : "";
@@ -603,6 +579,7 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
+                    
                     if (ply === 5) {
                         globalSampleSheetLength = (globalBoxWidth + globalBoxHeight) * 2 + 7;
                     } else {
@@ -631,6 +608,7 @@
                             </tr>`;
                         });
 
+                        // Manual Reel Input Row Implementation (This was previously cut off)
                         if (globalRequiredSize > 0) {
                             optionsHtml += `
                             <tr class="table-warning">
@@ -642,138 +620,51 @@
                             </tr>`;
                         }
                     }
-                    
+
                     const optsBody = document.getElementById('suggestedOptionsBody');
                     if (optsBody) optsBody.innerHTML = optionsHtml;
                     
                     const optsPanel = document.getElementById('optionsCardPanel');
                     if (optsPanel) optsPanel.style.display = 'block';
+
                 } else {
-                    alert("Error calculating sample memo options.");
+                    alert(data.message || "Failed to calculate sample options.");
                 }
             })
-            .catch(error => {
-                console.error('Error:', error);
-                alert("Failed to connect to server.");
+            .catch(err => {
+                console.error("❌ Error calculating sample options:", err);
+                alert("❌ Error calculating sample options.");
             });
         }
 
-        // --- ADDED MISSING FUNCTIONS BELOW ---
+        // --- Helper functions added to prevent further ReferenceErrors ---
+        function selectSuggestedReelOption(reel, ups) {
+            console.log("Selected Reel:", reel, "Ups:", ups);
+            // This is where your custom app logic transitions to the Combination Layer Customizer
+            document.getElementById('optionsCardPanel').style.display = 'none';
+            
+            const comboPanel = document.getElementById('combinationConfigurationPanel');
+            if(comboPanel) comboPanel.style.display = 'block';
+        }
 
         function calculateManualReel() {
-            let input = document.getElementById('manualReelInput');
-            let wasteDisplay = document.getElementById('manualWasteDisplay');
+            let input = document.getElementById('manualReelInput').value;
+            let display = document.getElementById('manualWasteDisplay');
             let btn = document.getElementById('manualSelectBtn');
-            let upsDisplay = document.getElementById('manualUpsDisplay');
             
-            if(!input || !wasteDisplay || !btn) return;
-            
-            let val = parseFloat(input.value);
-            if(isNaN(val) || val < globalRequiredSize) {
-                wasteDisplay.innerText = "Invalid/Too Small";
-                wasteDisplay.className = "text-danger fw-bold";
-                btn.disabled = true;
-                upsDisplay.innerText = "-";
-            } else {
-                let waste = (val - globalRequiredSize).toFixed(2);
-                wasteDisplay.innerText = waste + " cm";
-                wasteDisplay.className = "text-warning fw-bold";
+            if (input && parseFloat(input) >= globalRequiredSize) {
+                let waste = (parseFloat(input) - globalRequiredSize).toFixed(2);
+                display.innerText = waste + " cm";
                 btn.disabled = false;
-                upsDisplay.innerText = activePlanSuggestedUps + " Ups (Approx)"; 
+            } else {
+                display.innerText = "Invalid";
+                btn.disabled = true;
             }
         }
 
         function selectManualReel() {
-            let input = document.getElementById('manualReelInput');
-            if(!input) return;
-            let val = parseFloat(input.value);
-            if(!isNaN(val)) {
-                selectSuggestedReelOption(val, activePlanSuggestedUps || 1);
-            }
-        }
-
-        function selectSuggestedReelOption(reel, ups) {
-            selectedReelSize = reel;
-            activePlanSuggestedUps = ups;
-            
-            const optionsPanel = document.getElementById('optionsCardPanel');
-            const configPanel = document.getElementById('combinationConfigurationPanel');
-            const container = document.getElementById('dynamicComboRowsContainer');
-            
-            if (optionsPanel) optionsPanel.style.display = 'none';
-            if (configPanel) configPanel.style.display = 'block';
-            
-            if(container) {
-                let html = `<div class='alert alert-info mb-3'>
-                    <strong>Selected Reel:</strong> <span class="badge bg-primary fs-6">${reel} cm</span> | 
-                    <strong>Ups:</strong> <span class="badge bg-secondary fs-6">${ups}</span>
-                </div>`;
-                
-                // Generates generic L1, L2, L3 layout for presentation
-                for(let i=1; i<=targetPly; i++) {
-                    html += `
-                    <div class="row g-2 mb-2 align-items-center bg-white p-2 border rounded shadow-sm">
-                        <div class="col-2 fw-bold text-center border-end">L${i}</div>
-                        <div class="col-5">
-                            <input type="text" class="form-control form-control-sm" placeholder="Material Type (e.g. Test Liner)" id="mat_name_${i}">
-                        </div>
-                        <div class="col-5">
-                            <input type="number" class="form-control form-control-sm" placeholder="GSM" id="mat_gsm_${i}">
-                        </div>
-                    </div>`;
-                }
-                container.innerHTML = html;
-            }
-        }
-
-        function triggerStockWeightAudit() {
-            if(!selectedReelSize) return;
-            
-            let parsedSheetLength;
-            if (isSampleMode) {
-                if (targetPly === 5) {
-                    parsedSheetLength = (globalBoxWidth + globalBoxHeight) * 2 + 7;
-                } else {
-                    parsedSheetLength = (globalBoxWidth + globalBoxHeight) * 2 + 6;
-                }
-            } else {
-                parsedSheetLength = isTwoDimensions ? (globalBoxLength + 2) : ((globalBoxWidth + globalBoxLength) * 2 + 6);
-            }
-
-            let currentQty = parseInt(document.getElementById('manual_qty').value) || 0;
-            let materialsArray = [];
-            
-            document.querySelectorAll('.layer-row').forEach(row => {
-                materialsArray.push({ gsm: row.querySelector('.layer-gsm').value, name: row.querySelector('.layer-name').value });
-            });
-            
-            fetch('/api/check_stock_detailed', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ size: selectedReelSize, qty: currentQty, sheet_length: parsedSheetLength, materials: materialsArray })
-            }).then(r=>r.json()).then(data => {
-                let html = '';
-                if (data.results) {
-                    data.results.forEach(res => {
-                        let icon = res.has_stock ? `<span class="tick-icon">&#10004; Passed</span>` : `<span class="cross-icon">&#10008; Short</span>`;
-                        let reqActionHtml = '-';
-                        if (res.shortage > 0 && currentRole === 'programmer1') {
-                            reqActionHtml = `<button class="btn btn-sm btn-danger py-0 fw-bold no-print" onclick="reqPackwellTransfer(${selectedReelSize}, '${res.name}')"><i class="bi bi-send-exclamation"></i> Req Packwell</button>`;
-                        }
-                        html += `<tr>
-                            <td class="fw-bold">${res.layer}</td>
-                            <td><strong>${res.name}</strong></td>
-                            <td>${res.gsm}</td>
-                            <td>${icon}</td>
-                            <td class="text-primary fw-bold">${res.required_weight} kg</td>
-                            <td class="text-success fw-bold">${res.available_stock} kg</td>
-                            <td><span class="badge ${res.shortage > 0 ? 'bg-danger':'bg-success'}">Shortage: ${res.shortage} kg</span></td>
-                            <td class="no-print">${reqActionHtml}</td>
-                        </tr>`;
-                    });
-                }
-                document.getElementById('detailedStockBody').innerHTML = html;
-                document.getElementById('stockStatusSummaryPanel').style.display = 'block';
-            });
+            let reel = parseFloat(document.getElementById('manualReelInput').value);
+            selectSuggestedReelOption(reel, 1); // Defaults to 1 UPS, adjust per your system requirements
         }
 
         function dispatchSavePlan() {
