@@ -459,59 +459,82 @@
         }
 
         function searchMasterProduct() {
-    // 1. Button එක Click වූ බව තහවුරු කරගැනීමට
-    console.log("🔍 [DEBUG] Load Specification Matrix Button Clicked!"); 
+            console.log("🔍 [DEBUG] Load Specification Matrix Button Clicked!"); 
 
-    isSampleMode = false;
-    const po = document.getElementById('po_no') ? document.getElementById('po_no').value.trim() : "";
-    const cid = document.getElementById('customer_id') ? document.getElementById('customer_id').value.trim() : "";
-    const pcode = document.getElementById('product_code') ? document.getElementById('product_code').value.trim() : "";
-    
-    console.log(`📡 [DEBUG] Input Data -> PO: '${po}', CID: '${cid}', PCode: '${pcode}'`);
-
-    if (!cid && !pcode && !po) {
-        alert("⚠️ Please enter PO Number, Customer Reference ID, or Product Match Code.");
-        return;
-    }
-
-    console.log("⏳ [DEBUG] Fetching data from backend API...");
-
-    fetch(`/api/get_product_info?po_no=${encodeURIComponent(po)}&customer_id=${encodeURIComponent(cid)}&product_code=${encodeURIComponent(pcode)}`)
-    .then(r => {
-        console.log("📥 [DEBUG] Backend HTTP Status:", r.status);
-        if (!r.ok) {
-            throw new Error(`HTTP Error! Status Code: ${r.status}`);
-        }
-        return r.json();
-    })
-    .then(data => {
-        console.log("✅ [DEBUG] Backend Response Data:", data);
-        if(data.success) {
-            targetPly = data.ply || 3;
-            let dims = data.carton_size ? data.carton_size.match(/\d+\.?\d*/g) : (data.cartoon_size ? data.cartoon_size.match(/\d+\.?\d*/g) : null);
+            isSampleMode = false;
+            const po = document.getElementById('po_no') ? document.getElementById('po_no').value.trim() : "";
+            const cid = document.getElementById('customer_id') ? document.getElementById('customer_id').value.trim() : "";
+            const pcode = document.getElementById('product_code') ? document.getElementById('product_code').value.trim() : "";
             
-            globalBoxLength = dims && dims.length > 0 ? parseFloat(dims[0]) : 30;
-            globalBoxWidth = dims && dims.length > 1 ? parseFloat(dims[1]) : 20;
-            isTwoDimensions = dims && dims.length === 2; 
+            console.log(`📡 [DEBUG] Input Data -> PO: '${po}', CID: '${cid}', PCode: '${pcode}'`);
 
-            const summaryEl = document.getElementById('selectedMetaSummary');
-            if (summaryEl) {
-                summaryEl.style.display = 'block';
-                summaryEl.innerHTML = `<i class="bi bi-info-circle"></i> Loaded Matrix: ${data.customer_name || 'N/A'} | Ply: ${data.ply || 3} | Flute: ${data.flute || 'N/A'}`;
+            if (!cid && !pcode && !po) {
+                alert("⚠️ Please enter PO Number, Customer Reference ID, or Product Match Code.");
+                return;
             }
-            
-            let optionsHtml = '';
-            if (data.options && Array.isArray(data.options)) {
-                if (data.options.length > 0) {
-                    globalRequiredSize = parseFloat(data.options[0].required_size) || 0;
+
+            console.log("⏳ [DEBUG] Fetching data from backend API...");
+
+            fetch(`/api/get_product_info?po_no=${encodeURIComponent(po)}&customer_id=${encodeURIComponent(cid)}&product_code=${encodeURIComponent(pcode)}`)
+            .then(r => {
+                console.log("📥 [DEBUG] Backend HTTP Status:", r.status);
+                if (!r.ok) {
+                    throw new Error(`HTTP Error! Status Code: ${r.status}`);
                 }
-                
-                data.options.forEach(o => {
-                    optionsHtml += `<tr>
-                        <td class="fw-bold text-dark">${o.ups} Ups</td><td>${o.required_size} cm</td><td class="text-primary fw-bold">${o.suggested_reel} cm</td><td>${o.wastage} cm</td>
-                        <td><button class="btn btn-sm btn-primary fw-bold" onclick="selectSuggestedReelOption(${o.suggested_reel}, ${o.ups})">Select Option</button></td>
-                    </tr>`;
-                });
+                return r.json();
+            })
+            .then(data => {
+                console.log("✅ [DEBUG] Backend Response Data:", data);
+                if(data.success) {
+                    targetPly = data.ply || 3;
+                    let dims = data.carton_size ? data.carton_size.match(/\d+\.?\d*/g) : (data.cartoon_size ? data.cartoon_size.match(/\d+\.?\d*/g) : null);
+                    
+                    globalBoxLength = dims && dims.length > 0 ? parseFloat(dims[0]) : 30;
+                    globalBoxWidth = dims && dims.length > 1 ? parseFloat(dims[1]) : 20;
+                    isTwoDimensions = dims && dims.length === 2; 
+
+                    const summaryEl = document.getElementById('selectedMetaSummary');
+                    if (summaryEl) {
+                        summaryEl.style.display = 'block';
+                        summaryEl.innerHTML = `<i class="bi bi-info-circle"></i> Loaded Matrix: ${data.customer_name || 'N/A'} | Ply: ${data.ply || 3} | Flute: ${data.flute || 'N/A'}`;
+                    }
+                    
+                    let optionsHtml = '';
+                    if (data.options && Array.isArray(data.options)) {
+                        if (data.options.length > 0) {
+                            globalRequiredSize = parseFloat(data.options[0].required_size) || 0;
+                        }
+                        
+                        data.options.forEach(opt => {
+                            optionsHtml += `
+                            <tr>
+                                <td>${opt.ups}</td>
+                                <td>${opt.required_size} cm</td>
+                                <td>${opt.suggested_reel} cm</td>
+                                <td>${opt.wastage} cm</td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary fw-bold" onclick="selectReelSize(${opt.suggested_reel}, ${opt.ups})">
+                                        Select
+                                    </button>
+                                </td>
+                            </tr>`;
+                        });
+                        
+                        document.getElementById('suggestedOptionsBody').innerHTML = optionsHtml;
+                        document.getElementById('optionsCardPanel').style.display = 'block';
+                    } else {
+                        document.getElementById('suggestedOptionsBody').innerHTML = `<tr><td colspan="5" class="text-danger fw-bold py-3">No suitable options found for this dimension.</td></tr>`;
+                        document.getElementById('optionsCardPanel').style.display = 'block';
+                    }
+                } else {
+                    alert("❌ " + (data.message || "Product not found"));
+                }
+            })
+            .catch(err => {
+                console.error("Fetch error:", err);
+                alert("❌ An error occurred while communicating with the server.");
+            });
+        };
 
                 // Manual Reel Input Row Implementation
                 if (globalRequiredSize > 0) {
