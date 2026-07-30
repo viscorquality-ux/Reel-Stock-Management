@@ -459,73 +459,89 @@
         }
 
         function searchMasterProduct() {
-            isSampleMode = false;
-            const po = document.getElementById('po_no') ? document.getElementById('po_no').value.trim() : "";
-            const cid = document.getElementById('customer_id') ? document.getElementById('customer_id').value.trim() : "";
-            const pcode = document.getElementById('product_code') ? document.getElementById('product_code').value.trim() : "";
-            
-            if (!cid && !pcode && !po) {
-                alert("⚠️ Please enter PO Number, Customer Reference ID, or Product Match Code.");
-                return;
-            }
+    // 1. Button එක Click වූ බව තහවුරු කරගැනීමට
+    console.log("🔍 [DEBUG] Load Specification Matrix Button Clicked!"); 
 
-            fetch(`/api/get_product_info?po_no=${encodeURIComponent(po)}&customer_id=${encodeURIComponent(cid)}&product_code=${encodeURIComponent(pcode)}`)
-            .then(r => r.json())
-            .then(data => {
-                if(data.success) {
-                    targetPly = data.ply || 3;
-                    let dims = data.carton_size ? data.carton_size.match(/\d+\.?\d*/g) : (data.cartoon_size ? data.cartoon_size.match(/\d+\.?\d*/g) : null);
-                    
-                    globalBoxLength = dims && dims.length > 0 ? parseFloat(dims[0]) : 30;
-                    globalBoxWidth = dims && dims.length > 1 ? parseFloat(dims[1]) : 20;
-                    isTwoDimensions = dims && dims.length === 2; 
+    isSampleMode = false;
+    const po = document.getElementById('po_no') ? document.getElementById('po_no').value.trim() : "";
+    const cid = document.getElementById('customer_id') ? document.getElementById('customer_id').value.trim() : "";
+    const pcode = document.getElementById('product_code') ? document.getElementById('product_code').value.trim() : "";
+    
+    console.log(`📡 [DEBUG] Input Data -> PO: '${po}', CID: '${cid}', PCode: '${pcode}'`);
 
-                    const summaryEl = document.getElementById('selectedMetaSummary');
-                    if (summaryEl) {
-                        summaryEl.style.display = 'block';
-                        summaryEl.innerHTML = `<i class="bi bi-info-circle"></i> Loaded Matrix: ${data.customer_name || 'N/A'} | Ply: ${data.ply || 3} | Flute: ${data.flute || 'N/A'}`;
-                    }
-                    
-                    let optionsHtml = '';
-                    if (data.options && Array.isArray(data.options)) {
-                        if (data.options.length > 0) {
-                            globalRequiredSize = parseFloat(data.options[0].required_size) || 0;
-                        }
-                        
-                        data.options.forEach(o => {
-                            optionsHtml += `<tr>
-                                <td class="fw-bold text-dark">${o.ups} Ups</td><td>${o.required_size} cm</td><td class="text-primary fw-bold">${o.suggested_reel} cm</td><td>${o.wastage} cm</td>
-                                <td><button class="btn btn-sm btn-primary fw-bold" onclick="selectSuggestedReelOption(${o.suggested_reel}, ${o.ups})">Select Option</button></td>
-                            </tr>`;
-                        });
+    if (!cid && !pcode && !po) {
+        alert("⚠️ Please enter PO Number, Customer Reference ID, or Product Match Code.");
+        return;
+    }
 
-                        // Manual Reel Input Row Implementation
-                        if (globalRequiredSize > 0) {
-                            optionsHtml += `
-                            <tr class="table-warning">
-                                <td class="fw-bold text-dark" id="manualUpsDisplay">-</td>
-                                <td>${globalRequiredSize} cm</td>
-                                <td><input type="number" id="manualReelInput" class="form-control form-control-sm text-center fw-bold border-warning" placeholder="Enter Reel Size (Manual)" oninput="calculateManualReel()"></td>
-                                <td id="manualWasteDisplay" class="text-danger fw-bold">-</td>
-                                <td><button class="btn btn-sm btn-success fw-bold" id="manualSelectBtn" onclick="selectManualReel()" disabled>Select Manual Option</button></td>
-                            </tr>`;
-                        }
-                    }
-                    
-                    const optsBody = document.getElementById('suggestedOptionsBody');
-                    if (optsBody) optsBody.innerHTML = optionsHtml;
-                    
-                    const optsPanel = document.getElementById('optionsCardPanel');
-                    if (optsPanel) optsPanel.style.display = 'block';
-                } else { 
-                    alert(data.message || "Product specification not found."); 
-                }
-            })
-            .catch(err => {
-                console.error("Error searching master product:", err);
-                alert("❌ Error fetching product specification matrix.");
-            });
+    console.log("⏳ [DEBUG] Fetching data from backend API...");
+
+    fetch(`/api/get_product_info?po_no=${encodeURIComponent(po)}&customer_id=${encodeURIComponent(cid)}&product_code=${encodeURIComponent(pcode)}`)
+    .then(r => {
+        console.log("📥 [DEBUG] Backend HTTP Status:", r.status);
+        if (!r.ok) {
+            throw new Error(`HTTP Error! Status Code: ${r.status}`);
         }
+        return r.json();
+    })
+    .then(data => {
+        console.log("✅ [DEBUG] Backend Response Data:", data);
+        if(data.success) {
+            targetPly = data.ply || 3;
+            let dims = data.carton_size ? data.carton_size.match(/\d+\.?\d*/g) : (data.cartoon_size ? data.cartoon_size.match(/\d+\.?\d*/g) : null);
+            
+            globalBoxLength = dims && dims.length > 0 ? parseFloat(dims[0]) : 30;
+            globalBoxWidth = dims && dims.length > 1 ? parseFloat(dims[1]) : 20;
+            isTwoDimensions = dims && dims.length === 2; 
+
+            const summaryEl = document.getElementById('selectedMetaSummary');
+            if (summaryEl) {
+                summaryEl.style.display = 'block';
+                summaryEl.innerHTML = `<i class="bi bi-info-circle"></i> Loaded Matrix: ${data.customer_name || 'N/A'} | Ply: ${data.ply || 3} | Flute: ${data.flute || 'N/A'}`;
+            }
+            
+            let optionsHtml = '';
+            if (data.options && Array.isArray(data.options)) {
+                if (data.options.length > 0) {
+                    globalRequiredSize = parseFloat(data.options[0].required_size) || 0;
+                }
+                
+                data.options.forEach(o => {
+                    optionsHtml += `<tr>
+                        <td class="fw-bold text-dark">${o.ups} Ups</td><td>${o.required_size} cm</td><td class="text-primary fw-bold">${o.suggested_reel} cm</td><td>${o.wastage} cm</td>
+                        <td><button class="btn btn-sm btn-primary fw-bold" onclick="selectSuggestedReelOption(${o.suggested_reel}, ${o.ups})">Select Option</button></td>
+                    </tr>`;
+                });
+
+                // Manual Reel Input Row Implementation
+                if (globalRequiredSize > 0) {
+                    optionsHtml += `
+                    <tr class="table-warning">
+                        <td class="fw-bold text-dark" id="manualUpsDisplay">-</td>
+                        <td>${globalRequiredSize} cm</td>
+                        <td><input type="number" id="manualReelInput" class="form-control form-control-sm text-center fw-bold border-warning" placeholder="Enter Reel Size (Manual)" oninput="calculateManualReel()"></td>
+                        <td id="manualWasteDisplay" class="text-danger fw-bold">-</td>
+                        <td><button class="btn btn-sm btn-success fw-bold" id="manualSelectBtn" onclick="selectManualReel()" disabled>Select Manual Option</button></td>
+                    </tr>`;
+                }
+            }
+            
+            const optsBody = document.getElementById('suggestedOptionsBody');
+            if (optsBody) optsBody.innerHTML = optionsHtml;
+            
+            const optsPanel = document.getElementById('optionsCardPanel');
+            if (optsPanel) optsPanel.style.display = 'block';
+            
+            console.log("🎨 [DEBUG] UI Updated successfully.");
+        } else { 
+            alert(data.message || "Product specification not found."); 
+        }
+    })
+    .catch(err => {
+        console.error("❌ [DEBUG] Error searching master product:", err);
+        alert("❌ Error fetching product specification matrix. Please check the console (F12) for details.");
+    });
+}
 
         function calculateSampleMemo() {
             let custName = document.getElementById('sample_customer') ? document.getElementById('sample_customer').value.trim() : "";
