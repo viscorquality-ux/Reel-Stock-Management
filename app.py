@@ -574,6 +574,22 @@ def approve_sr(id):
         flash(f"✅ SR Request for PO {sr.po_number} has been Approved!", "success")
     return redirect(url_for('sr_request'))
 
+@app.route('/close_sr/<int:id>', methods=['POST'])
+def close_sr(id):
+    user_role = get_user_role()
+    if user_role == 'viewer':
+        flash("❌ Action Not Allowed.", "danger")
+        return redirect(url_for('sr_request'))
+        
+    sr = SRRequest.query.get_or_404(id)
+    if sr.status == 'Pending':
+        sr.status = 'Closed'
+        db.session.commit()
+        flash(f"🔒 SR Request {sr.sr_number or sr.id} Closed & Saved Successfully!", "success")
+    else:
+        flash("❌ Cannot close an already approved or processed SR Request.", "warning")
+    return redirect(url_for('sr_request'))
+
 @app.route('/proceed_sr_batch/<int:sr_id>', methods=['POST'])
 def proceed_sr_batch(sr_id):
     if get_user_role() == 'viewer':
@@ -1479,7 +1495,6 @@ def execute_packwell_transfer():
 @app.route('/get_history_logs', methods=['GET'])
 def api_get_all_history_logs():
     try:
-        # ReelHistory table එකෙන් අලුත්ම ලොග් 100 ලබාදීම
         logs = ReelHistory.query.order_by(ReelHistory.timestamp.desc()).limit(100).all()
         result = []
         for log in logs:
@@ -1500,7 +1515,6 @@ def api_get_all_history_logs():
 @app.route('/api/get_plan_history', methods=['GET'])
 def api_get_plan_history():
     try:
-        # ProgrammePlan table එකෙන් අලුත්ම සැලසුම් ලොග් 100 ලබාදීම
         plans = ProgrammePlan.query.order_by(ProgrammePlan.created_at.desc()).limit(100).all()
         result = []
         for p in plans:
@@ -1516,5 +1530,6 @@ def api_get_plan_history():
         return jsonify({'success': True, 'plan_history': result})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
 if __name__ == '__main__':
     socketio.run(app, debug=True, host='0.0.0.0', port=5000)
