@@ -1731,10 +1731,10 @@
                     
                     <div class="row g-2 mb-3">
                         <div class="col-md-4"><label class="small fw-bold">Counter Qty</label><input type="number" class="form-control" required name="counter_qty"></div>
-                        <div class="col-md-4"><label class="small fw-bold">Excess Qty</label><input type="number" class="form-control" required name="excess"></div>
+                        <div class="col-md-4"><label class="small fw-bold">Excess Qty</label><input type="number" class="form-control" required name="excess_qty"></div>
                         <div class="col-md-4"><label class="small fw-bold">Damaged Qty</label><input type="number" class="form-control" required name="damaged_qty"></div>
                     </div>
-
+                    
                     <div class="row g-2 mb-3 p-3 bg-light border border-secondary-subtle rounded mt-2">
                         <div class="col-md-4"><label class="small fw-bold">Target Qty (From Plan)</label><input type="number" class="form-control bg-white fw-bold text-dark" id="st_target_qty_${id}" value="${plan.qty}" readonly></div>
                         <div class="col-md-4"><label class="small fw-bold">Finished Qty</label><input type="number" class="form-control border-primary fw-bold" required name="finished_qty" id="st_finished_qty_${id}" oninput="calcBalanceTriggerBox(${id}, 'st')"></div>
@@ -1742,20 +1742,16 @@
                     </div>
 
                     <div id="st_command_box_${id}" style="display:none;" class="alert alert-warning border-warning shadow-sm mt-3">
-                        <h6 class="fw-bold text-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>Balance එකක් පවතී!</h6>
+                        <h6 class="fw-bold text-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>Balance එකක් පවතී! (Balance Qty > 0)</h6>
                         <label class="small fw-bold mt-1">ඔබට මෙම ඉතිරි ප්‍රමාණය නැවත කිරීමට (Balance PO) අවශ්‍යද?</label>
-                        <select class="form-select border-warning mt-2" name="balance_target" id="st_balance_option_${id}" onchange="document.getElementById('st_process_hidden_${id}').value = (this.value==='no'||this.value==='') ? 'no' : 'yes';">
+                        <select class="form-select border-warning mt-2 fw-semibold" name="balance_target" id="st_balance_option_${id}" onchange="document.getElementById('st_process_hidden_${id}').value = (this.value==='no'||this.value==='') ? 'no' : 'yes';">
                             <option value="">-- තීරණය තෝරන්න (Required) --</option>
-                            <option value="Printers">ඔව්, (Balance PO -> Printers)</option>
-                            <option value="Die Cut">ඔව්, (Balance PO -> Die Cut)</option>
+                            <option value="Printers">ඔව්, Excess board තිබේනම් (Balance PO -> Printers)</option>
+                            <option value="Board Plant">ඔව්, Excess Board නොමැති නම් (Balance PO -> Board Plant)</option>
+                            <option value="Die Cut">ඔව්, Excess without Die cut board තිබේ නම් (Balance PO -> Die Cut)</option>
                             <option value="no">නැත, ඉතිරි ප්‍රමාණය අවශ්‍ය නැත</option>
                         </select>
                         <input type="hidden" name="process_balance" id="st_process_hidden_${id}" value="no">
-                    </div>
-
-                    <h6 class="text-secondary fw-bold border-bottom pb-1 mt-4">Stitching QC Section</h6>
-                    <div class="row g-2 mb-4">
-                        <div class="col-md-6"><label class="small fw-bold">QC Approval</label><select class="form-select" required name="qc_approval"><option value="Approved">Approved</option><option value="Rejected">Rejected</option></select></div>
                     </div>
                     
                     <div class="d-flex justify-content-end gap-2 mt-3">
@@ -1787,88 +1783,70 @@
             transferPlan(id, 'Finished Goods', dataObj, 'stitching');
         }
 
-        /* -------------------------------------------------------------
-           අලුතින් එකතු කළ සහ සම්පූර්ණ කළ අවශ්‍ය Functions (Missing API integrations)
-           ------------------------------------------------------------- */
-
-        // Finished Goods Stage Table
-        function renderGenericTable(stage) {
-            document.getElementById('generic-tab-title').innerHTML = `<i class='bi bi-check-circle'></i> ${stage} Stage`;
+        function renderGenericTable(stageName) {
+            document.getElementById('generic-tab-title').innerHTML = "<i class='bi bi-box-seam'></i> " + stageName + " Stage";
             fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
                 globalAllPlans = data;
                 let html = `
                 <table class="table table-bordered table-striped align-middle text-center mb-0">
-                    <thead class="table-dark small"><tr><th>PO No</th><th>Customer</th><th>Size</th><th>Qty</th><th>Action</th></tr></thead>
+                    <thead class="table-dark small"><tr><th>PO No</th><th>Customer</th><th>Size</th><th>Qty</th><th>Status</th><th>Action</th></tr></thead>
                     <tbody>`;
                 let hasRecords = false;
                 for (const [size, plans] of Object.entries(data)) {
-                    plans.filter(p => p.status === stage).forEach(p => {
+                    plans.filter(p => p.status === stageName).forEach(p => {
                         hasRecords = true;
-                        let actHtml = '';
-                        if (stage === 'Finished Goods' && canAct('Finished Goods')) {
-                            actHtml = `
-                            <div class="d-flex gap-2 justify-content-center">
-                                <input type="text" id="ad_no_${p.id}" class="form-control form-control-sm w-50" placeholder="AD Number" required>
-                                <button class="btn btn-sm btn-success fw-bold text-nowrap" onclick="dispatchFinishedGoods(${p.id})">Dispatch Job</button>
-                            </div>`;
-                        } else {
-                            actHtml = `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
-                        }
+                        let actHtml = `<button class="btn btn-sm btn-dark fw-bold" onclick="dispatchFinishedGoods(${p.id})">Dispatch Job</button>`;
                         html += `
                         <tr>
-                            <td class="fw-bold">${p.po_no}</td><td>${p.customer_name}</td><td>${size} cm</td><td><span class="badge bg-secondary fs-6">${p.qty}</span></td>
-                            <td>${actHtml}</td>
+                            <td class="fw-bold">${p.po_no}</td>
+                            <td>${p.customer_name}</td>
+                            <td>${size} cm</td>
+                            <td><span class="badge bg-secondary fs-6">${p.qty}</span></td>
+                            <td><span class="badge bg-warning text-dark">${p.status}</span></td>
+                            <td>
+                                <input type="text" id="ad_no_${p.id}" class="form-control form-control-sm d-inline-block w-50 me-2" placeholder="AD Number">
+                                ${actHtml}
+                            </td>
                         </tr>`;
                     });
                 }
-                if (!hasRecords) html += `<tr><td colspan="5" class="text-muted py-3">No jobs currently in ${stage}.</td></tr>`;
+                if(!hasRecords) html += `<tr><td colspan="6" class="text-muted py-3">No jobs currently in ${stageName}.</td></tr>`;
                 html += `</tbody></table>`;
                 document.getElementById('generic-stage-container').innerHTML = html;
             });
         }
 
-        // Balance PO Table
         function renderBalancePOTable() {
             document.getElementById('generic-tab-title').innerHTML = "<i class='bi bi-exclamation-triangle-fill text-warning'></i> Balance PO Stage";
             fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
                 globalAllPlans = data;
                 let html = `
                 <table class="table table-bordered table-striped align-middle text-center mb-0">
-                    <thead class="table-dark small"><tr><th>PO No</th><th>Customer</th><th>Size</th><th>Balance Qty</th><th>Target Stage</th><th>Action</th></tr></thead>
+                    <thead class="table-dark small"><tr><th>PO No</th><th>Customer</th><th>Size</th><th>Balance Qty</th><th>Requested Stage</th><th>Action</th></tr></thead>
                     <tbody>`;
                 let hasRecords = false;
                 for (const [size, plans] of Object.entries(data)) {
                     plans.filter(p => p.status === 'Balance PO').forEach(p => {
                         hasRecords = true;
                         let target = p.balance_target || 'Board Plant';
-                        let actHtml = canAct('Balance PO') ? `<button class="btn btn-sm btn-primary fw-bold" onclick="transferPlan(${p.id}, '${target}')">Send to ${target}</button>` : `<span class="badge bg-secondary">View Only</span>`;
+                        let actHtml = `<button class="btn btn-sm btn-warning fw-bold" onclick="transferPlan(${p.id}, '${target}')">Send to ${target}</button>`;
                         html += `
                         <tr>
-                            <td class="fw-bold">${p.po_no}</td><td>${p.customer_name}</td><td>${size} cm</td><td><span class="badge bg-danger fs-6">${p.balance_qty || p.qty}</span></td>
-                            <td><span class="badge bg-warning text-dark">${target}</span></td>
+                            <td class="fw-bold text-danger">${p.po_no}</td>
+                            <td>${p.customer_name}</td>
+                            <td>${size} cm</td>
+                            <td><span class="badge bg-danger fs-6">${p.balance_qty || p.qty}</span></td>
+                            <td><span class="badge bg-info text-dark">${target}</span></td>
                             <td>${actHtml}</td>
                         </tr>`;
                     });
                 }
-                if (!hasRecords) html += `<tr><td colspan="6" class="text-muted py-3">No Balance POs pending.</td></tr>`;
+                if(!hasRecords) html += `<tr><td colspan="6" class="text-muted py-3">No Balance POs currently.</td></tr>`;
                 html += `</tbody></table>`;
                 document.getElementById('generic-stage-container').innerHTML = html;
             });
         }
 
-        // View Attachments (View Logs)
-        function viewStageAttachment(id) {
-            fetch(`/api/get_plan_details?id=${id}`)
-            .then(r => r.json())
-            .then(data => {
-                let content = `<pre class="bg-light p-3 border rounded text-start" style="white-space: pre-wrap;">${JSON.stringify(data, null, 2)}</pre>`;
-                document.getElementById('attachmentModalBody').innerHTML = content;
-                new bootstrap.Modal(document.getElementById('viewAttachmentModal')).show();
-            })
-            .catch(() => alert("Failed to load attachment logs."));
-        }
-
-        // ✅ MAIN FIX: History Logs (Live Planning හරහා create කරන දත්තත් පෙන්වන ලෙස සකසා ඇත)
         function loadHistoryLogs(reset = false) {
             if (reset) {
                 document.getElementById('historyStartDate').value = '';
@@ -1876,101 +1854,53 @@
                 document.getElementById('historySearchPO').value = '';
                 document.getElementById('historySearchCustomer').value = '';
             }
-
-            let startDate = document.getElementById('historyStartDate').value;
-            let endDate = document.getElementById('historyEndDate').value;
-            let poFilter = document.getElementById('historySearchPO').value.toUpperCase();
-            let custFilter = document.getElementById('historySearchCustomer').value.toUpperCase();
-
-            document.getElementById('historyLogsTableBody').innerHTML = '<tr><td colspan="9" class="text-muted py-4">Loading history audit logs...</td></tr>';
-
-            // Fetch both Finished History Logs & Currently Active Live Planning data to merge them
-            Promise.all([
-                fetch('/api/get_history_logs').then(r => r.ok ? r.json() : []).catch(() => []),
-                fetch('/api/get_saved_plans').then(r => r.ok ? r.json() : {}).catch(() => ({}))
-            ]).then(([historyData, activeData]) => {
-                let allLogs = [];
-                
-                // 1. Process dedicated Dispatched history logs
-                if (Array.isArray(historyData)) {
-                    allLogs = allLogs.concat(historyData);
-                }
-
-                // 2. Process all active plans (Live Planning, Board Plant etc.) so that newly created ones ALWAYS show
-                for (const [size, plans] of Object.entries(activeData)) {
-                    plans.forEach(p => {
-                        if (!allLogs.find(log => log.id === p.id)) { // Prevent duplicates
-                            p.selected_reel_size = size;
-                            allLogs.push(p);
-                        }
-                    });
-                }
-
-                // Apply Search Filters
-                if (startDate) {
-                    let sDate = new Date(startDate).getTime();
-                    allLogs = allLogs.filter(log => new Date(log.created_at || log.timestamp).getTime() >= sDate);
-                }
-                if (endDate) {
-                    let eDate = new Date(endDate).getTime() + 86400000; 
-                    allLogs = allLogs.filter(log => new Date(log.created_at || log.timestamp).getTime() <= eDate);
-                }
-                if (poFilter) {
-                    allLogs = allLogs.filter(log => (log.po_no || '').toUpperCase().includes(poFilter));
-                }
-                if (custFilter) {
-                    allLogs = allLogs.filter(log => (log.customer_name || '').toUpperCase().includes(custFilter));
-                }
-
-                // Sort Descending by ID or Timestamp
-                allLogs.sort((a, b) => (b.id || 0) - (a.id || 0));
-
+            fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
+                globalAllPlans = data;
                 let html = '';
-                if (allLogs.length > 0) {
-                    allLogs.forEach(log => {
-                        let configInfo = log.cut_length || log.sheet_length ? `${log.selected_reel_size || '-'} cm &times; ${log.cut_length || log.sheet_length} cm` : '-';
-                        let materials = log.materials ? log.materials.map((m, i) => `L${i+1}: ${m.gsm} - ${m.name}`).join('<br>') : '-';
-                        
-                        let statusStr = log.status || 'Live Planning';
-                        let badgeColor = statusStr === 'Dispatched' ? 'bg-success' : (statusStr === 'Live Planning' ? 'bg-primary' : 'bg-info text-dark');
-                        
-                        let dateStr = '-';
-                        if (log.created_at || log.timestamp) {
-                            try { dateStr = new Date(log.created_at || log.timestamp).toLocaleString(); } catch(e) {}
-                        }
+                let hasLogs = false;
+                
+                for (const [size, plans] of Object.entries(data)) {
+                    // MAIN REQUIREMENT FILTER: DO NOT VIEW IF STATUS IS CLOSED
+                    let logs = plans.filter(p => p.status && p.status !== 'Live Planning' && p.status !== 'Draft' && p.status.toLowerCase() !== 'closed');
+                    
+                    logs.forEach(log => {
+                        hasLogs = true;
+                        let combinationSpecsString = (log.materials && Array.isArray(log.materials)) ? log.materials.map((m,i)=> `L${i+1}: ${m.gsm} - ${m.name}`).join('<br>') : '-';
+                        let dateStr = log.saved_at ? new Date(parseInt(log.saved_at)).toLocaleString() : '-';
+                        if(dateStr === 'Invalid Date' || !log.saved_at) dateStr = log.saved_at || '-';
 
                         html += `
                         <tr>
-                            <td class="small">${dateStr}</td>
-                            <td class="fw-bold text-primary">${log.po_no || '-'}</td>
-                            <td>${log.customer_name || '-'}</td>
-                            <td class="font-monospace text-danger">${configInfo}</td>
-                            <td><span class="badge bg-secondary">${log.ply || '-'} Ply</span></td>
-                            <td><span class="badge bg-secondary fs-6">${log.qty || '0'}</span></td>
-                            <td class="text-start small font-monospace" style="font-size: 0.8rem;">${materials}</td>
-                            <td><span class="badge ${badgeColor} shadow-sm">${statusStr}</span></td>
-                            <td class="fw-bold text-muted">${log.ad_number || '-'}</td>
-                        </tr>
-                        `;
+                            <td>${dateStr}</td>
+                            <td class="fw-bold text-primary">${log.po_no}</td>
+                            <td>${log.customer_name}</td>
+                            <td>${size} cm</td>
+                            <td>${log.ply}</td>
+                            <td>${log.qty}</td>
+                            <td class="text-start ps-2 font-monospace" style="font-size: 0.82rem;">${combinationSpecsString}</td>
+                            <td><span class="badge bg-secondary">${log.status}</span></td>
+                            <td>${log.ad_number || '-'}</td>
+                        </tr>`;
                     });
-                } else {
-                    html = '<tr><td colspan="9" class="text-muted py-4">No plan history audit logs found for the selected criteria.</td></tr>';
+                }
+                
+                if (!hasLogs) {
+                    html = '<tr><td colspan="9" class="text-muted py-4">No history audit logs available.</td></tr>';
                 }
                 
                 document.getElementById('historyLogsTableBody').innerHTML = html;
+                filterHistoryTable(); 
             }).catch(err => {
-                console.error("Error loading history logs:", err);
-                document.getElementById('historyLogsTableBody').innerHTML = '<tr><td colspan="9" class="text-danger py-4">Error loading data. Cannot reach the server endpoint.</td></tr>';
+                document.getElementById('historyLogsTableBody').innerHTML = '<tr><td colspan="9" class="text-danger py-4">Error loading history logs data.</td></tr>';
+                console.error("Error fetching history:", err);
             });
         }
 
-        // Auto trigger History Loading if User defaults to that Tab on page load
-        document.addEventListener('DOMContentLoaded', () => {
-            if (window.location.hash === '#history-logs' || document.getElementById('history-tab')?.classList.contains('active')) {
-                loadHistoryLogs();
-            }
-        });
-
+        function viewStageAttachment(id) {
+            document.getElementById('attachmentModalBody').innerHTML = `<p class="text-center text-muted my-4">Document log viewer activated for Job ID: ${id}. Detailed view configurations will be rendered here.</p>`;
+            var myModal = new bootstrap.Modal(document.getElementById('viewAttachmentModal'));
+            myModal.show();
+        }
     </script>
 </body>
 </html>
