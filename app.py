@@ -1473,5 +1473,48 @@ def execute_packwell_transfer():
         return jsonify({'success': True, 'reel_number': reel.reel_number})
     return jsonify({'success': False, 'message': 'No matching active reels found in Packwell Stock.'})
     
+@app.route('/api/get_history_logs', methods=['GET'])
+@app.route('/api/get_history', methods=['GET'])
+@app.route('/api/history_logs', methods=['GET'])
+@app.route('/get_history_logs', methods=['GET'])
+def api_get_all_history_logs():
+    try:
+        # ReelHistory table එකෙන් අලුත්ම ලොග් 100 ලබාදීම
+        logs = ReelHistory.query.order_by(ReelHistory.timestamp.desc()).limit(100).all()
+        result = []
+        for log in logs:
+            result.append({
+                'id': log.id,
+                'reel_number': log.reel.reel_number if log.reel else 'N/A',
+                'usage_type': log.usage_type,
+                'weight_before': log.weight_before,
+                'weight_after': log.weight_after,
+                'doc_number': log.doc_number,
+                'remarks': log.remarks,
+                'timestamp': log.timestamp.strftime('%Y-%m-%d %I:%M %p') if log.timestamp else ""
+            })
+        return jsonify({'success': True, 'logs': result})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/get_plan_history', methods=['GET'])
+def api_get_plan_history():
+    try:
+        # ProgrammePlan table එකෙන් අලුත්ම සැලසුම් ලොග් 100 ලබාදීම
+        plans = ProgrammePlan.query.order_by(ProgrammePlan.created_at.desc()).limit(100).all()
+        result = []
+        for p in plans:
+            result.append({
+                'id': p.id,
+                'po_no': p.po_no,
+                'customer_id': p.customer_id,
+                'product_code': p.product_code,
+                'status': p.status,
+                'created_by': p.created_by,
+                'created_at': p.created_at.strftime('%Y-%m-%d %I:%M %p') if p.created_at else ""
+            })
+        return jsonify({'success': True, 'plan_history': result})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 if __name__ == '__main__':
     socketio.run(app, debug=True, host='0.0.0.0', port=5000)
