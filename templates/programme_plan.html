@@ -1715,23 +1715,21 @@
                 
                 <form id="form_stitching_${id}" onsubmit="submitStitchingForm(event, ${id})">
                     <div class="row g-2 mb-3 mt-4">
-                        <div class="col-md-2"><label class="small fw-bold text-primary">Date</label><input type="date" class="form-control border-primary" required name="st_date" value="${currentIsoDate}"></div>
-                        <div class="col-md-5 d-flex align-items-end gap-3 pb-1">
-                            <div class="form-check"><input class="form-check-input" type="checkbox" name="stitching_select" value="S01" id="s1_${id}"><label class="form-check-label fw-semibold" for="s1_${id}">S01</label></div>
-                            <div class="form-check"><input class="form-check-input" type="checkbox" name="stitching_select" value="S02" id="s2_${id}"><label class="form-check-label fw-semibold" for="s2_${id}">S02</label></div>
-                            <div class="form-check"><input class="form-check-input" type="checkbox" name="stitching_select" value="S03" id="s3_${id}"><label class="form-check-label fw-semibold" for="s3_${id}">S03</label></div>
-                            <div class="form-check"><input class="form-check-input" type="checkbox" name="stitching_select" value="S04" id="s4_${id}"><label class="form-check-label fw-semibold" for="s4_${id}">S04</label></div>
-                            <div class="form-check"><input class="form-check-input" type="checkbox" name="stitching_select" value="S05" id="s5_${id}"><label class="form-check-label fw-semibold" for="s5_${id}">S05</label></div>
+                        <div class="col-md-4">
+                            <label class="small fw-bold">1. Select Machine</label>
+                            <div class="d-flex gap-3 mt-1 p-2 border rounded bg-light">
+                                <div class="form-check"><input class="form-check-input" type="checkbox" name="stitching_select" value="Machine_1" id="m1_${id}"><label class="form-check-label fw-semibold" for="m1_${id}">Machine 1</label></div>
+                                <div class="form-check"><input class="form-check-input" type="checkbox" name="stitching_select" value="Machine_2" id="m2_${id}"><label class="form-check-label fw-semibold" for="m2_${id}">Machine 2</label></div>
+                            </div>
                         </div>
-                        <div class="col-md-2"><label class="small fw-bold">Pass / Fail</label><select class="form-select" required name="pass_fail"><option value="Pass">Pass</option><option value="Fail">Fail</option></select></div>
-                        <div class="col-md-3"><label class="small fw-bold">Batch Number</label><input type="text" class="form-control" required name="batch_number" placeholder="Number & Text"></div>
+                        <div class="col-md-2"><label class="small fw-bold text-primary">Date</label><input type="date" class="form-control border-primary mt-1" required name="st_date" value="${currentIsoDate}"></div>
+                        <div class="col-md-3"><label class="small fw-bold">Pass / Fail</label><select class="form-select mt-1" required name="pass_fail"><option value="Pass">Pass</option><option value="Fail">Fail</option></select></div>
                     </div>
                     
                     <div class="row g-2 mb-3">
-                        <div class="col-md-3"><label class="small fw-bold">Counter Qty</label><input type="number" class="form-control" required name="counter_qty"></div>
-                        <div class="col-md-3"><label class="small fw-bold">Excess</label><input type="number" class="form-control" required name="excess"></div>
-                        <div class="col-md-3"><label class="small fw-bold">Damaged Qty</label><input type="number" class="form-control" required name="damaged_qty"></div>
-                        <div class="col-md-3"><label class="small fw-bold">C: Hand & OPR EPF No</label><input type="text" class="form-control" required name="epf_no" placeholder="0000/0000"></div>
+                        <div class="col-md-4"><label class="small fw-bold">Counter Qty</label><input type="number" class="form-control" required name="counter_qty"></div>
+                        <div class="col-md-4"><label class="small fw-bold">Excess</label><input type="number" class="form-control" required name="excess"></div>
+                        <div class="col-md-4"><label class="small fw-bold">Damaged Qty</label><input type="number" class="form-control" required name="damaged_qty"></div>
                     </div>
 
                     <div class="row g-2 mb-3 p-3 bg-light border border-secondary-subtle rounded mt-2">
@@ -1753,13 +1751,8 @@
                         <input type="hidden" name="process_balance" id="st_process_hidden_${id}" value="no">
                     </div>
 
-                    <h6 class="text-secondary fw-bold border-bottom pb-1 mt-4">Stitching QC Section</h6>
-                    <div class="row g-2 mb-4">
-                        <div class="col-md-6"><label class="small fw-bold">QC Approval or not</label><select class="form-select" required name="qc_approval"><option value="Approved">Approved</option><option value="Rejected">Rejected</option></select></div>
-                    </div>
-                    
                     <div class="d-flex justify-content-end gap-2 mt-3">
-                        <button type="submit" class="btn btn-primary fw-bold px-4">Save & Complete Stitching Stage</button>
+                        <button type="submit" class="btn btn-dark fw-bold px-4">Save & Complete Stitching Stage (To Finished Goods)</button>
                     </div>
                 </form>
             </div>`;
@@ -1788,104 +1781,62 @@
         }
 
         function renderBalancePOTable() {
-            document.getElementById('generic-tab-title').innerHTML = "<i class='bi bi-exclamation-triangle-fill text-warning'></i> Balance PO Dashboard";
+            document.getElementById('generic-tab-title').innerHTML = "<i class='bi bi-exclamation-triangle-fill'></i> Balance PO Stage";
             fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
+                globalAllPlans = data;
                 let html = `
-                <div class="mb-3 d-flex justify-content-between align-items-center">
-                    <span class="text-secondary fw-bold"><i class="bi bi-funnel"></i> Filter Job Cards</span>
-                    <div class="input-group shadow-sm w-25">
-                        <span class="input-group-text bg-warning text-dark border-warning"><i class="bi bi-search"></i></span>
-                        <input type="text" id="balanceSearch" class="form-control border-warning" placeholder="Search PO No..." onkeyup="filterByPONo('balanceTable', 'balanceSearch', 0)">
-                    </div>
-                </div>
-                <div class="table-responsive">
-                <table id="balanceTable" class="table table-bordered table-striped align-middle text-center mb-0">
-                    <thead class="table-dark small">
-                        <tr><th>PO No</th><th>Customer</th><th>Size Config</th><th>Ply</th><th>Missing Balance Qty</th><th>Requested Stage Target</th><th>Remarks</th><th>Action</th></tr>
-                    </thead>
+                <table class="table table-bordered table-striped align-middle text-center mb-0">
+                    <thead class="table-dark small"><tr><th>PO No</th><th>Customer</th><th>Size</th><th>Pending Qty</th><th>Action</th></tr></thead>
                     <tbody>`;
-                
                 let hasRecords = false;
                 for (const [size, plans] of Object.entries(data)) {
                     plans.filter(p => p.status === 'Balance PO').forEach(p => {
                         hasRecords = true;
-                        let config = `${size} cm &times; ${p.cut_length || 'N/A'} cm`;
-                        let actHtml = canAct('Balance PO') ? 
-                            `<button class="btn btn-sm btn-primary fw-bold px-3 py-1 text-uppercase" onclick="reTriggerBalancePO(${p.id}, '${p.target_stage_for_balance || 'Board Plant'}')">Send to ${p.target_stage_for_balance || 'Board Plant'}</button>` 
-                            : `<span class="badge bg-secondary">View Only</span>`;
+                        let actHtml = canAct('Balance PO') ? `<button class="btn btn-sm btn-primary fw-bold" onclick="transferPlan(${p.id}, 'Board Plant')">Re-initiate to Board Plant</button>` : `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
                         html += `
                         <tr>
-                            <td class="fw-bold text-danger">${p.po_no}</td><td>${p.customer_name}</td>
-                            <td class="font-monospace">${config}</td><td><span class="badge bg-secondary">${p.ply} Ply</span></td>
-                            <td><span class="badge bg-warning text-dark fs-6">${p.qty}</span></td>
-                            <td class="fw-bold text-primary">${p.target_stage_for_balance || 'Board Plant'}</td>
-                            <td class="small text-muted">${p.remarks || 'Insufficient completion at previous stage'}</td>
+                            <td class="fw-bold text-danger">${p.po_no}</td>
+                            <td>${p.customer_name}</td>
+                            <td>${size} cm</td>
+                            <td><span class="badge bg-danger fs-6">${p.qty}</span></td>
                             <td>${actHtml}</td>
                         </tr>`;
                     });
                 }
-                html += `</tbody></table></div>`;
-                document.getElementById('generic-stage-container').innerHTML = hasRecords ? html : "<div class="text-center text-muted p-4">No Balance POs pending.</div>";
+                if(!hasRecords) html += `<tr><td colspan="5" class="text-muted py-3">No Balance POs currently pending.</td></tr>`;
+                html += `</tbody></table>`;
+                document.getElementById('generic-stage-container').innerHTML = html;
             });
         }
 
-        function reTriggerBalancePO(id, targetStage) {
-            if(!confirm(`Are you sure you want to push this Balance PO to ${targetStage}?`)) return;
-            fetch('/api/transfer_plan', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ id: id, status: targetStage, form_type: 'balance_push' })
-            }).then(r=>r.json()).then(res => {
-                if(res.success) {
-                    alert(`✅ Balance PO successfully routed to ${targetStage}!`);
-                    renderBalancePOTable();
-                }
-            });
-        }
-
-        function renderGenericTable(status) {
-            let icon = 'bi-check-circle-fill';
-            document.getElementById('generic-tab-title').innerHTML = `<i class='bi ${icon} text-success'></i> ${status} Stage Dashboard`;
-            
+        function renderGenericTable(stageName) {
+            let icon = stageName === 'Finished Goods' ? 'bi-box-seam' : 'bi-check-circle';
+            document.getElementById('generic-tab-title').innerHTML = `<i class='bi ${icon}'></i> ${stageName} Stage`;
             fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
+                globalAllPlans = data;
                 let html = `
-                <div class="mb-3 d-flex justify-content-between align-items-center">
-                    <span class="text-secondary fw-bold"><i class="bi bi-funnel"></i> Filter Job Cards</span>
-                    <div class="input-group shadow-sm w-25">
-                        <span class="input-group-text bg-dark text-white border-dark"><i class="bi bi-search"></i></span>
-                        <input type="text" id="genericSearch" class="form-control border-dark" placeholder="Search PO No..." onkeyup="filterByPONo('genericTable', 'genericSearch', 0)">
-                    </div>
-                </div>
-                <div class="table-responsive">
-                <table id="genericTable" class="table table-bordered table-striped align-middle text-center mb-0">
-                    <thead class="table-dark small">
-                        <tr><th>PO No</th><th>Customer</th><th>Size Config</th><th>Ply</th><th>Final Qty</th><th>Integrated Prod Doc</th><th>Dispatch AD Form</th></tr>
-                    </thead>
+                <table class="table table-bordered table-striped align-middle text-center mb-0">
+                    <thead class="table-dark small"><tr><th>PO No</th><th>Customer</th><th>Size</th><th>Qty</th><th>Manual AD Number</th><th>Action</th></tr></thead>
                     <tbody>`;
-                
                 let hasRecords = false;
                 for (const [size, plans] of Object.entries(data)) {
-                    plans.filter(p => p.status === status).forEach(p => {
+                    plans.filter(p => p.status === stageName).forEach(p => {
                         hasRecords = true;
-                        let config = `${size} cm &times; ${p.cut_length || 'N/A'} cm`;
-                        
-                        let actHtml = canAct(status) ? `
-                            <div class="input-group input-group-sm mx-auto" style="max-width: 200px;">
-                                <input type="text" id="ad_no_${p.id}" class="form-control border-primary fw-bold" placeholder="AD No..." required>
-                                <button class="btn btn-primary fw-bold" onclick="dispatchFinishedGoods(${p.id})">Dispatch</button>
-                            </div>` : `<span class="badge bg-secondary">View Only</span>`;
-
+                        let actHtml = canAct(stageName) ? `<button class="btn btn-sm btn-success fw-bold" onclick="dispatchFinishedGoods(${p.id})">Dispatch Job</button>` : `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
                         html += `
                         <tr>
-                            <td class="fw-bold text-primary">${p.po_no}</td><td>${p.customer_name}</td>
-                            <td class="font-monospace">${config}</td><td><span class="badge bg-secondary">${p.ply} Ply</span></td>
-                            <td><span class="badge bg-success fs-6">${p.qty}</span></td>
-                            <td><button class="btn btn-sm btn-outline-dark fw-bold shadow-sm" onclick="viewStageAttachment(${p.id})"><i class="bi bi-file-earmark-text text-danger"></i> View Log</button></td>
+                            <td class="fw-bold">${p.po_no}</td>
+                            <td>${p.customer_name}</td>
+                            <td>${size} cm</td>
+                            <td><span class="badge bg-secondary fs-6">${p.qty}</span></td>
+                            <td><input type="text" id="ad_no_${p.id}" class="form-control form-control-sm text-center mx-auto" style="max-width:200px;" placeholder="Enter AD No"></td>
                             <td>${actHtml}</td>
                         </tr>`;
                     });
                 }
-                html += `</tbody></table></div>`;
-                document.getElementById('generic-stage-container').innerHTML = hasRecords ? html : "<p class='text-muted p-3'>No items available here.</p>";
+                if(!hasRecords) html += `<tr><td colspan="6" class="text-muted py-3">No jobs currently in ${stageName}.</td></tr>`;
+                html += `</tbody></table>`;
+                document.getElementById('generic-stage-container').innerHTML = html;
             });
         }
 
@@ -1896,93 +1847,65 @@
                 document.getElementById('historySearchPO').value = '';
                 document.getElementById('historySearchCustomer').value = '';
             }
-
-            let start = document.getElementById('historyStartDate').value;
-            let end = document.getElementById('historyEndDate').value;
-            let url = '/api/get_plan_history';
             
-            if (start && end) url += `?start=${start}&end=${end}`;
-
-            fetch(url).then(r=>r.json()).then(data => {
-                let tbody = document.getElementById('historyLogsTableBody');
-                if(!data || data.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="9" class="text-muted py-4">No historical logs found for this timeframe.</td></tr>';
-                    return;
-                }
-
+            fetch('/api/get_history_logs')
+            .then(r => r.json())
+            .then(data => {
                 let html = '';
-                data.forEach(p => {
-                    let dateStr = new Date(p.created_at).toLocaleString();
-                    let combinationSpecsString = (p.materials && Array.isArray(p.materials)) ? p.materials.map((m,i)=> `L${i+1}: ${m.gsm}-${m.name}`).join('<br>') : '-';
-                    html += `
-                    <tr>
-                        <td class="text-muted" style="font-size:0.8rem;">${dateStr}</td>
-                        <td class="fw-bold text-primary">${p.po_no}</td>
-                        <td class="text-start">${p.customer_name}</td>
-                        <td class="font-monospace bg-light">${p.selected_reel_size} &times; ${p.cut_length || 'N/A'}</td>
-                        <td>${p.ply} Ply</td>
-                        <td class="fw-bold">${p.qty}</td>
-                        <td class="text-start font-monospace" style="font-size:0.75rem;">${combinationSpecsString}</td>
-                        <td><span class="badge bg-success px-2 py-1"><i class="bi bi-check2-all"></i> Dispatched</span></td>
-                        <td class="fw-bold text-danger">${p.ad_number || 'N/A'}</td>
-                    </tr>
-                    `;
-                });
-                tbody.innerHTML = html;
+                if(data && data.length > 0) {
+                    data.forEach(log => {
+                        let combinationSpecsString = log.materials ? log.materials.map((m,i)=> `L${i+1}: ${m.gsm} - ${m.name}`).join('<br>') : '';
+                        html += `<tr>
+                            <td>${new Date(log.timestamp || log.saved_at || Date.now()).toLocaleString()}</td>
+                            <td class="fw-bold">${log.po_no || '-'}</td>
+                            <td>${log.customer_name || '-'}</td>
+                            <td>${log.sheet_length || '-'} cm</td>
+                            <td>${log.ply || '-'} Ply</td>
+                            <td><span class="badge bg-secondary fs-6">${log.qty || '-'}</span></td>
+                            <td class="text-start ps-2 font-monospace" style="font-size: 0.82rem;">${combinationSpecsString}</td>
+                            <td><span class="badge bg-success">${log.status || 'Dispatched'}</span></td>
+                            <td class="fw-bold text-danger">${log.ad_number || '-'}</td>
+                        </tr>`;
+                    });
+                } else {
+                    html = `<tr><td colspan="9" class="text-muted py-4">No history records found.</td></tr>`;
+                }
+                document.getElementById('historyLogsTableBody').innerHTML = html;
                 filterHistoryTable();
+            })
+            .catch(err => {
+                console.error("History fetch error:", err);
+                document.getElementById('historyLogsTableBody').innerHTML = `<tr><td colspan="9" class="text-danger py-4">Error loading history logs.</td></tr>`;
             });
         }
 
         function viewStageAttachment(id) {
             let plan;
-            for (const key in globalAllPlans) { let f = globalAllPlans[key].find(x => x.id === id); if(f) plan = f; }
-            if(!plan) return;
-
-            let c = `<div class="container-fluid p-2">
-                        <div class="row mb-4 bg-light p-3 rounded border">
-                            <div class="col-3"><strong>PO No:</strong> <br><span class="text-primary fw-bold">${plan.po_no}</span></div>
-                            <div class="col-4"><strong>Customer:</strong> <br>${plan.customer_name}</div>
-                            <div class="col-3"><strong>Final Qty:</strong> <br><span class="badge bg-danger fs-6">${plan.qty}</span></div>
-                            <div class="col-2"><strong>Ply:</strong> <br>${plan.ply} Ply</div>
-                        </div>`;
+            for (const key in globalAllPlans) { 
+                let f = globalAllPlans[key].find(x => x.id === id); 
+                if(f) plan = f; 
+            }
+            if(!plan) { alert("Plan details not found."); return; }
             
-            if(plan.board_plant_form) c += buildLogCard('Board Plant Entry', plan.board_plant_form, 'secondary');
-            if(plan.printer_form) c += buildLogCard('Printers Entry', plan.printer_form, 'success');
-            if(plan.diecut_form) c += buildLogCard('Die Cut Entry', plan.diecut_form, 'primary');
-            if(plan.semiauto_form) c += buildLogCard('Semi Auto Entry', plan.semiauto_form, 'secondary');
-            if(plan.gluer_form) c += buildLogCard('Gluer Entry', plan.gluer_form, 'success');
-            if(plan.stitching_form) c += buildLogCard('Stitching Entry', plan.stitching_form, 'primary');
-
-            if(!plan.board_plant_form && !plan.printer_form && !plan.diecut_form && !plan.semiauto_form && !plan.gluer_form && !plan.stitching_form) {
-                c += `<div class="alert alert-info">No production stage data recorded yet.</div>`;
-            }
-
-            c += `</div>`;
-            document.getElementById('attachmentModalBody').innerHTML = c;
-            new bootstrap.Modal(document.getElementById('viewAttachmentModal')).show();
-        }
-
-        function buildLogCard(title, dataObj, color) {
-            let trs = '';
-            for(let key in dataObj) {
-                if(key === 'saved_at' || key === 'target_tab' || key === 'po_no' || key === 'cust_prod' || key === 'qty') continue;
-                let displayKey = key.replace(/_/g, ' ').toUpperCase();
-                trs += `<tr><th class="w-50 bg-light small text-muted">${displayKey}</th><td class="fw-bold small">${dataObj[key]}</td></tr>`;
-            }
-            let ts = dataObj.saved_at ? new Date(parseInt(dataObj.saved_at)).toLocaleString() : 'N/A';
-            return `
-            <div class="card mb-3 border-${color} shadow-sm">
-                <div class="card-header bg-${color} text-white py-2 d-flex justify-content-between align-items-center">
-                    <span class="fw-bold">${title}</span>
-                    <span class="badge bg-white text-dark small">Saved: ${ts}</span>
+            let html = `
+            <div class="p-3">
+                <h5 class="fw-bold text-primary mb-3">Job Document Log | PO: ${plan.po_no}</h5>
+                <div class="bg-light p-3 rounded border mb-3">
+                    <div class="row">
+                        <div class="col-md-6"><p class="mb-1"><strong>Customer:</strong> ${plan.customer_name}</p></div>
+                        <div class="col-md-6"><p class="mb-1"><strong>Product Code:</strong> ${plan.product_code || 'N/A'}</p></div>
+                        <div class="col-md-6"><p class="mb-1"><strong>Current Stage:</strong> <span class="badge bg-secondary">${plan.status}</span></p></div>
+                        <div class="col-md-6"><p class="mb-1"><strong>Plan Qty:</strong> ${plan.qty}</p></div>
+                    </div>
                 </div>
-                <div class="card-body p-0 table-responsive">
-                    <table class="table table-bordered table-sm mb-0"><tbody>${trs}</tbody></table>
-                </div>
+                <h6 class="fw-bold text-secondary">Structured Data Audit:</h6>
+                <pre class="bg-dark text-light p-3 rounded small" style="max-height: 400px; overflow-y: auto;">${JSON.stringify(plan, null, 2)}</pre>
             </div>`;
+            document.getElementById('attachmentModalBody').innerHTML = html;
+            let modal = new bootstrap.Modal(document.getElementById('viewAttachmentModal'));
+            modal.show();
         }
 
-        socket.on('stock_matrix_update', () => { renderRuntimePlansTable(); });
     </script>
 </body>
 </html>
