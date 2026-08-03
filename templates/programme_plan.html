@@ -948,9 +948,12 @@
                     <div class="card mb-4 border border-secondary-subtle shadow-sm" id="${bandUniqueId}">
                         <div class="card-header bg-dark text-white fw-bold py-3 d-flex justify-content-between align-items-center">
                             <span><i class="bi bi-tag-fill text-warning me-2"></i>Active operation size band: ${size} cm</span>
-                            <button class="btn btn-sm btn-outline-light no-print py-1" onclick="printSelectedBand('${bandUniqueId}')">
-                                <i class="bi bi-printer me-1"></i> Print This Band
-                            </button>
+                            <div class="d-flex align-items-center gap-2">
+                                <button class="btn btn-sm btn-outline-light no-print py-1" onclick="printSelectedBand('${bandUniqueId}')">
+                                    <i class="bi bi-printer me-1"></i> Print This Band
+                                </button>
+                                <button type="button" class="btn-close btn-close-white no-print" aria-label="Close" onclick="document.getElementById('${bandUniqueId}').style.display='none';"></button>
+                            </div>
                         </div>
                         <div class="card-body p-0 table-responsive">
                             <table class="table table-bordered table-striped align-middle text-center mb-0">
@@ -975,11 +978,17 @@
                         ` : `<span class="fw-bold text-dark mx-2">${p.qty||''}</span>`;
                         
                         let actHtml = canAct('Live Planning') ? 
-                            `<button class="btn btn-sm btn-primary px-2 py-0 fw-bold" onclick="validateAndTransferToBP(${p.id})">Transfer Board Plant</button>` : 
-                            `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
+                            `<div class="d-flex align-items-center justify-content-center gap-1">
+                                <button class="btn btn-sm btn-primary px-2 py-0 fw-bold" onclick="validateAndTransferToBP(${p.id})">Transfer Board Plant</button>
+                                <button class="btn btn-sm btn-outline-danger px-2 py-0 fw-bold" onclick="closeFormRow('live_plan_row_${p.id}')" title="Close Row"><i class="bi bi-x-lg"></i></button>
+                            </div>` : 
+                            `<div class="d-flex align-items-center justify-content-center gap-1">
+                                <span class="badge bg-secondary px-3 py-2">View Only</span>
+                                <button class="btn btn-sm btn-outline-danger px-2 py-0 fw-bold" onclick="closeFormRow('live_plan_row_${p.id}')" title="Close Row"><i class="bi bi-x-lg"></i></button>
+                            </div>`;
                             
                         html += `
-                            <tr>
+                            <tr id="live_plan_row_${p.id}">
                                 <td class="fw-bold text-primary">${p.po_no}</td>
                                 <td class="text-start">${p.customer_name}</td>
                                 <td class="fw-bold bg-light text-danger font-monospace">${sheetSizeCalculatedFormula}</td>
@@ -1751,6 +1760,11 @@
                         <input type="hidden" name="process_balance" id="st_process_hidden_${id}" value="no">
                     </div>
 
+                    <h6 class="text-secondary fw-bold border-bottom pb-1 mt-4">Stitching QC Section</h6>
+                    <div class="row g-2 mb-4">
+                        <div class="col-md-6"><label class="small fw-bold">QC Approval or not</label><select class="form-select" required name="qc_approval"><option value="Approved">Approved</option><option value="Rejected">Rejected</option></select></div>
+                    </div>
+                    
                     <div class="d-flex justify-content-end gap-2 mt-3">
                         <button type="submit" class="btn btn-dark fw-bold px-4">Save & Complete Stitching Stage (To Finished Goods)</button>
                     </div>
@@ -1781,131 +1795,125 @@
         }
 
         function renderBalancePOTable() {
-            document.getElementById('generic-tab-title').innerHTML = "<i class='bi bi-exclamation-triangle-fill'></i> Balance PO Stage";
+            document.getElementById('generic-tab-title').innerHTML = "<i class='bi bi-exclamation-triangle-fill text-warning'></i> Balance PO Stage";
             fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
                 globalAllPlans = data;
                 let html = `
                 <table class="table table-bordered table-striped align-middle text-center mb-0">
-                    <thead class="table-dark small"><tr><th>PO No</th><th>Customer</th><th>Size</th><th>Pending Qty</th><th>Action</th></tr></thead>
+                    <thead class="table-dark small">
+                        <tr><th>PO No</th><th>Customer</th><th>Reel Size</th><th>Balance Qty</th><th>Source Stage</th><th>Action</th></tr>
+                    </thead>
                     <tbody>`;
                 let hasRecords = false;
                 for (const [size, plans] of Object.entries(data)) {
                     plans.filter(p => p.status === 'Balance PO').forEach(p => {
                         hasRecords = true;
-                        let actHtml = canAct('Balance PO') ? `<button class="btn btn-sm btn-primary fw-bold" onclick="transferPlan(${p.id}, 'Board Plant')">Re-initiate to Board Plant</button>` : `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
                         html += `
                         <tr>
-                            <td class="fw-bold text-danger">${p.po_no}</td>
+                            <td class="fw-bold text-primary">${p.po_no}</td>
                             <td>${p.customer_name}</td>
                             <td>${size} cm</td>
                             <td><span class="badge bg-danger fs-6">${p.qty}</span></td>
-                            <td>${actHtml}</td>
+                            <td><span class="badge bg-warning text-dark">${p.previous_stage || 'Unknown'}</span></td>
+                            <td><button class="btn btn-sm btn-primary fw-bold" onclick="transferPlan(${p.id}, 'Board Plant')">Re-process Board Plant</button></td>
                         </tr>`;
                     });
                 }
-                if(!hasRecords) html += `<tr><td colspan="5" class="text-muted py-3">No Balance POs currently pending.</td></tr>`;
                 html += `</tbody></table>`;
-                document.getElementById('generic-stage-container').innerHTML = html;
+                document.getElementById('generic-stage-container').innerHTML = hasRecords ? html : "<p class='text-muted p-3'>No Balance POs pending.</p>";
             });
         }
 
         function renderGenericTable(stageName) {
-            let icon = stageName === 'Finished Goods' ? 'bi-box-seam' : 'bi-check-circle';
-            document.getElementById('generic-tab-title').innerHTML = `<i class='bi ${icon}'></i> ${stageName} Stage`;
+            document.getElementById('generic-tab-title').innerHTML = stageName;
             fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
                 globalAllPlans = data;
                 let html = `
                 <table class="table table-bordered table-striped align-middle text-center mb-0">
-                    <thead class="table-dark small"><tr><th>PO No</th><th>Customer</th><th>Size</th><th>Qty</th><th>Manual AD Number</th><th>Action</th></tr></thead>
+                    <thead class="table-dark small">
+                        <tr><th>PO No</th><th>Customer</th><th>Size</th><th>Qty</th><th>Status</th><th class="no-print">Action</th></tr>
+                    </thead>
                     <tbody>`;
                 let hasRecords = false;
                 for (const [size, plans] of Object.entries(data)) {
                     plans.filter(p => p.status === stageName).forEach(p => {
                         hasRecords = true;
-                        let actHtml = canAct(stageName) ? `<button class="btn btn-sm btn-success fw-bold" onclick="dispatchFinishedGoods(${p.id})">Dispatch Job</button>` : `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
+                        let actHtml = '';
+                        if(stageName === 'Finished Goods' && canAct('Finished Goods')) {
+                            actHtml = `
+                            <div class="input-group input-group-sm justify-content-center">
+                                <input type="text" id="ad_no_${p.id}" class="form-control" placeholder="AD Number" style="max-width:120px;">
+                                <button class="btn btn-success fw-bold" onclick="dispatchFinishedGoods(${p.id})">Dispatch</button>
+                            </div>`;
+                        } else {
+                            actHtml = `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
+                        }
                         html += `
                         <tr>
-                            <td class="fw-bold">${p.po_no}</td>
+                            <td class="fw-bold text-primary">${p.po_no}</td>
                             <td>${p.customer_name}</td>
                             <td>${size} cm</td>
                             <td><span class="badge bg-secondary fs-6">${p.qty}</span></td>
-                            <td><input type="text" id="ad_no_${p.id}" class="form-control form-control-sm text-center mx-auto" style="max-width:200px;" placeholder="Enter AD No"></td>
-                            <td>${actHtml}</td>
+                            <td><span class="badge bg-success">${p.status}</span></td>
+                            <td class="no-print">${actHtml}</td>
                         </tr>`;
                     });
                 }
-                if(!hasRecords) html += `<tr><td colspan="6" class="text-muted py-3">No jobs currently in ${stageName}.</td></tr>`;
                 html += `</tbody></table>`;
-                document.getElementById('generic-stage-container').innerHTML = html;
+                document.getElementById('generic-stage-container').innerHTML = hasRecords ? html : `<p class='text-muted p-3'>No items currently in ${stageName}.</p>`;
+            });
+        }
+
+        function viewStageAttachment(id) {
+            fetch(`/api/get_plan_details?id=${id}`).then(r=>r.json()).then(res => {
+                if(res.success) {
+                    let logHtml = `<div class="p-3"><pre class="bg-light p-3 border rounded">${JSON.stringify(res.plan, null, 2)}</pre></div>`;
+                    document.getElementById('attachmentModalBody').innerHTML = logHtml;
+                    new bootstrap.Modal(document.getElementById('viewAttachmentModal')).show();
+                } else {
+                    alert("Unable to fetch document details.");
+                }
             });
         }
 
         function loadHistoryLogs(reset = false) {
-            if (reset) {
+            let sDate = reset ? '' : (document.getElementById('historyStartDate').value || '');
+            let eDate = reset ? '' : (document.getElementById('historyEndDate').value || '');
+            if(reset) {
                 document.getElementById('historyStartDate').value = '';
                 document.getElementById('historyEndDate').value = '';
                 document.getElementById('historySearchPO').value = '';
                 document.getElementById('historySearchCustomer').value = '';
             }
-            
-            fetch('/api/get_history_logs')
-            .then(r => r.json())
-            .then(data => {
-                let html = '';
-                if(data && data.length > 0) {
-                    data.forEach(log => {
-                        let combinationSpecsString = log.materials ? log.materials.map((m,i)=> `L${i+1}: ${m.gsm} - ${m.name}`).join('<br>') : '';
-                        html += `<tr>
-                            <td>${new Date(log.timestamp || log.saved_at || Date.now()).toLocaleString()}</td>
-                            <td class="fw-bold">${log.po_no || '-'}</td>
-                            <td>${log.customer_name || '-'}</td>
-                            <td>${log.sheet_length || '-'} cm</td>
-                            <td>${log.ply || '-'} Ply</td>
-                            <td><span class="badge bg-secondary fs-6">${log.qty || '-'}</span></td>
-                            <td class="text-start ps-2 font-monospace" style="font-size: 0.82rem;">${combinationSpecsString}</td>
-                            <td><span class="badge bg-success">${log.status || 'Dispatched'}</span></td>
-                            <td class="fw-bold text-danger">${log.ad_number || '-'}</td>
-                        </tr>`;
-                    });
-                } else {
-                    html = `<tr><td colspan="9" class="text-muted py-4">No history records found.</td></tr>`;
+
+            fetch(`/api/get_history_logs?start_date=${sDate}&end_date=${eDate}`).then(r=>r.json()).then(data => {
+                let tbody = document.getElementById('historyLogsTableBody');
+                if(!data.logs || data.logs.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="9" class="text-muted py-4">No historical plan audit records found.</td></tr>`;
+                    return;
                 }
-                document.getElementById('historyLogsTableBody').innerHTML = html;
-                filterHistoryTable();
-            })
-            .catch(err => {
-                console.error("History fetch error:", err);
-                document.getElementById('historyLogsTableBody').innerHTML = `<tr><td colspan="9" class="text-danger py-4">Error loading history logs.</td></tr>`;
+                let html = '';
+                data.logs.forEach(l => {
+                    html += `
+                    <tr>
+                        <td>${l.timestamp || '-'}</td>
+                        <td class="fw-bold text-primary">${l.po_no || '-'}</td>
+                        <td>${l.customer_name || '-'}</td>
+                        <td>${l.config_size_info || '-'}</td>
+                        <td>${l.ply || '-'}</td>
+                        <td>${l.qty || '-'}</td>
+                        <td>${l.materials_build || '-'}</td>
+                        <td><span class="badge bg-info text-dark">${l.status || '-'}</span></td>
+                        <td class="fw-bold text-success">${l.ad_number || '-'}</td>
+                    </tr>`;
+                });
+                tbody.innerHTML = html;
             });
         }
 
-        function viewStageAttachment(id) {
-            let plan;
-            for (const key in globalAllPlans) { 
-                let f = globalAllPlans[key].find(x => x.id === id); 
-                if(f) plan = f; 
-            }
-            if(!plan) { alert("Plan details not found."); return; }
-            
-            let html = `
-            <div class="p-3">
-                <h5 class="fw-bold text-primary mb-3">Job Document Log | PO: ${plan.po_no}</h5>
-                <div class="bg-light p-3 rounded border mb-3">
-                    <div class="row">
-                        <div class="col-md-6"><p class="mb-1"><strong>Customer:</strong> ${plan.customer_name}</p></div>
-                        <div class="col-md-6"><p class="mb-1"><strong>Product Code:</strong> ${plan.product_code || 'N/A'}</p></div>
-                        <div class="col-md-6"><p class="mb-1"><strong>Current Stage:</strong> <span class="badge bg-secondary">${plan.status}</span></p></div>
-                        <div class="col-md-6"><p class="mb-1"><strong>Plan Qty:</strong> ${plan.qty}</p></div>
-                    </div>
-                </div>
-                <h6 class="fw-bold text-secondary">Structured Data Audit:</h6>
-                <pre class="bg-dark text-light p-3 rounded small" style="max-height: 400px; overflow-y: auto;">${JSON.stringify(plan, null, 2)}</pre>
-            </div>`;
-            document.getElementById('attachmentModalBody').innerHTML = html;
-            let modal = new bootstrap.Modal(document.getElementById('viewAttachmentModal'));
-            modal.show();
-        }
-
+        document.addEventListener("DOMContentLoaded", function() {
+            renderRuntimePlansTable();
+        });
     </script>
 </body>
 </html>
