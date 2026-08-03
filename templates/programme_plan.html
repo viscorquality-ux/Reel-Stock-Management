@@ -351,7 +351,7 @@
         let isSampleMode = false;
         let sampleCustName = "";
         let globalSampleSheetLength = 0;
-        let globalRequiredSize = 0; // Added to handle manual reel calculations
+        let globalRequiredSize = 0; 
 
         function canAct(stage) {
             if (currentRole === 'admin') return true;
@@ -499,7 +499,6 @@
                             </tr>`;
                         });
 
-                        // Manual Reel Input Row Implementation
                         if (globalRequiredSize > 0) {
                             optionsHtml += `
                             <tr class="table-warning">
@@ -564,7 +563,6 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    
                     if (ply === 5) {
                         globalSampleSheetLength = (globalBoxWidth + globalBoxHeight) * 2 + 7;
                     } else {
@@ -784,14 +782,14 @@
                 }
                 poNo = "SMPL-" + Math.floor(1000 + Math.random() * 9000); 
                 custId = sampleCustName;
-                cName = sampleCustName; 
+                cName = sampleCustName;
                 prodCode = "SAMPLE-BOX";
             } else {
                 parsedSheetLength = isTwoDimensions ? (globalBoxLength + 2) : ((globalBoxWidth + globalBoxLength) * 2 + 6);
                 poNo = document.getElementById('po_no').value.trim();
                 custId = document.getElementById('customer_id').value.trim();
                 prodCode = document.getElementById('product_code').value.trim();
-                cName = undefined; 
+                cName = undefined;
             }
             
             const payload = {
@@ -1733,7 +1731,7 @@
                     
                     <div class="row g-2 mb-3">
                         <div class="col-md-4"><label class="small fw-bold">Counter Qty</label><input type="number" class="form-control" required name="counter_qty"></div>
-                        <div class="col-md-4"><label class="small fw-bold">Excess</label><input type="number" class="form-control" required name="excess"></div>
+                        <div class="col-md-4"><label class="small fw-bold">Excess Qty</label><input type="number" class="form-control" required name="excess"></div>
                         <div class="col-md-4"><label class="small fw-bold">Damaged Qty</label><input type="number" class="form-control" required name="damaged_qty"></div>
                     </div>
 
@@ -1748,19 +1746,13 @@
                         <label class="small fw-bold mt-1">ඔබට මෙම ඉතිරි ප්‍රමාණය නැවත කිරීමට (Balance PO) අවශ්‍යද?</label>
                         <select class="form-select border-warning mt-2 fw-semibold" name="balance_target" id="st_balance_option_${id}" onchange="document.getElementById('st_process_hidden_${id}').value = (this.value==='no'||this.value==='') ? 'no' : 'yes';">
                             <option value="">-- තීරණය තෝරන්න (Required) --</option>
-                            <option value="Printers">ඔව්, Excess board තිබේනම් (Balance PO -> Printers)</option>
-                            <option value="Board Plant">ඔව්, Excess Board නොමැති නම් (Balance PO -> Board Plant)</option>
-                            <option value="Die Cut">ඔව්, Excess without Die cut board තිබේ නම් (Balance PO -> Die Cut)</option>
+                            <option value="Board Plant">ඔව්, Balance PO එකක් ලෙස Board Plant වෙත යවන්න</option>
+                            <option value="Printers">ඔව්, Balance PO එකක් ලෙස Printers වෙත යවන්න</option>
                             <option value="no">නැත, ඉතිරි ප්‍රමාණය අවශ්‍ය නැත</option>
                         </select>
                         <input type="hidden" name="process_balance" id="st_process_hidden_${id}" value="no">
                     </div>
 
-                    <h6 class="text-secondary fw-bold border-bottom pb-1 mt-4">Stitching QC Section</h6>
-                    <div class="row g-2 mb-4">
-                        <div class="col-md-6"><label class="small fw-bold">QC Approval or not</label><select class="form-select" required name="qc_approval"><option value="Approved">Approved</option><option value="Rejected">Rejected</option></select></div>
-                    </div>
-                    
                     <div class="d-flex justify-content-end gap-2 mt-3">
                         <button type="submit" class="btn btn-dark fw-bold px-4">Save & Complete Stitching Stage (To Finished Goods)</button>
                     </div>
@@ -1775,7 +1767,7 @@
             const formData = new FormData(form);
             const dataObj = Object.fromEntries(formData.entries());
             dataObj.saved_at = new Date().getTime(); 
-            
+
             let selected = [];
             form.querySelectorAll('input[name="stitching_select"]:checked').forEach(cb => selected.push(cb.value));
             dataObj.stitching_select = selected.join(" & ");
@@ -1794,34 +1786,39 @@
             document.getElementById('generic-tab-title').innerHTML = "<i class='bi bi-exclamation-triangle-fill text-warning'></i> Balance PO Stage";
             fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
                 globalAllPlans = data;
-                let rows = '';
+                let html = `
+                <table class="table table-bordered table-striped align-middle text-center mb-0">
+                    <thead class="table-dark small">
+                        <tr>
+                            <th>PO No</th>
+                            <th>Customer Name</th>
+                            <th>Sheet Size / Details</th>
+                            <th>Ply</th>
+                            <th>Balance Qty</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
                 let hasRecords = false;
                 for (const [size, plans] of Object.entries(data)) {
                     plans.filter(p => p.status === 'Balance PO').forEach(p => {
                         hasRecords = true;
-                        let actHtml = canAct('Balance PO') ? `<button class="btn btn-sm btn-primary fw-bold" onclick="validateAndTransferToBP(${p.id})">Transfer Board Plant</button>` : `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
-                        rows += `
+                        let actHtml = canAct('Balance PO') ? `<button class="btn btn-sm btn-primary fw-bold" onclick="transferPlan(${p.id}, 'Board Plant')">Re-Transfer Board Plant</button>` : `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
+                        html += `
                         <tr>
                             <td class="fw-bold text-primary">${p.po_no}</td>
                             <td>${p.customer_name}</td>
-                            <td class="fw-bold font-monospace text-danger">${size} cm</td>
+                            <td>${size} cm &times; ${p.cut_length || 'N/A'} cm</td>
                             <td><span class="badge bg-secondary">${p.ply} Ply</span></td>
-                            <td><span class="badge bg-warning text-dark fs-6">${p.qty}</span></td>
-                            <td class="text-start">${p.remarks || 'Balance PO Job'}</td>
+                            <td><span class="badge bg-danger fs-6">${p.qty}</span></td>
+                            <td><span class="badge bg-warning text-dark">${p.status}</span></td>
                             <td>${actHtml}</td>
                         </tr>`;
                     });
                 }
-                let html = `
-                <div class="table-responsive">
-                    <table class="table table-bordered table-striped align-middle text-center mb-0">
-                        <thead class="table-dark small">
-                            <tr><th>PO No</th><th>Customer</th><th>Size</th><th>Ply</th><th>Balance Qty</th><th>Remarks</th><th>Action</th></tr>
-                        </thead>
-                        <tbody>${hasRecords ? rows : '<tr><td colspan="7" class="text-muted py-3">No active Balance PO jobs.</td></tr>'}</tbody>
-                    </table>
-                </div>`;
-                document.getElementById('generic-stage-container').innerHTML = html;
+                html += `</tbody></table>`;
+                document.getElementById('generic-stage-container').innerHTML = hasRecords ? html : "<p class='text-muted p-3'>No Balance PO records found.</p>";
             });
         }
 
@@ -1829,163 +1826,160 @@
             document.getElementById('generic-tab-title').innerHTML = `<i class='bi bi-box-seam'></i> ${stageName} Stage`;
             fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
                 globalAllPlans = data;
-                let rows = '';
+                let html = `
+                <table class="table table-bordered table-striped align-middle text-center mb-0">
+                    <thead class="table-dark small">
+                        <tr>
+                            <th>PO No</th>
+                            <th>Customer Name</th>
+                            <th>Sheet Size</th>
+                            <th>Ply</th>
+                            <th>Qty</th>
+                            <th>Manual AD Number</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
                 let hasRecords = false;
                 for (const [size, plans] of Object.entries(data)) {
                     plans.filter(p => p.status === stageName).forEach(p => {
                         hasRecords = true;
-                        let actHtml = '';
-                        if (stageName === 'Finished Goods') {
-                            actHtml = canAct('Finished Goods') ? `
-                            <div class="d-flex align-items-center justify-content-center gap-2">
-                                <input type="text" id="ad_no_${p.id}" class="form-control form-control-sm" style="width:120px;" placeholder="AD Number">
-                                <button class="btn btn-sm btn-success fw-bold text-nowrap" onclick="dispatchFinishedGoods(${p.id})"><i class="bi bi-truck"></i> Dispatch</button>
-                            </div>` : `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
-                        } else {
-                            actHtml = `<button class="btn btn-sm btn-outline-info fw-bold" onclick="viewStageAttachment(${p.id})">View Log</button>`;
-                        }
+                        let actHtml = canAct(stageName) ? `
+                        <div class="d-flex align-items-center justify-content-center gap-2">
+                            <input type="text" id="ad_no_${p.id}" class="form-control form-control-sm text-center" placeholder="AD Number" style="max-width: 130px;">
+                            <button class="btn btn-sm btn-success fw-bold text-nowrap" onclick="dispatchFinishedGoods(${p.id})">Dispatch Job</button>
+                        </div>` : `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
 
-                        rows += `
+                        html += `
                         <tr>
                             <td class="fw-bold text-primary">${p.po_no}</td>
                             <td>${p.customer_name}</td>
-                            <td>${size} cm</td>
+                            <td>${size} cm &times; ${p.cut_length || 'N/A'} cm</td>
+                            <td><span class="badge bg-secondary">${p.ply} Ply</span></td>
                             <td><span class="badge bg-success fs-6">${p.qty}</span></td>
-                            <td><button class="btn btn-sm btn-outline-dark fw-bold" onclick="viewStageAttachment(${p.id})"><i class="bi bi-file-earmark-text"></i> View Log</button></td>
-                            <td>${actHtml}</td>
+                            <td colspan="2">${actHtml}</td>
                         </tr>`;
                     });
                 }
-                let html = `
-                <div class="table-responsive">
-                    <table class="table table-bordered table-striped align-middle text-center mb-0">
-                        <thead class="table-dark small">
-                            <tr><th>PO No</th><th>Customer</th><th>Size</th><th>Qty</th><th>Attachment / Logs</th><th>Action</th></tr>
-                        </thead>
-                        <tbody>${hasRecords ? rows : `<tr><td colspan="6" class="text-muted py-3">No items in ${stageName}.</td></tr>`}</tbody>
-                    </table>
-                </div>`;
-                document.getElementById('generic-stage-container').innerHTML = html;
-            });
-        }
-
-        function loadHistoryLogs(reset = false) {
-            if (reset) {
-                let sDate = document.getElementById('historyStartDate');
-                let eDate = document.getElementById('historyEndDate');
-                let searchPO = document.getElementById('historySearchPO');
-                let searchCust = document.getElementById('historySearchCustomer');
-                if (sDate) sDate.value = '';
-                if (eDate) eDate.value = '';
-                if (searchPO) searchPO.value = '';
-                if (searchCust) searchCust.value = '';
-            }
-
-            let start = document.getElementById('historyStartDate') ? document.getElementById('historyStartDate').value : '';
-            let end = document.getElementById('historyEndDate') ? document.getElementById('historyEndDate').value : '';
-            let tbody = document.getElementById('historyLogsTableBody');
-            if (tbody) tbody.innerHTML = '<tr><td colspan="9" class="text-muted py-4"><div class="spinner-border spinner-border-sm me-2"></div>Loading history audit logs...</td></tr>';
-
-            fetch(`/api/get_history_logs?start_date=${encodeURIComponent(start)}&end_date=${encodeURIComponent(end)}`)
-            .then(async response => {
-                if (!response.ok) {
-                    throw new Error(`Server status ${response.status} (Endpoint check required)`);
-                }
-                const contentType = response.headers.get("content-type");
-                if (!contentType || !contentType.includes("application/json")) {
-                    throw new Error("Invalid response format received from server.");
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (!tbody) return;
-                let logs = Array.isArray(data) ? data : (data.logs || []);
-                if (logs.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="9" class="text-muted py-4">No plan history audit records found.</td></tr>';
-                    return;
-                }
-                let html = '';
-                logs.forEach(item => {
-                    let comboStr = item.materials ? item.materials.map((m,i)=> `L${i+1}: ${m.gsm}-${m.name}`).join(', ') : (item.materials_build || '-');
-                    let ts = item.timestamp || item.created_at || item.saved_at || '-';
-                    if (typeof ts === 'number') {
-                        ts = new Date(ts).toLocaleString();
-                    }
-                    html += `
-                    <tr>
-                        <td class="small text-muted">${ts}</td>
-                        <td class="fw-bold text-primary">${item.po_no || '-'}</td>
-                        <td>${item.customer_name || item.customer || '-'}</td>
-                        <td>${item.size || item.config_size || '-'} cm</td>
-                        <td><span class="badge bg-secondary">${item.ply || '-'} Ply</span></td>
-                        <td class="fw-bold">${item.qty || 0}</td>
-                        <td class="small font-monospace text-start">${comboStr}</td>
-                        <td><span class="badge ${item.status === 'Dispatched' ? 'bg-success' : 'bg-primary'}">${item.status || 'Active'}</span></td>
-                        <td class="fw-bold text-danger">${item.ad_number || item.ad_no || '-'}</td>
-                    </tr>`;
-                });
-                tbody.innerHTML = html;
-            })
-            .catch(err => {
-                console.error("Error loading history logs:", err);
-                if (tbody) {
-                    tbody.innerHTML = `<tr><td colspan="9" class="text-danger py-4"><i class="bi bi-exclamation-triangle-fill me-1"></i> ${err.message}</td></tr>`;
-                }
+                html += `</tbody></table>`;
+                document.getElementById('generic-stage-container').innerHTML = hasRecords ? html : `<p class='text-muted p-3'>No items in ${stageName}.</p>`;
             });
         }
 
         function viewStageAttachment(id) {
             let plan;
-            for (const key in globalAllPlans) {
-                let f = globalAllPlans[key].find(x => x.id === id);
-                if (f) plan = f;
-            }
-            let modalBody = document.getElementById('attachmentModalBody');
-            if (!modalBody) return;
+            for (const key in globalAllPlans) { let f = globalAllPlans[key].find(x => x.id === id); if(f) plan = f; }
+            if(!plan) return;
 
-            if (!plan) {
-                modalBody.innerHTML = `<div class="alert alert-warning">No plan data found for ID: ${id}</div>`;
-            } else {
-                let bpDetails = plan.board_plant_form ? `<pre class="bg-light p-3 border rounded">${JSON.stringify(plan.board_plant_form, null, 2)}</pre>` : '<p class="text-muted">No Board Plant form submitted.</p>';
-                let prDetails = plan.printer_form ? `<pre class="bg-light p-3 border rounded">${JSON.stringify(plan.printer_form, null, 2)}</pre>` : '<p class="text-muted">No Printer form submitted.</p>';
-                let dcDetails = plan.diecut_form ? `<pre class="bg-light p-3 border rounded">${JSON.stringify(plan.diecut_form, null, 2)}</pre>` : '<p class="text-muted">No Die Cut form submitted.</p>';
-                let saDetails = plan.semiauto_form ? `<pre class="bg-light p-3 border rounded">${JSON.stringify(plan.semiauto_form, null, 2)}</pre>` : '<p class="text-muted">No Semi Auto form submitted.</p>';
-                let glDetails = plan.gluer_form ? `<pre class="bg-light p-3 border rounded">${JSON.stringify(plan.gluer_form, null, 2)}</pre>` : '<p class="text-muted">No Gluer form submitted.</p>';
-                let stDetails = plan.stitching_form ? `<pre class="bg-light p-3 border rounded">${JSON.stringify(plan.stitching_form, null, 2)}</pre>` : '<p class="text-muted">No Stitching form submitted.</p>';
+            let bodyHtml = `
+            <div class="p-3">
+                <h5 class="fw-bold text-primary border-bottom pb-2">Plan Attachment & Audit Logs - ${plan.po_no}</h5>
+                <p><strong>Customer:</strong> ${plan.customer_name}</p>
+                <p><strong>Product Code:</strong> ${plan.product_code || 'N/A'}</p>
+                <p><strong>Qty:</strong> ${plan.qty}</p>
+                <p><strong>Current Stage:</strong> <span class="badge bg-info text-dark">${plan.status}</span></p>
+                <hr>
+                <h6 class="fw-bold">Recorded Form Logs:</h6>
+                <pre class="bg-light p-3 border rounded font-monospace small" style="max-height: 300px; overflow-y: auto;">${JSON.stringify(plan, null, 2)}</pre>
+            </div>`;
+            document.getElementById('attachmentModalBody').innerHTML = bodyHtml;
+            let modal = new bootstrap.Modal(document.getElementById('viewAttachmentModal'));
+            modal.show();
+        }
 
-                modalBody.innerHTML = `
-                <div class="p-2">
-                    <h5 class="fw-bold text-primary border-bottom pb-2">Plan PO: ${plan.po_no} | Customer: ${plan.customer_name}</h5>
-                    <div class="accordion" id="stageAccordion">
-                        <div class="accordion-item">
-                            <h2 class="accordion-header"><button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#collapseBP">Board Plant Form Data</button></h2>
-                            <div id="collapseBP" class="accordion-collapse collapse" data-bs-parent="#stageAccordion"><div class="accordion-body">${bpDetails}</div></div>
-                        </div>
-                        <div class="accordion-item">
-                            <h2 class="accordion-header"><button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePR">Printer Form Data</button></h2>
-                            <div id="collapsePR" class="accordion-collapse collapse" data-bs-parent="#stageAccordion"><div class="accordion-body">${prDetails}</div></div>
-                        </div>
-                        <div class="accordion-item">
-                            <h2 class="accordion-header"><button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#collapseDC">Die Cut Form Data</button></h2>
-                            <div id="collapseDC" class="accordion-collapse collapse" data-bs-parent="#stageAccordion"><div class="accordion-body">${dcDetails}</div></div>
-                        </div>
-                        <div class="accordion-item">
-                            <h2 class="accordion-header"><button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSA">Semi Auto Form Data</button></h2>
-                            <div id="collapseSA" class="accordion-collapse collapse" data-bs-parent="#stageAccordion"><div class="accordion-body">${saDetails}</div></div>
-                        </div>
-                        <div class="accordion-item">
-                            <h2 class="accordion-header"><button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#collapseGL">Gluer Form Data</button></h2>
-                            <div id="collapseGL" class="accordion-collapse collapse" data-bs-parent="#stageAccordion"><div class="accordion-body">${glDetails}</div></div>
-                        </div>
-                        <div class="accordion-item">
-                            <h2 class="accordion-header"><button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#collapseST">Stitching Form Data</button></h2>
-                            <div id="collapseST" class="accordion-collapse collapse" data-bs-parent="#stageAccordion"><div class="accordion-body">${stDetails}</div></div>
-                        </div>
-                    </div>
-                </div>`;
+        // --- FIXED LOAD HISTORY LOGS WITH AUTOMATIC ENDPOINT FALLBACK ---
+        async function loadHistoryLogs(reset = false) {
+            if (reset) {
+                if(document.getElementById('historyStartDate')) document.getElementById('historyStartDate').value = '';
+                if(document.getElementById('historyEndDate')) document.getElementById('historyEndDate').value = '';
+                if(document.getElementById('historySearchPO')) document.getElementById('historySearchPO').value = '';
+                if(document.getElementById('historySearchCustomer')) document.getElementById('historySearchCustomer').value = '';
             }
-            let bsModal = new bootstrap.Modal(document.getElementById('viewAttachmentModal'));
-            bsModal.show();
+
+            let startDate = document.getElementById('historyStartDate') ? document.getElementById('historyStartDate').value : '';
+            let endDate = document.getElementById('historyEndDate') ? document.getElementById('historyEndDate').value : '';
+
+            const tbody = document.getElementById('historyLogsTableBody');
+            if(tbody) tbody.innerHTML = '<tr><td colspan="9" class="text-muted py-4"><i class="bi bi-hourglass-split"></i> Loading history audit logs...</td></tr>';
+
+            let query = '';
+            if (startDate || endDate) {
+                query = `?start_date=${encodeURIComponent(startDate)}&end_date=${encodeURIComponent(endDate)}`;
+            }
+
+            const endpoints = [
+                `/api/get_history_logs${query}`,
+                `/api/get_history${query}`,
+                `/api/history_logs${query}`,
+                `/api/get_plan_history${query}`,
+                `/get_history_logs${query}`
+            ];
+
+            let data = null;
+            for (let url of endpoints) {
+                try {
+                    let r = await fetch(url);
+                    if (r.ok) {
+                        data = await r.json();
+                        break;
+                    }
+                } catch (err) {
+                    console.warn("Attempting next history log endpoint...", err);
+                }
+            }
+
+            if (!data) {
+                if(tbody) tbody.innerHTML = '<tr><td colspan="9" class="text-danger py-4"><i class="bi bi-exclamation-triangle-fill"></i> History logs endpoint not found or failed to connect to server.</td></tr>';
+                return;
+            }
+
+            let logs = [];
+            if (Array.isArray(data)) {
+                logs = data;
+            } else if (data.logs && Array.isArray(data.logs)) {
+                logs = data.logs;
+            } else if (data.history && Array.isArray(data.history)) {
+                logs = data.history;
+            } else if (data.data && Array.isArray(data.data)) {
+                logs = data.data;
+            }
+
+            if (logs.length === 0) {
+                if(tbody) tbody.innerHTML = '<tr><td colspan="9" class="text-muted py-4">No plan history audit logs found for the selected criteria.</td></tr>';
+                return;
+            }
+
+            let html = '';
+            logs.forEach(item => {
+                let timeStr = item.timestamp || item.created_at || item.date || item.saved_at || 'N/A';
+                if (typeof timeStr === 'number') {
+                    timeStr = new Date(timeStr).toLocaleString();
+                }
+
+                let materialsStr = '-';
+                if (Array.isArray(item.materials)) {
+                    materialsStr = item.materials.map((m,i)=> `L${i+1}: ${m.gsm||''} ${m.name||''}`).join('<br>');
+                } else if (typeof item.materials === 'string') {
+                    materialsStr = item.materials;
+                }
+
+                let sizeInfo = item.size_info || item.reel_size || (item.selected_reel_size ? item.selected_reel_size + ' cm' : 'N/A');
+
+                html += `
+                <tr>
+                    <td class="font-monospace text-muted" style="font-size: 0.8rem;">${timeStr}</td>
+                    <td class="fw-bold text-primary">${item.po_no || item.po_number || 'N/A'}</td>
+                    <td>${item.customer_name || item.customer || item.customer_id || 'N/A'}</td>
+                    <td class="fw-bold text-dark">${sizeInfo}</td>
+                    <td><span class="badge bg-secondary">${item.ply || '3'} Ply</span></td>
+                    <td><span class="badge bg-info text-dark font-monospace">${item.qty || 0}</span></td>
+                    <td class="text-start font-monospace small">${materialsStr}</td>
+                    <td><span class="badge bg-success">${item.status || 'Dispatched'}</span></td>
+                    <td class="fw-bold text-danger">${item.ad_number || item.ad_no || 'N/A'}</td>
+                </tr>`;
+            });
+
+            if(tbody) tbody.innerHTML = html;
         }
 
         socket.on('connect', () => {
@@ -1993,10 +1987,11 @@
         });
 
         socket.on('plan_updated', () => {
-            renderRuntimePlansTable();
+            let activeTab = document.querySelector('.nav-link.active');
+            if (activeTab) activeTab.click();
         });
 
-        window.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', () => {
             renderRuntimePlansTable();
         });
     </script>
