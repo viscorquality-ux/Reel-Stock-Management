@@ -1725,13 +1725,13 @@
             const myModal = new bootstrap.Modal(document.getElementById('viewAttachmentModal'));
             myModal.show();
 
-            fetch(`/api/get_plan_audit_logs?id=${id}`)
-            .then(res => {
-                if (!res.ok) {
-                    throw new Error(`Server returned status ${res.status}`);
-                }
-                return res.json();
-            })
+           fetch(`/api/get_plan_audit_logs?id=${id}`)
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP Error! Status: ${response.status}`);
+        }
+        return response.json();
+    })
             .then(data => {
                 if (data.success || data.logs || Array.isArray(data)) {
                     let logs = data.logs || data.audit_logs || (Array.isArray(data) ? data : []);
