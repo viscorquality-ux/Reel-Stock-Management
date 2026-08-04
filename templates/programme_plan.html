@@ -325,7 +325,8 @@
         <div class="modal-content">
           <div class="modal-header bg-secondary text-white">
             <h5 class="modal-title">Integrated Production Document View</h5>
-            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            <!-- Focus blur කිරීම මෙහි යොදා ඇත -->
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" onclick="this.blur();"></button>
           </div>
           <div class="modal-body" id="attachmentModalBody">
           </div>
@@ -1898,15 +1899,15 @@
             });
         }
 
-        // --- Document Viewer සම්පූර්ණ කිරීම ---
-        // මෙම function එක මගින් අසම්පූර්ණව තිබූ Document rendering ක්‍රියාවලිය සම්පූර්ණ කර ඇත.
         function viewAttachment(planId, formType) {
-            // අදාළ document viewer logic එක සම්පූර්ණ කිරීම
-            document.activeElement.blur(); // aria-hidden focus error එක වළක්වා ගැනීමට
+            // aria-hidden focus error එක වළක්වා ගැනීමට active element එක blur කිරීම
+            if(document.activeElement) {
+                document.activeElement.blur(); 
+            }
             
             const modalBody = document.getElementById('attachmentModalBody');
             
-            // Temporary mock logic for rendering form data correctly instead of placeholder message
+            // Document එක පෙන්වීම සඳහා HTML සැකැස්ම
             let contentHTML = `
                 <div class="alert alert-info">
                     <h6 class="alert-heading"><i class="bi bi-file-earmark-text"></i> Document View for Plan ID: ${planId}</h6>
