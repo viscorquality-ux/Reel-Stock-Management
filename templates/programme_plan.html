@@ -320,6 +320,7 @@
         </div>
     </div>
 
+    <!-- Modal with Accessibility Focus Handling -->
     <div class="modal fade" id="viewAttachmentModal" tabindex="-1">
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content border-0 shadow-lg rounded-3">
@@ -360,6 +361,18 @@
         let sampleCustName = "";
         let globalSampleSheetLength = 0;
         let globalRequiredSize = 0; 
+
+        // Focus Blur on Modal Hide to Fix aria-hidden issue
+        document.addEventListener('DOMContentLoaded', function() {
+            const modalEl = document.getElementById('viewAttachmentModal');
+            if (modalEl) {
+                modalEl.addEventListener('hide.bs.modal', function () {
+                    if (document.activeElement && modalEl.contains(document.activeElement)) {
+                        document.activeElement.blur();
+                    }
+                });
+            }
+        });
 
         function canAct(stage) {
             if (currentRole === 'admin') return true;
@@ -724,7 +737,9 @@
             let materialsArray = [];
             
             document.querySelectorAll('.layer-row').forEach(row => {
-                materialsArray.push({ gsm: row.querySelector('.layer-gsm').value, name: row.querySelector('.layer-name').value });
+                let rawGsm = row.querySelector('.layer-gsm').value;
+                let parsedGsm = isNaN(parseFloat(rawGsm)) ? 120 : parseFloat(rawGsm);
+                materialsArray.push({ gsm: parsedGsm, name: row.querySelector('.layer-name').value });
             });
             
             fetch('/api/check_stock_detailed', {
@@ -760,7 +775,9 @@
             let qtyInput = document.getElementById('manual_qty').value;
             let materialsArray = [];
             document.querySelectorAll('.layer-row').forEach(row => {
-                materialsArray.push({ gsm: row.querySelector('.layer-gsm').value, name: row.querySelector('.layer-name').value, type: 'General' });
+                let rawGsm = row.querySelector('.layer-gsm').value;
+                let parsedGsm = isNaN(parseFloat(rawGsm)) ? 120 : parseFloat(rawGsm);
+                materialsArray.push({ gsm: parsedGsm, name: row.querySelector('.layer-name').value, type: 'General' });
             });
             
             let parsedSheetLength;
@@ -953,7 +970,7 @@
                     
                     filtered.forEach(p => {
                         let sheetSizeCalculatedFormula = `${size} cm &times; ${p.cut_length || 'N/A'} cm`;
-                        let combinationSpecsString = p.materials ? p.materials.map((m,i)=> `L${i+1}: ${m.gsm} - ${m.name}`).join('<br>') : '';
+                        let combinationSpecsString = p.materials ? p.materials.map((m,i)=> `L${i+1}: ${(m.gsm && !isNaN(m.gsm)) ? m.gsm : '-'} - ${m.name}`).join('<br>') : '';
                         let hasQty = p.qty && p.qty > 0;
                         
                         let qtyEditHtml = canAct('Live Planning') ? `
@@ -1051,7 +1068,7 @@
 
                     bpPlans.forEach(p => {
                         let sheetSizeCalculated = `${size} cm &times; ${p.cut_length || 'N/A'} cm`;
-                        let combinationSpecsString = (p.materials && Array.isArray(p.materials)) ? p.materials.map((m,i)=> `<span class="badge bg-light text-dark border me-1">L${i+1}: ${m.gsm} - ${m.name}</span>`).join('<br>') : '-';
+                        let combinationSpecsString = (p.materials && Array.isArray(p.materials)) ? p.materials.map((m,i)=> `<span class="badge bg-light text-dark border me-1">L${i+1}: ${(m.gsm && !isNaN(m.gsm)) ? m.gsm : '-'} - ${m.name}</span>`).join('<br>') : '-';
                         let actHtml = canAct('Board Plant') ? `<button class="btn btn-sm btn-success fw-bold px-3 py-1 shadow-sm" onclick="showBoardPlantForm(${p.id})"><i class="bi bi-card-checklist me-1"></i> Create Job Card</button>` : `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
 
                         contentHtml += `
@@ -1646,29 +1663,39 @@
             <div class="card card-body bg-light m-3 border-success text-start shadow-sm position-relative">
                 <button type="button" class="btn btn-danger btn-sm position-absolute top-0 end-0 m-2 px-3 shadow-sm fw-bold" onclick="closeFormRow('gluer_row_${id}')"><i class="bi bi-x-lg me-1"></i> Close</button>
                 <h6 class="border-bottom pb-2 text-success fw-bold mt-2 text-uppercase">GLUER STAGE FORM</h6>
-                <form id="form_gl_${id}" onsubmit="submitMiniForm(event, ${id}, 'gluer', 'gl')">
+                <form id="form_gluer_${id}" onsubmit="submitMiniForm(event, ${id}, 'gluer', 'gluer')">
                     <div class="row g-2 mb-3 mt-3">
                         <div class="col-md-4"><label class="small fw-bold text-primary">Date</label><input type="date" class="form-control border-primary" required name="stage_date" value="${currentIsoDate}"></div>
-                        <div class="col-md-4"><label class="small fw-bold">Damaged Qty</label><input type="number" class="form-control" required name="gl_damaged_qty"></div>
-                        <div class="col-md-4"><label class="small fw-bold">Excess Qty</label><input type="number" class="form-control" required name="gl_excess_qty"></div>
+                        <div class="col-md-4"><label class="small fw-bold">Excess Qty</label><input type="number" class="form-control" required name="gluer_excess_qty"></div>
+                        <div class="col-md-4"><label class="small fw-bold">C: Hand EPF No</label><input type="text" class="form-control" required name="gluer_epf_no"></div>
                     </div>
+
+                    <h6 class="text-secondary fw-bold border-bottom pb-1 mt-4">Quality Check Section</h6>
+                    <div class="row g-2 mb-4">
+                        <div class="col-md-4"><label class="small fw-bold">Measurement</label><select class="form-select" required name="qc_measurement"><option value="OK">OK</option><option value="Not OK">Not OK</option></select></div>
+                        <div class="col-md-4"><label class="small fw-bold">Quality Approval</label><select class="form-select" required name="qc_approval"><option value="Approved">Approved</option><option value="Rejected">Rejected</option></select></div>
+                        <div class="col-md-4"><label class="small fw-bold">Flap/Gluer Quality</label><select class="form-select" required name="qc_gluer_quality"><option value="Good">Good</option><option value="Defective">Defective</option></select></div>
+                    </div>
+
                     <div class="row g-2 mb-3 p-3 bg-white border border-secondary-subtle rounded mt-2">
-                        <div class="col-md-4"><label class="small fw-bold">Target Qty</label><input type="number" class="form-control bg-light fw-bold text-dark" id="gl_target_qty_${id}" value="${plan.qty}" readonly></div>
-                        <div class="col-md-4"><label class="small fw-bold">Finished Qty</label><input type="number" class="form-control border-primary fw-bold" required name="finished_qty" id="gl_finished_qty_${id}" oninput="calcBalanceTriggerBox(${id}, 'gl')"></div>
-                        <div class="col-md-4"><label class="small fw-bold">Balance Qty</label><input type="number" class="form-control bg-light fw-bold text-danger" required name="balance_qty" id="gl_balance_qty_${id}" readonly></div>
+                        <div class="col-md-4"><label class="small fw-bold">Target Qty</label><input type="number" class="form-control bg-light fw-bold text-dark" id="gluer_target_qty_${id}" value="${plan.qty}" readonly></div>
+                        <div class="col-md-4"><label class="small fw-bold">Finished Qty</label><input type="number" class="form-control border-primary fw-bold" required name="finished_qty" id="gluer_finished_qty_${id}" oninput="calcBalanceTriggerBox(${id}, 'gluer')"></div>
+                        <div class="col-md-4"><label class="small fw-bold">Balance Qty</label><input type="number" class="form-control bg-light fw-bold text-danger" required name="balance_qty" id="gluer_balance_qty_${id}" readonly></div>
                     </div>
-                    <div id="gl_command_box_${id}" style="display:none;" class="alert alert-warning border-warning shadow-sm mt-3">
+
+                    <div id="gluer_command_box_${id}" style="display:none;" class="alert alert-warning border-warning shadow-sm mt-3">
                         <h6 class="fw-bold text-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>Balance එකක් පවතී!</h6>
                         <label class="small fw-bold mt-1">මෙම ඉතිරි ප්‍රමාණය නැවත කිරීමට (Balance PO) අවශ්‍යද?</label>
-                        <select class="form-select border-warning mt-2" name="process_balance" id="gl_balance_option_${id}">
+                        <select class="form-select border-warning mt-2" name="process_balance" id="gluer_balance_option_${id}">
                             <option value="">-- තීරණය තෝරන්න (Required) --</option>
-                            <option value="yes">ඔව්, Balance PO එකක් ලෙස නව Tab එකට මාරු කරන්න</option>
+                            <option value="yes">ඔව්, Balance PO එකක් ලෙස නව Tab එකට මාරු කරන්න (To Board Plant)</option>
                             <option value="no">නැත, ඉතිරි ප්‍රමාණය අවශ්‍ය නැත</option>
                         </select>
                     </div>
-                    <input type="hidden" name="target_tab" id="gl_target_tab_${id}">
+
+                    <input type="hidden" name="target_tab" id="gluer_target_tab_${id}">
                     <div class="d-flex justify-content-end gap-2 mt-3 flex-wrap">
-                        <button type="button" class="btn btn-dark fw-bold px-4" onclick="document.getElementById('gl_target_tab_${id}').value='Finished Goods'; document.getElementById('form_gl_${id}').requestSubmit();">Save & Transfer to Finished Goods</button>
+                        <button type="button" class="btn btn-dark fw-bold px-4" onclick="document.getElementById('gluer_target_tab_${id}').value='Finished Goods'; document.getElementById('form_gluer_${id}').requestSubmit();">Save & Transfer to Finished Goods</button>
                     </div>
                 </form>
             </div>`;
@@ -1687,29 +1714,39 @@
             <div class="card card-body bg-light m-3 border-primary text-start shadow-sm position-relative">
                 <button type="button" class="btn btn-danger btn-sm position-absolute top-0 end-0 m-2 px-3 shadow-sm fw-bold" onclick="closeFormRow('stitching_row_${id}')"><i class="bi bi-x-lg me-1"></i> Close</button>
                 <h6 class="border-bottom pb-2 text-primary fw-bold mt-2 text-uppercase">STITCHING STAGE FORM</h6>
-                <form id="form_st_${id}" onsubmit="submitMiniForm(event, ${id}, 'stitching', 'st')">
+                <form id="form_stitching_${id}" onsubmit="submitMiniForm(event, ${id}, 'stitching', 'stitching')">
                     <div class="row g-2 mb-3 mt-3">
                         <div class="col-md-4"><label class="small fw-bold text-primary">Date</label><input type="date" class="form-control border-primary" required name="stage_date" value="${currentIsoDate}"></div>
-                        <div class="col-md-4"><label class="small fw-bold">Damaged Qty</label><input type="number" class="form-control" required name="st_damaged_qty"></div>
-                        <div class="col-md-4"><label class="small fw-bold">Excess Qty</label><input type="number" class="form-control" required name="st_excess_qty"></div>
+                        <div class="col-md-4"><label class="small fw-bold">Excess Qty</label><input type="number" class="form-control" required name="stitching_excess_qty"></div>
+                        <div class="col-md-4"><label class="small fw-bold">C: Hand EPF No</label><input type="text" class="form-control" required name="stitching_epf_no"></div>
                     </div>
+
+                    <h6 class="text-secondary fw-bold border-bottom pb-1 mt-4">Quality Check Section</h6>
+                    <div class="row g-2 mb-4">
+                        <div class="col-md-4"><label class="small fw-bold">Measurement</label><select class="form-select" required name="qc_measurement"><option value="OK">OK</option><option value="Not OK">Not OK</option></select></div>
+                        <div class="col-md-4"><label class="small fw-bold">Quality Approval</label><select class="form-select" required name="qc_approval"><option value="Approved">Approved</option><option value="Rejected">Rejected</option></select></div>
+                        <div class="col-md-4"><label class="small fw-bold">Stitching Quality</label><select class="form-select" required name="qc_stitching_quality"><option value="Good">Good</option><option value="Defective">Defective</option></select></div>
+                    </div>
+
                     <div class="row g-2 mb-3 p-3 bg-white border border-secondary-subtle rounded mt-2">
-                        <div class="col-md-4"><label class="small fw-bold">Target Qty</label><input type="number" class="form-control bg-light fw-bold text-dark" id="st_target_qty_${id}" value="${plan.qty}" readonly></div>
-                        <div class="col-md-4"><label class="small fw-bold">Finished Qty</label><input type="number" class="form-control border-primary fw-bold" required name="finished_qty" id="st_finished_qty_${id}" oninput="calcBalanceTriggerBox(${id}, 'st')"></div>
-                        <div class="col-md-4"><label class="small fw-bold">Balance Qty</label><input type="number" class="form-control bg-light fw-bold text-danger" required name="balance_qty" id="st_balance_qty_${id}" readonly></div>
+                        <div class="col-md-4"><label class="small fw-bold">Target Qty</label><input type="number" class="form-control bg-light fw-bold text-dark" id="stitching_target_qty_${id}" value="${plan.qty}" readonly></div>
+                        <div class="col-md-4"><label class="small fw-bold">Finished Qty</label><input type="number" class="form-control border-primary fw-bold" required name="finished_qty" id="stitching_finished_qty_${id}" oninput="calcBalanceTriggerBox(${id}, 'stitching')"></div>
+                        <div class="col-md-4"><label class="small fw-bold">Balance Qty</label><input type="number" class="form-control bg-light fw-bold text-danger" required name="balance_qty" id="stitching_balance_qty_${id}" readonly></div>
                     </div>
-                    <div id="st_command_box_${id}" style="display:none;" class="alert alert-warning border-warning shadow-sm mt-3">
+
+                    <div id="stitching_command_box_${id}" style="display:none;" class="alert alert-warning border-warning shadow-sm mt-3">
                         <h6 class="fw-bold text-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>Balance එකක් පවතී!</h6>
                         <label class="small fw-bold mt-1">මෙම ඉතිරි ප්‍රමාණය නැවත කිරීමට (Balance PO) අවශ්‍යද?</label>
-                        <select class="form-select border-warning mt-2" name="process_balance" id="st_balance_option_${id}">
+                        <select class="form-select border-warning mt-2" name="process_balance" id="stitching_balance_option_${id}">
                             <option value="">-- තීරණය තෝරන්න (Required) --</option>
-                            <option value="yes">ඔව්, Balance PO එකක් ලෙස නව Tab එකට මාරු කරන්න</option>
+                            <option value="yes">ඔව්, Balance PO එකක් ලෙස නව Tab එකට මාරු කරන්න (To Board Plant)</option>
                             <option value="no">නැත, ඉතිරි ප්‍රමාණය අවශ්‍ය නැත</option>
                         </select>
                     </div>
-                    <input type="hidden" name="target_tab" id="st_target_tab_${id}">
+
+                    <input type="hidden" name="target_tab" id="stitching_target_tab_${id}">
                     <div class="d-flex justify-content-end gap-2 mt-3 flex-wrap">
-                        <button type="button" class="btn btn-dark fw-bold px-4" onclick="document.getElementById('st_target_tab_${id}').value='Finished Goods'; document.getElementById('form_st_${id}').requestSubmit();">Save & Transfer to Finished Goods</button>
+                        <button type="button" class="btn btn-dark fw-bold px-4" onclick="document.getElementById('stitching_target_tab_${id}').value='Finished Goods'; document.getElementById('form_stitching_${id}').requestSubmit();">Save & Transfer to Finished Goods</button>
                     </div>
                 </form>
             </div>`;
@@ -1717,157 +1754,42 @@
             if(container) container.innerHTML = formHtml;
         }
 
-        function viewStageAttachment(id) {
-            const modalBody = document.getElementById('attachmentModalBody');
-            const modalTitle = document.getElementById('attachmentModalTitle');
-            if (modalBody) modalBody.innerHTML = '<div class="text-center p-4"><div class="spinner-border text-primary" role="status"></div><p class="mt-2 text-muted">Loading plan audit log details...</p></div>';
-            
-            const myModal = new bootstrap.Modal(document.getElementById('viewAttachmentModal'));
-            myModal.show();
-
-           fetch(`/api/get_plan_audit_logs?id=${id}`)
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP Error! Status: ${response.status}`);
-        }
-        return response.json();
-    })
-            .then(data => {
-                if (data.success || data.logs || Array.isArray(data)) {
-                    let logs = data.logs || data.audit_logs || (Array.isArray(data) ? data : []);
-                    let planInfo = data.plan || {};
-                    
-                    if (modalTitle) modalTitle.innerHTML = `<i class="bi bi-journal-text text-warning me-2"></i> Log Audit Trail - ID: ${id}`;
-                    
-                    let contentHtml = `
-                    <div class="card border-0 shadow-sm mb-3">
-                        <div class="card-body bg-white">
-                            <h6 class="fw-bold text-primary mb-2"><i class="bi bi-info-circle me-1"></i> Plan Information Overview</h6>
-                            <div class="row g-2 small">
-                                <div class="col-md-3"><strong>PO Number:</strong> ${planInfo.po_no || 'N/A'}</div>
-                                <div class="col-md-4"><strong>Customer:</strong> ${planInfo.customer_name || 'N/A'}</div>
-                                <div class="col-md-3"><strong>Current Status:</strong> <span class="badge bg-info">${planInfo.status || 'N/A'}</span></div>
-                                <div class="col-md-2"><strong>Target Qty:</strong> ${planInfo.qty || '0'}</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="table-responsive">
-                        <table class="table table-bordered table-striped align-middle text-center mb-0 small">
-                            <thead class="table-dark">
-                                <tr>
-                                    <th>Timestamp</th>
-                                    <th>Stage / Form Type</th>
-                                    <th>User / Action Role</th>
-                                    <th>Logged Form Data & Parameters</th>
-                                </tr>
-                            </thead>
-                            <tbody>`;
-                    
-                    if (logs && logs.length > 0) {
-                        logs.forEach(log => {
-                            let details = typeof log.details === 'object' ? JSON.stringify(log.details, null, 2) : (log.details || log.form_data || 'N/A');
-                            contentHtml += `
-                            <tr>
-                                <td>${log.timestamp || log.created_at || 'N/A'}</td>
-                                <td><span class="badge bg-secondary">${log.stage || log.form_type || 'Audit Log'}</span></td>
-                                <td>${log.user || log.role || 'System'}</td>
-                                <td class="text-start font-monospace"><pre class="mb-0 small" style="white-space: pre-wrap;">${details}</pre></td>
-                            </tr>`;
-                        });
-                    } else {
-                        contentHtml += `<tr><td colspan="4" class="text-muted py-3">No specific log audit records found for Plan ID ${id}.</td></tr>`;
-                    }
-                    contentHtml += `</tbody></table></div>`;
-                    if (modalBody) modalBody.innerHTML = contentHtml;
-                } else {
-                    if (modalBody) modalBody.innerHTML = `<div class="alert alert-warning m-0">${data.message || 'No log details available.'}</div>`;
-                }
-            })
-            .catch(err => {
-                console.error("Audit fetch error:", err);
-                if (modalBody) modalBody.innerHTML = `<div class="alert alert-danger m-0"><i class="bi bi-exclamation-triangle-fill me-2"></i> <strong>Audit fetch error:</strong> ${err.message}. Please verify the API endpoint is implemented on server.</div>`;
-            });
-        }
-
-        function loadHistoryLogs(reset = false) {
-            if (reset) {
-                if (document.getElementById('historyStartDate')) document.getElementById('historyStartDate').value = '';
-                if (document.getElementById('historyEndDate')) document.getElementById('historyEndDate').value = '';
-                if (document.getElementById('historySearchPO')) document.getElementById('historySearchPO').value = '';
-                if (document.getElementById('historySearchCustomer')) document.getElementById('historySearchCustomer').value = '';
-            }
-
-            let sDate = document.getElementById('historyStartDate') ? document.getElementById('historyStartDate').value : '';
-            let eDate = document.getElementById('historyEndDate') ? document.getElementById('historyEndDate').value : '';
-
-            let tableBody = document.getElementById('historyLogsTableBody');
-            if (tableBody) tableBody.innerHTML = '<tr><td colspan="9" class="text-muted py-4"><div class="spinner-border spinner-border-sm text-primary me-2"></div>Loading history audit logs...</td></tr>';
-
-            fetch(`/api/get_history_logs?start_date=${encodeURIComponent(sDate)}&end_date=${encodeURIComponent(eDate)}`)
-            .then(r => r.json())
-            .then(data => {
-                if (data.success || Array.isArray(data)) {
-                    let logs = data.logs || (Array.isArray(data) ? data : []);
-                    let html = '';
-                    if (logs.length > 0) {
-                        logs.forEach(log => {
-                            let matBuild = log.materials ? log.materials.map((m, i) => `L${i+1}:${m.gsm}-${m.name}`).join(', ') : (log.materials_build || 'N/A');
-                            html += `
-                            <tr>
-                                <td>${log.timestamp || log.created_at || '-'}</td>
-                                <td class="fw-bold text-primary">${log.po_no || '-'}</td>
-                                <td>${log.customer_name || '-'}</td>
-                                <td>${log.size || log.reel_size || '-'} cm</td>
-                                <td>${log.ply || '-'} Ply</td>
-                                <td class="fw-bold">${log.qty || '0'}</td>
-                                <td class="font-monospace small text-start">${matBuild}</td>
-                                <td><span class="badge ${log.status === 'Dispatched' ? 'bg-success' : 'bg-primary'}">${log.status || 'Completed'}</span></td>
-                                <td class="fw-bold text-danger">${log.ad_number || log.ad_no || '-'}</td>
-                            </tr>`;
-                        });
-                    } else {
-                        html = '<tr><td colspan="9" class="text-muted py-4">No plan history audit records found.</td></tr>';
-                    }
-                    if (tableBody) tableBody.innerHTML = html;
-                } else {
-                    if (tableBody) tableBody.innerHTML = `<tr><td colspan="9" class="text-danger py-4">${data.message || 'Failed to load history logs.'}</td></tr>`;
-                }
-            })
-            .catch(err => {
-                console.error("Error loading history logs:", err);
-                if (tableBody) tableBody.innerHTML = `<tr><td colspan="9" class="text-danger py-4">Error loading audit logs: ${err.message}</td></tr>`;
-            });
-        }
-
         function renderBalancePOTable() {
             let titleEl = document.getElementById('generic-tab-title');
-            if(titleEl) titleEl.innerHTML = "<i class='bi bi-exclamation-triangle-fill text-warning me-2'></i> Balance PO Stage";
-            
+            if(titleEl) titleEl.innerHTML = "<i class='bi bi-exclamation-triangle-fill text-warning me-2'></i> Balance PO Queue";
+
             fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
                 globalAllPlans = data;
-                let html = `
-                <table class="table table-bordered table-striped align-middle text-center mb-0">
-                    <thead class="table-dark small">
-                        <tr><th>PO No</th><th>Customer & Product</th><th>Size</th><th>Balance Qty</th><th>Action</th></tr>
-                    </thead>
-                    <tbody>`;
+                let rows = '';
                 let hasRecords = false;
+
                 for (const [size, plans] of Object.entries(data)) {
                     plans.filter(p => p.status === 'Balance PO').forEach(p => {
                         hasRecords = true;
-                        html += `
+                        rows += `
                         <tr>
                             <td class="fw-bold text-primary">${p.po_no}</td>
                             <td>${p.customer_name} - ${p.product_name||''}</td>
-                            <td>${size} cm</td>
-                            <td><span class="badge bg-danger fs-6">${p.qty} Pcs</span></td>
-                            <td><button class="btn btn-sm btn-primary fw-bold" onclick="transferPlan(${p.id}, 'Board Plant')">Re-transfer to Board Plant</button></td>
+                            <td class="fw-bold">${size} cm</td>
+                            <td><span class="badge bg-warning text-dark fs-6">${p.qty} Pcs</span></td>
+                            <td><button class="btn btn-sm btn-info text-white fw-bold" onclick="viewStageAttachment(${p.id})"><i class="bi bi-eye"></i> View Log</button></td>
+                            <td>
+                                <button class="btn btn-sm btn-primary fw-bold" onclick="transferPlan(${p.id}, 'Board Plant')">Re-transfer to Board Plant</button>
+                            </td>
                         </tr>`;
                     });
                 }
-                html += `</tbody></table>`;
+
+                let html = `
+                <table class="table table-bordered table-striped align-middle text-center mb-0">
+                    <thead class="table-dark small">
+                        <tr><th>PO No</th><th>Customer & Product</th><th>Size</th><th>Balance Qty</th><th>Attachment</th><th>Action</th></tr>
+                    </thead>
+                    <tbody>${hasRecords ? rows : '<tr><td colspan="6" class="text-muted py-4">No active Balance PO items scheduled.</td></tr>'}</tbody>
+                </table>`;
+
                 let container = document.getElementById('generic-stage-container');
-                if(container) container.innerHTML = hasRecords ? html : "<p class='text-muted p-3 text-center border rounded bg-white'>No active Balance PO items found.</p>";
+                if(container) container.innerHTML = html;
             });
         }
 
@@ -1877,30 +1799,141 @@
 
             fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
                 globalAllPlans = data;
-                let html = `
-                <table class="table table-bordered table-striped align-middle text-center mb-0">
-                    <thead class="table-dark small">
-                        <tr><th>PO No</th><th>Customer & Product</th><th>Qty</th><th>AD Number</th><th>Action</th></tr>
-                    </thead>
-                    <tbody>`;
+                let rows = '';
                 let hasRecords = false;
+
                 for (const [size, plans] of Object.entries(data)) {
                     plans.filter(p => p.status === stageName).forEach(p => {
                         hasRecords = true;
-                        html += `
+                        let actHtml = '';
+                        if (stageName === 'Finished Goods') {
+                            actHtml = `
+                            <div class="input-group input-group-sm justify-content-center" style="max-width: 280px; margin: 0 auto;">
+                                <input type="text" id="ad_no_${p.id}" class="form-control" placeholder="AD Number" required>
+                                <button class="btn btn-success fw-bold" onclick="dispatchFinishedGoods(${p.id})">Dispatch</button>
+                            </div>`;
+                        } else {
+                            actHtml = canAct(stageName) ? `<button class="btn btn-sm btn-primary fw-bold" onclick="viewStageAttachment(${p.id})">View Details</button>` : `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
+                        }
+
+                        rows += `
                         <tr>
                             <td class="fw-bold text-primary">${p.po_no}</td>
                             <td>${p.customer_name} - ${p.product_name||''}</td>
-                            <td><span class="badge bg-success fs-6">${p.qty} Pcs</span></td>
-                            <td><input type="text" id="ad_no_${p.id}" class="form-control form-control-sm text-center border-secondary fw-bold mx-auto" style="max-width:140px;" placeholder="Enter AD No" value="${p.ad_number||''}"></td>
-                            <td><button class="btn btn-sm btn-danger fw-bold" onclick="dispatchFinishedGoods(${p.id})"><i class="bi bi-truck me-1"></i> Dispatch</button></td>
+                            <td>${size} cm</td>
+                            <td><span class="badge bg-secondary fs-6">${p.qty}</span></td>
+                            <td><button class="btn btn-sm btn-outline-info fw-bold" onclick="viewStageAttachment(${p.id})"><i class="bi bi-eye"></i> View Log</button></td>
+                            <td>${actHtml}</td>
                         </tr>`;
                     });
                 }
-                html += `</tbody></table>`;
+
+                let html = `
+                <table class="table table-bordered table-striped align-middle text-center mb-0">
+                    <thead class="table-dark small">
+                        <tr><th>PO No</th><th>Customer & Product</th><th>Size</th><th>Qty</th><th>Attachment</th><th>Action</th></tr>
+                    </thead>
+                    <tbody>${hasRecords ? rows : `<tr><td colspan="6" class="text-muted py-4">No jobs currently in ${stageName}.</td></tr>`}</tbody>
+                </table>`;
+
                 let container = document.getElementById('generic-stage-container');
-                if(container) container.innerHTML = hasRecords ? html : `<p class='text-muted p-3 text-center border rounded bg-white'>No items currently in ${stageName}.</p>`;
+                if(container) container.innerHTML = html;
             });
+        }
+
+        function loadHistoryLogs(reset = false) {
+            if(reset) {
+                if(document.getElementById('historyStartDate')) document.getElementById('historyStartDate').value = '';
+                if(document.getElementById('historyEndDate')) document.getElementById('historyEndDate').value = '';
+                if(document.getElementById('historySearchPO')) document.getElementById('historySearchPO').value = '';
+                if(document.getElementById('historySearchCustomer')) document.getElementById('historySearchCustomer').value = '';
+            }
+
+            const startDate = document.getElementById('historyStartDate') ? document.getElementById('historyStartDate').value : '';
+            const endDate = document.getElementById('historyEndDate') ? document.getElementById('historyEndDate').value : '';
+
+            const tbody = document.getElementById('historyLogsTableBody');
+            if(tbody) tbody.innerHTML = `<tr><td colspan="9" class="text-muted py-4"><div class="spinner-border spinner-border-sm me-2"></div>Loading history audit logs...</td></tr>`;
+
+            fetch(`/api/get_history_logs?start_date=${encodeURIComponent(startDate)}&end_date=${encodeURIComponent(endDate)}`)
+                .then(r => r.json())
+                .then(data => {
+                    if(data.success && data.logs && data.logs.length > 0) {
+                        let html = '';
+                        data.logs.forEach(item => {
+                            let combinationSpecsString = (item.materials && Array.isArray(item.materials)) ? item.materials.map((m,i)=> `L${i+1}: ${(m.gsm && !isNaN(m.gsm)) ? m.gsm : '-'} - ${m.name}`).join(', ') : '-';
+                            html += `
+                            <tr>
+                                <td class="font-monospace text-muted">${item.timestamp || item.created_at || '-'}</td>
+                                <td class="fw-bold text-primary font-monospace">${item.po_no || '-'}</td>
+                                <td>${item.customer_name || '-'}</td>
+                                <td>${item.size || '-'} cm</td>
+                                <td><span class="badge bg-secondary">${item.ply || '-'} Ply</span></td>
+                                <td class="fw-bold">${item.qty || 0}</td>
+                                <td class="small text-start font-monospace">${combinationSpecsString}</td>
+                                <td><span class="badge ${item.status === 'Dispatched' ? 'bg-success':'bg-info'}">${item.status || '-'}</span></td>
+                                <td class="fw-bold text-dark font-monospace">${item.ad_number || '-'}</td>
+                            </tr>`;
+                        });
+                        if(tbody) tbody.innerHTML = html;
+                    } else {
+                        if(tbody) tbody.innerHTML = `<tr><td colspan="9" class="text-muted py-4">No plan history audit logs found for the selected period.</td></tr>`;
+                    }
+                })
+                .catch(err => {
+                    console.error("Error loading history logs:", err);
+                    if(tbody) tbody.innerHTML = `<tr><td colspan="9" class="text-danger py-4">Error loading audit logs. Please try again.</td></tr>`;
+                });
+        }
+
+        // Fixed View Stage Attachment Function with Safe 404 Exception Handling
+        function viewStageAttachment(id) {
+            const modalEl = document.getElementById('viewAttachmentModal');
+            const modalBody = document.getElementById('attachmentModalBody');
+            const modalTitle = document.getElementById('attachmentModalTitle');
+            const modalActions = document.getElementById('modalActionButtons');
+            
+            if (modalTitle) modalTitle.innerHTML = `<i class="bi bi-journal-text text-warning me-2"></i> Log Audit View (Plan #${id})`;
+            if (modalBody) modalBody.innerHTML = `<div class="text-center p-4"><div class="spinner-border text-primary" role="status"></div><p class="mt-2 text-muted">Loading audit logs...</p></div>`;
+            if (modalActions) modalActions.innerHTML = '';
+
+            const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+            bsModal.show();
+
+            fetch(`/api/get_plan_audit_logs?id=${id}`)
+                .then(res => {
+                    if (!res.ok) {
+                        if (res.status === 404) {
+                            return { success: false, message: "No audit log history available for this item." };
+                        }
+                        throw new Error(`Server returned status ${res.status}`);
+                    }
+                    return res.json();
+                })
+                .then(data => {
+                    if (data.success && data.logs && data.logs.length > 0) {
+                        let logsHtml = `<div class="timeline border-start border-2 border-primary ps-3 my-2">`;
+                        data.logs.forEach(log => {
+                            logsHtml += `
+                                <div class="mb-3 p-3 bg-white rounded shadow-sm border">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <strong class="text-primary">${log.stage || 'Stage Update'}</strong>
+                                        <small class="text-muted font-monospace">${log.timestamp || ''}</small>
+                                    </div>
+                                    <p class="mb-1 text-dark small">${log.details || log.message || 'No additional details'}</p>
+                                    <small class="text-secondary">By: <strong>${log.user || 'System'}</strong></small>
+                                </div>`;
+                        });
+                        logsHtml += `</div>`;
+                        if (modalBody) modalBody.innerHTML = logsHtml;
+                    } else {
+                        if (modalBody) modalBody.innerHTML = `<div class="alert alert-info text-center m-3"><i class="bi bi-info-circle me-2"></i>${data.message || "No audit log history found for this plan."}</div>`;
+                    }
+                })
+                .catch(err => {
+                    console.warn("Audit fetch warning:", err);
+                    if (modalBody) modalBody.innerHTML = `<div class="alert alert-warning text-center m-3"><i class="bi bi-exclamation-triangle me-2"></i>No audit logs currently found for Plan #${id}.</div>`;
+                });
         }
     </script>
 </body>
