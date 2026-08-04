@@ -1897,18 +1897,90 @@
         }
 
         function viewStageAttachment(id) {
-            document.getElementById('attachmentModalBody').innerHTML = `<p class="text-center text-muted my-4">Document log viewer activated for Job ID: ${id}. Detailed view configurations will be rendered here.</p>`;
-            var myModal = new bootstrap.Modal(document.getElementById('viewAttachmentModal'));
-            myModal.show();
-        }
-            document.addEventListener('DOMContentLoaded', () => {
-            const activeTabBtn = document.querySelector('.nav-tabs .nav-link.active');
-            if (activeTabBtn) {
-                activeTabBtn.click(); // මෙය මගින් අදාල renderBoardPlantTable() වැනි function එක trigger වේ.
-            } else {
-                renderRuntimePlansTable(); // Fallback
+            let plan;
+            for (const key in globalAllPlans) { 
+                let f = globalAllPlans[key].find(x => x.id === id); 
+                if (f) { plan = f; break; }
             }
-        });
+            
+            if (!plan) {
+                alert("Error: Job plan details not found!");
+                return;
+            }
+
+            let html = `
+                <div class="container-fluid p-0">
+                    <div class="alert alert-info border-info fw-bold mb-3">
+                        <i class="bi bi-info-circle-fill me-2"></i> Document Log Viewer Active (Job ID: ${id})
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <table class="table table-sm table-bordered">
+                                <tbody>
+                                    <tr><th class="bg-light w-35">PO No</th><td class="fw-bold text-primary">${plan.po_no || 'N/A'}</td></tr>
+                                    <tr><th class="bg-light">Customer</th><td>${plan.customer_name || 'N/A'}</td></tr>
+                                    <tr><th class="bg-light">Quantity</th><td><span class="badge bg-secondary fs-6">${plan.qty || 0}</span></td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-sm table-bordered">
+                                <tbody>
+                                    <tr><th class="bg-light w-35">Flute</th><td>${plan.flute || 'N/A'}</td></tr>
+                                    <tr><th class="bg-light">Ply</th><td>${plan.ply || 'N/A'} Ply</td></tr>
+                                    <tr><th class="bg-light">Status</th><td><span class="badge bg-info text-dark">${plan.status || 'N/A'}</span></td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <h6 class="fw-bold border-bottom pb-2 mt-2">Material Specification Details</h6>
+                    <ul class="list-group list-group-flush mb-4 small">
+            `;
+            
+            if (plan.materials && plan.materials.length > 0) {
+                plan.materials.forEach((m, i) => {
+                    html += `<li class="list-group-item px-2 py-1"><span class="badge bg-dark me-2">Layer ${i+1}</span> ${m.gsm} GSM - <strong>${m.name}</strong></li>`;
+                });
+            } else {
+                html += `<li class="list-group-item px-2 py-1 text-muted">No material parameters recorded.</li>`;
+            }
+
+            html += `
+                    </ul>
+                    <h6 class="fw-bold border-bottom pb-2">Production Stage Logs & QA Checks</h6>
+            `;
+
+            const renderFormLog = (title, formData, colorClass) => {
+                if (!formData) return '';
+                let details = Object.entries(formData)
+                    .filter(([k,v]) => k !== 'target_tab' && k !== 'saved_at')
+                    .map(([k,v]) => `<tr><th class="w-50 text-capitalize">${k.replace(/_/g, ' ')}</th><td>${v}</td></tr>`).join('');
+                return `<div class="card mb-3 border-${colorClass}">
+                            <div class="card-header bg-${colorClass} text-white fw-bold py-1">${title}</div>
+                            <div class="card-body p-0">
+                                <table class="table table-sm table-striped mb-0 small">${details}</table>
+                            </div>
+                        </div>`;
+            };
+
+            let logsFound = false;
+            if(plan.board_plant_form) { html += renderFormLog('Board Plant Log', plan.board_plant_form, 'secondary'); logsFound = true; }
+            if(plan.printer_form)     { html += renderFormLog('Printer Log', plan.printer_form, 'success'); logsFound = true; }
+            if(plan.diecut_form)      { html += renderFormLog('Die Cut Log', plan.diecut_form, 'primary'); logsFound = true; }
+            if(plan.semiauto_form)    { html += renderFormLog('Semi Auto Log', plan.semiauto_form, 'warning text-dark'); logsFound = true; }
+            if(plan.gluer_form)       { html += renderFormLog('Gluer Log', plan.gluer_form, 'dark'); logsFound = true; }
+            if(plan.stitching_form)   { html += renderFormLog('Stitching Log', plan.stitching_form, 'info text-dark'); logsFound = true; }
+            
+            if(!logsFound) {
+                html += `<p class="text-muted small">No extensive production log documents available for this job ID yet.</p>`;
+            }
+            
+            html += `</div>`;
+            document.getElementById('attachmentModalBody').innerHTML = html;
+            let modal = new bootstrap.Modal(document.getElementById('viewAttachmentModal'));
+            modal.show();
+        }
     </script>
 </body>
 </html>
