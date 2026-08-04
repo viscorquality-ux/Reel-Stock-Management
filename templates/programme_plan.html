@@ -892,7 +892,9 @@
         }
 
         function printSelectedBand(bandId) {
-            document.getElementById(bandId).querySelectorAll('input[type="number"]').forEach(el => { el.setAttribute('value', el.value); });
+            document.getElementById(bandId).querySelectorAll('input[type="number"]').forEach(el => { 
+                el.setAttribute('value', el.value || ''); 
+            });
             let printContents = document.getElementById(bandId).outerHTML;
             let printWindow = window.open('', '_blank', 'width=900,height=650');
             printWindow.document.write(`
@@ -1715,118 +1717,95 @@
             if(container) container.innerHTML = formHtml;
         }
 
-        function renderBalancePOTable() {
+        function renderGenericTable(stageTitle) {
             let titleEl = document.getElementById('generic-tab-title');
-            if(titleEl) titleEl.innerHTML = "<i class='bi bi-exclamation-triangle-fill text-warning me-2'></i> Balance PO Queue";
+            if(titleEl) titleEl.innerHTML = `<i class='bi bi-check2-circle text-success me-2'></i> ${stageTitle} Stage`;
             
             fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
                 globalAllPlans = data;
-                let html = `
-                <table class="table table-bordered table-striped align-middle text-center mb-0">
-                    <thead class="table-dark small">
-                        <tr><th>PO No</th><th>Customer Name</th><th>Reel Size</th><th>Balance Qty</th><th>Remarks</th><th>Action</th></tr>
-                    </thead>
-                    <tbody>`;
                 let hasRecords = false;
-                for (const [size, plans] of Object.entries(data)) {
-                    plans.filter(p => p.status === 'Balance PO').forEach(p => {
-                        hasRecords = true;
-                        let actHtml = canAct('Balance PO') ? `<button class="btn btn-sm btn-success fw-bold" onclick="transferPlan(${p.id}, 'Board Plant')">Re-Transfer to Board Plant</button>` : `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
-                        html += `
-                        <tr>
-                            <td class="fw-bold text-primary">${p.po_no}</td>
-                            <td>${p.customer_name}</td>
-                            <td>${size} cm</td>
-                            <td><span class="badge bg-danger fs-6">${p.qty}</span></td>
-                            <td class="text-muted small">${p.remarks || 'N/A'}</td>
-                            <td>${actHtml}</td>
-                        </tr>`;
-                    });
-                }
-                html += `</tbody></table>`;
-                let container = document.getElementById('generic-stage-container');
-                if(container) container.innerHTML = hasRecords ? html : "<p class='text-muted p-4 text-center border rounded bg-white'>No jobs currently pending in Balance PO queue.</p>";
-            });
-        }
-
-        function renderGenericTable(statusVal) {
-            let titleEl = document.getElementById('generic-tab-title');
-            if(titleEl) titleEl.innerHTML = `<i class="bi bi-box-seam me-2"></i> ${statusVal} Stage`;
-            
-            fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
-                globalAllPlans = data;
                 let html = `
-                <table class="table table-bordered table-striped align-middle text-center mb-0">
-                    <thead class="table-dark small">
-                        <tr><th>PO No</th><th>Customer Name</th><th>Reel Size</th><th>Qty</th><th>AD Number</th><th>Log Attachment</th><th>Action</th></tr>
-                    </thead>
-                    <tbody>`;
-                let hasRecords = false;
+                <div class="mb-3 d-flex justify-content-between align-items-center">
+                    <span class="text-secondary fw-bold"><i class="bi bi-funnel"></i> Filter Jobs</span>
+                    <div class="input-group shadow-sm w-25">
+                        <span class="input-group-text bg-success text-white border-success"><i class="bi bi-search"></i></span>
+                        <input type="text" id="genericSearch" class="form-control border-success" placeholder="Search PO No..." onkeyup="filterByPONo('genericStageTable', 'genericSearch', 0)">
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table id="genericStageTable" class="table table-bordered table-striped align-middle text-center mb-0">
+                        <thead class="table-dark small">
+                            <tr><th>PO No</th><th>Customer & Product</th><th>Size</th><th>Qty</th><th>Attachment</th><th>Action</th></tr>
+                        </thead>
+                        <tbody>`;
+                
                 for (const [size, plans] of Object.entries(data)) {
-                    plans.filter(p => p.status === statusVal).forEach(p => {
+                    plans.filter(p => p.status === stageTitle).forEach(p => {
                         hasRecords = true;
-                        let actHtml = canAct('Finished Goods') ? 
-                            `<button class="btn btn-sm btn-success fw-bold" onclick="dispatchFinishedGoods(${p.id})"><i class="bi bi-truck me-1"></i> Dispatch Job</button>` : 
-                            `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
+                        let actHtml = '';
+                        if(stageTitle === 'Finished Goods' && canAct('Finished Goods')) {
+                            actHtml = `
+                                <div class="d-flex align-items-center justify-content-center gap-2">
+                                    <input type="text" id="ad_no_${p.id}" class="form-control form-control-sm text-center fw-bold border-dark" placeholder="AD Number" style="width: 110px;">
+                                    <button class="btn btn-sm btn-dark fw-bold shadow-sm" onclick="dispatchFinishedGoods(${p.id})"><i class="bi bi-send-check me-1"></i> Dispatch Job</button>
+                                </div>
+                            `;
+                        } else {
+                            actHtml = `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
+                        }
                         
                         html += `
                         <tr>
                             <td class="fw-bold text-primary">${p.po_no}</td>
-                            <td>${p.customer_name}</td>
-                            <td>${size} cm</td>
+                            <td>${p.customer_name} - ${p.product_name||''}</td>
+                            <td><span class="badge bg-info text-dark font-monospace">${size} cm</span></td>
                             <td><span class="badge bg-secondary fs-6">${p.qty}</span></td>
-                            <td><input type="text" id="ad_no_${p.id}" class="form-control form-control-sm text-center border-secondary fw-bold" placeholder="Enter Manual AD No"></td>
-                            <td><button class="btn btn-sm btn-outline-info fw-bold" onclick="viewStageAttachment(${p.id})"><i class="bi bi-file-earmark-text"></i> Audit View</button></td>
+                            <td><button class="btn btn-sm btn-outline-success fw-bold shadow-sm" onclick="viewStageAttachment(${p.id})"><i class="bi bi-eye"></i> View Log</button></td>
                             <td>${actHtml}</td>
                         </tr>`;
                     });
                 }
-                html += `</tbody></table>`;
+                html += `</tbody></table></div>`;
                 let container = document.getElementById('generic-stage-container');
-                if(container) container.innerHTML = hasRecords ? html : `<p class='text-muted p-4 text-center border rounded bg-white'>No jobs currently in ${statusVal} stage.</p>`;
+                if(container) container.innerHTML = hasRecords ? html : `<p class='text-muted p-4 text-center border rounded bg-white shadow-sm'>No jobs currently in ${stageTitle} stage.</p>`;
             });
         }
 
-        function viewStageAttachment(id) {
-            fetch(`/api/get_plan_audit_logs?id=${id}`)
-            .then(r => r.json())
-            .then(data => {
-                let modalBody = document.getElementById('attachmentModalBody');
-                let modalTitle = document.getElementById('attachmentModalTitle');
-                let actionBtns = document.getElementById('modalActionButtons');
+        function renderBalancePOTable() {
+            let titleEl = document.getElementById('generic-tab-title');
+            if(titleEl) titleEl.innerHTML = "<i class='bi bi-exclamation-triangle-fill text-warning me-2'></i> Balance PO Stage";
+            
+            fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
+                globalAllPlans = data;
+                let hasRecords = false;
+                let html = `
+                <div class="table-responsive">
+                    <table class="table table-bordered table-striped align-middle text-center mb-0 shadow-sm">
+                        <thead class="table-dark small text-uppercase">
+                            <tr><th>PO No</th><th>Customer</th><th>Balance Qty</th><th>Source Stage</th><th>Action</th></tr>
+                        </thead>
+                        <tbody>`;
                 
-                modalTitle.innerHTML = `<i class="bi bi-journal-text text-warning me-2"></i> Audit View Logs - Plan #${id}`;
-                actionBtns.innerHTML = `<button class="btn btn-sm btn-light fw-bold" onclick="window.print()"><i class="bi bi-printer me-1"></i> Print Log</button>`;
-                
-                if (data.success && data.logs && data.logs.length > 0) {
-                    let logsHtml = '<div class="accordion" id="auditAccordion">';
-                    data.logs.forEach((log, idx) => {
-                        logsHtml += `
-                        <div class="accordion-item mb-2 border rounded">
-                            <h2 class="accordion-header" id="heading${idx}">
-                                <button class="accordion-button ${idx !== 0 ? 'collapsed' : ''}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse${idx}">
-                                    <strong class="text-primary me-2">[${log.stage || 'Stage Log'}]</strong> - ${new Date(log.timestamp).toLocaleString()}
-                                </button>
-                            </h2>
-                            <div id="collapse${idx}" class="accordion-collapse collapse ${idx === 0 ? 'show' : ''}" data-bs-parent="#auditAccordion">
-                                <div class="accordion-body bg-white">
-                                    <pre class="bg-light p-3 rounded border font-monospace text-dark" style="font-size:0.85rem; max-height: 300px; overflow-y: auto;">${JSON.stringify(log.data || log, null, 2)}</pre>
-                                </div>
-                            </div>
-                        </div>`;
+                for (const [size, plans] of Object.entries(data)) {
+                    plans.filter(p => p.status === 'Balance PO').forEach(p => {
+                        hasRecords = true;
+                        let actHtml = canAct('Balance PO') ? `
+                            <button class="btn btn-sm btn-primary fw-bold px-3 py-2 shadow-sm" onclick="transferPlan(${p.id}, 'Live Planning')"><i class="bi bi-arrow-repeat me-1"></i> Send to Live Planning</button>
+                        ` : `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
+                        
+                        html += `
+                        <tr>
+                            <td class="fw-bold text-primary fs-6">${p.po_no}</td>
+                            <td class="fw-semibold">${p.customer_name}</td>
+                            <td><span class="badge bg-warning text-dark fs-5 px-3 py-2 border border-warning-subtle">${p.qty}</span></td>
+                            <td><span class="badge bg-info text-dark">${p.previous_status || 'Unknown'}</span></td>
+                            <td>${actHtml}</td>
+                        </tr>`;
                     });
-                    logsHtml += '</div>';
-                    modalBody.innerHTML = logsHtml;
-                } else {
-                    modalBody.innerHTML = `<div class="alert alert-warning text-center">No detailed audit logs found for this plan.</div>`;
                 }
-                
-                let modal = new bootstrap.Modal(document.getElementById('viewAttachmentModal'));
-                modal.show();
-            })
-            .catch(err => {
-                console.error("Error fetching audit logs:", err);
-                alert("❌ Failed to fetch audit logs.");
+                html += `</tbody></table></div>`;
+                let container = document.getElementById('generic-stage-container');
+                if(container) container.innerHTML = hasRecords ? html : `<p class='text-muted p-4 text-center border rounded bg-white shadow-sm'>No balance POs pending execution.</p>`;
             });
         }
 
@@ -1837,48 +1816,126 @@
                 document.getElementById('historySearchPO').value = '';
                 document.getElementById('historySearchCustomer').value = '';
             }
-
             let start = document.getElementById('historyStartDate').value;
             let end = document.getElementById('historyEndDate').value;
-
-            fetch(`/api/get_history_logs?start_date=${encodeURIComponent(start)}&end_date=${encodeURIComponent(end)}`)
-            .then(r => r.json())
-            .then(data => {
-                let tbody = document.getElementById('historyLogsTableBody');
-                if (data.success && data.logs && data.logs.length > 0) {
-                    let html = '';
-                    data.logs.forEach(log => {
-                        let comboStr = log.materials ? log.materials.map(m => `${m.gsm} ${m.name}`).join(', ') : 'N/A';
+            
+            let url = '/api/get_history_logs';
+            if (start && end) url += `?start=${start}&end=${end}`;
+            
+            fetch(url).then(r=>r.json()).then(data => {
+                let html = '';
+                if(data.length === 0) {
+                    html = '<tr><td colspan="9" class="text-muted py-4">No audit logs found for the selected criteria.</td></tr>';
+                } else {
+                    data.forEach(log => {
+                        let combo = log.materials ? log.materials.map(m=> `${m.gsm}-${m.name}`).join(' | ') : '-';
+                        let timeStr = new Date(log.timestamp || log.created_at || Date.now()).toLocaleString();
                         html += `
                         <tr>
-                            <td>${new Date(log.timestamp).toLocaleDateString()} ${new Date(log.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>
-                            <td class="fw-bold text-primary font-monospace">${log.po_no}</td>
-                            <td class="fw-semibold text-start">${log.customer_name}</td>
-                            <td>${log.reel_size} cm</td>
-                            <td><span class="badge bg-secondary">${log.ply} Ply</span></td>
-                            <td class="fw-bold">${log.qty} Pcs</td>
-                            <td class="text-start small font-monospace">${comboStr}</td>
-                            <td><span class="badge bg-success">${log.status}</span></td>
-                            <td class="fw-bold text-dark font-monospace">${log.ad_number || '-'}</td>
+                            <td class="small text-muted">${timeStr}</td>
+                            <td class="fw-bold text-primary">${log.po_no}</td>
+                            <td class="text-start">${log.customer_name}</td>
+                            <td class="font-monospace text-danger bg-light">${log.sheet_length || '-'} cm</td>
+                            <td><span class="badge bg-secondary">${log.ply || '-'} Ply</span></td>
+                            <td><span class="badge bg-dark">${log.qty}</span></td>
+                            <td class="small text-start font-monospace">${combo}</td>
+                            <td><span class="badge bg-${log.status==='Dispatched'?'success':'info'}">${log.status}</span></td>
+                            <td class="fw-bold">${log.ad_number || '-'}</td>
                         </tr>`;
                     });
-                    tbody.innerHTML = html;
-                } else {
-                    tbody.innerHTML = `<tr><td colspan="9" class="text-muted py-4">No plan history audit records found for the selected parameters.</td></tr>`;
                 }
-            })
-            .catch(err => {
-                console.error("Error fetching plan history logs:", err);
-                document.getElementById('historyLogsTableBody').innerHTML = `<tr><td colspan="9" class="text-danger py-4">Error loading history logs.</td></tr>`;
+                document.getElementById('historyLogsTableBody').innerHTML = html;
+                if(!reset && (document.getElementById('historySearchPO').value || document.getElementById('historySearchCustomer').value)) {
+                    filterHistoryTable();
+                }
+            }).catch(e => {
+                console.error(e);
+                document.getElementById('historyLogsTableBody').innerHTML = '<tr><td colspan="9" class="text-danger py-4">Error loading history logs. Please try again.</td></tr>';
             });
         }
 
-        document.addEventListener('DOMContentLoaded', function() {
-            if (document.getElementById('live-planning-tab')) {
+        // Security Update: Robust handling for 404 HTML responses instead of JSON to avoid Syntax Errors
+        function viewStageAttachment(id) {
+            fetch(`/api/get_plan_audit_logs?id=${id}`)
+            .then(async response => {
+                const text = await response.text();
+                try {
+                    return JSON.parse(text);
+                } catch (e) {
+                    console.error("Error fetching audit logs: Invalid JSON response format.", e);
+                    throw new Error("Server response format error (404 / Non-JSON). Please verify log endpoints are active.");
+                }
+            })
+            .then(data => {
+                if(data.success === false) {
+                    alert(data.message || "Failed to load audit logs.");
+                    return;
+                }
+                
+                let modalBody = document.getElementById('attachmentModalBody');
+                let html = '<div class="accordion shadow-sm" id="auditLogsAccordion">';
+                
+                if (data.logs && data.logs.length > 0) {
+                    data.logs.forEach((log, index) => {
+                        let logData;
+                        try {
+                            logData = typeof log.data === 'string' ? JSON.parse(log.data) : log.data;
+                        } catch(e) {
+                            logData = { raw_data: log.data };
+                        }
+                        
+                        let contentHtml = '<table class="table table-sm table-bordered mt-2">';
+                        for (const [key, value] of Object.entries(logData)) {
+                            if(key !== 'saved_at' && key !== 'target_tab') {
+                                contentHtml += `<tr><td class="fw-bold bg-light" style="width: 40%;">${key.replace(/_/g, ' ').toUpperCase()}</td><td>${value}</td></tr>`;
+                            }
+                        }
+                        contentHtml += '</table>';
+                        
+                        let dateStr = new Date(log.timestamp || Date.now()).toLocaleString();
+                        
+                        html += `
+                        <div class="accordion-item mb-2 border">
+                            <h2 class="accordion-header" id="heading${index}">
+                                <button class="accordion-button ${index === 0 ? '' : 'collapsed'} fw-bold bg-light text-dark" type="button" data-bs-toggle="collapse" data-bs-target="#collapse${index}">
+                                    <i class="bi bi-bookmark-check-fill text-primary me-2"></i> 
+                                    Stage: ${(log.stage || 'Unknown').toUpperCase()} | Recorded: ${dateStr}
+                                </button>
+                            </h2>
+                            <div id="collapse${index}" class="accordion-collapse collapse ${index === 0 ? 'show' : ''}" data-bs-parent="#auditLogsAccordion">
+                                <div class="accordion-body bg-white">
+                                    ${contentHtml}
+                                </div>
+                            </div>
+                        </div>`;
+                    });
+                } else {
+                    html += '<div class="alert alert-info border-info fw-bold"><i class="bi bi-info-circle-fill me-2"></i>No stage attachments or audit logs found for this Job Card yet.</div>';
+                }
+                html += '</div>';
+                
+                modalBody.innerHTML = html;
+                
+                let myModal = new bootstrap.Modal(document.getElementById('viewAttachmentModal'));
+                myModal.show();
+            })
+            .catch(error => {
+                let modalBody = document.getElementById('attachmentModalBody');
+                modalBody.innerHTML = `
+                <div class="alert alert-danger border-danger">
+                    <h6 class="fw-bold"><i class="bi bi-exclamation-triangle-fill me-2"></i> Log Audit Error</h6>
+                    <span class="small">${error.message}</span>
+                </div>`;
+                let myModal = new bootstrap.Modal(document.getElementById('viewAttachmentModal'));
+                myModal.show();
+            });
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            if(document.getElementById('live-planning-tab') && document.getElementById('live-planning-tab').classList.contains('active')) {
                 renderRuntimePlansTable();
-            } else {
-                let activeTab = document.querySelector('.nav-link.active');
-                if (activeTab) activeTab.click();
+            } else if(document.getElementById('board-plant-tab') && document.getElementById('board-plant-tab').classList.contains('active')) {
+                renderBoardPlantTable();
             }
         });
     </script>
