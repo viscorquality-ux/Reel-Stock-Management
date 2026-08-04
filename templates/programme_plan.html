@@ -354,17 +354,6 @@
         let globalSampleSheetLength = 0;
         let globalRequiredSize = 0; 
 
-        // --- ADDED FIX FOR INITIAL TAB LOAD ---
-        document.addEventListener('DOMContentLoaded', () => {
-            const activeTabs = document.querySelectorAll('.nav-tabs .nav-link.active');
-            if (activeTabs.length > 0) {
-                activeTabs[0].click();
-            } else {
-                const firstTab = document.querySelector('.nav-tabs .nav-link');
-                if (firstTab) firstTab.click();
-            }
-        });
-
         function canAct(stage) {
             if (currentRole === 'admin') return true;
             if (currentRole === 'programmer1' || currentRole === 'programmer2') {
@@ -382,13 +371,10 @@
             fetch('/api/execute_packwell_transfer', {
                 method: 'POST', headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ size: size, name: name })
-            }).then(r => {
-                if(!r.ok) throw new Error("HTTP error " + r.status);
-                return r.json();
-            }).then(res => {
+            }).then(r=>r.json()).then(res => {
                 if(res.success) alert("✅ Emergency Transfer Request triggered successfully for Reel: " + res.reel_number);
                 else alert("❌ " + res.message);
-            }).catch(e => console.error("Transfer Error:", e));
+            });
             socket.emit('send_reel_request_packwell', { size: size, name: name });
         }
 
@@ -410,12 +396,7 @@
             fetch('/api/update_row_priority', {
                 method: 'POST', headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({id: id, priority: val})
-            }).then(r => {
-                if(!r.ok) throw new Error("HTTP error " + r.status);
-                return r.json();
-            }).then(res => { 
-                if(!res.success) alert("Failed to update Row Priority."); 
-            }).catch(e => console.error("Priority Error:", e));
+            }).then(r=>r.json()).then(res => { if(!res.success) alert("Failed to update Row Priority."); });
         }
 
         function closeFormRow(rowId) {
@@ -490,10 +471,7 @@
             }
 
             fetch(`/api/get_product_info?po_no=${encodeURIComponent(po)}&customer_id=${encodeURIComponent(cid)}&product_code=${encodeURIComponent(pcode)}`)
-            .then(r => {
-                if(!r.ok) throw new Error("HTTP error " + r.status);
-                return r.json();
-            })
+            .then(r => r.json())
             .then(data => {
                 if(data.success) {
                     targetPly = data.ply || 3;
@@ -545,7 +523,7 @@
             })
             .catch(err => {
                 console.error("Error searching master product:", err);
-                alert("❌ Error fetching product specification matrix. Please check your backend.");
+                alert("❌ Error fetching product specification matrix.");
             });
         }
 
@@ -583,10 +561,7 @@
                     position: pos
                 })
             })
-            .then(r => {
-                if(!r.ok) throw new Error("HTTP error " + r.status);
-                return r.json();
-            })
+            .then(response => response.json())
             .then(data => {
                 if (data.success) {
                     if (ply === 5) {
@@ -764,10 +739,7 @@
             fetch('/api/check_stock_detailed', {
                 method: 'POST', headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ size: selectedReelSize, qty: currentQty, sheet_length: parsedSheetLength, materials: materialsArray })
-            }).then(r => {
-                if(!r.ok) throw new Error("HTTP error " + r.status);
-                return r.json();
-            }).then(data => {
+            }).then(r=>r.json()).then(data => {
                 let html = '';
                 if (data.results) {
                     data.results.forEach(res => {
@@ -790,7 +762,7 @@
                 }
                 document.getElementById('detailedStockBody').innerHTML = html;
                 document.getElementById('stockStatusSummaryPanel').style.display = 'block';
-            }).catch(e => console.error("Stock check error:", e));
+            });
         }
 
         function dispatchSavePlan() {
@@ -838,15 +810,12 @@
             
             fetch('/api/save_programme_plan', {
                 method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
-            }).then(r => {
-                if(!r.ok) throw new Error("HTTP error " + r.status);
-                return r.json();
-            }).then(res => {
+            }).then(r=>r.json()).then(res => {
                 if(res.success) { 
                     alert('✅ Programme Plan Committed!'); 
                     renderRuntimePlansTable(); 
                 }
-            }).catch(e => console.error("Save plan error:", e));
+            });
         }
 
         function saveQty(id) {
@@ -860,10 +829,7 @@
             fetch('/api/update_plan_qty', {
                 method: 'POST', headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({id: id, qty: val})
-            }).then(r => {
-                if(!r.ok) throw new Error("HTTP error " + r.status);
-                return r.json();
-            }).then(res => {
+            }).then(r=>r.json()).then(res => {
                 if(res.success) {
                     document.getElementById(`qty_display_${id}`).innerText = val;
                     document.getElementById(`qty_display_${id}`).style.display = 'inline-block';
@@ -872,7 +838,7 @@
                     document.getElementById(`btn_edit_qty_${id}`).style.display = 'inline-block';
                     input.setAttribute('value', val); 
                 }
-            }).catch(e => console.error("Qty Update Error:", e));
+            });
         }
 
         function editQty(id) {
@@ -909,10 +875,7 @@
             fetch('/api/transfer_plan', {
                 method: 'POST', headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(payload)
-            }).then(r => {
-                if(!r.ok) throw new Error("HTTP error " + r.status);
-                return r.json();
-            }).then(res => {
+            }).then(r=>r.json()).then(res => {
                 if(res.success) {
                     alert(`✅ Successfully processed and transferred to Stage.`);
                     if(formType === 'printer') document.getElementById('printers-tab').click();
@@ -921,7 +884,7 @@
                     else if(newStatus === 'Dispatched') document.getElementById('history-tab').click();
                     else document.querySelector('.nav-link.active').click(); 
                 }
-            }).catch(e => console.error("Transfer Error:", e));
+            });
         }
 
         function dispatchFinishedGoods(id) {
@@ -930,15 +893,12 @@
             fetch('/api/transfer_plan', {
                 method: 'POST', headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ id: id, status: 'Dispatched', ad_number: adNo })
-            }).then(r => {
-                if(!r.ok) throw new Error("HTTP error " + r.status);
-                return r.json();
-            }).then(res => {
+            }).then(r=>r.json()).then(res => {
                 if(res.success) {
                     alert("✅ Job Successfully Dispatched!");
                     document.getElementById('history-tab').click();
                 }
-            }).catch(e => console.error("Dispatch Error:", e));
+            });
         }
 
         function printSelectedBand(bandId) {
@@ -966,12 +926,9 @@
             `);
             printWindow.document.close();
         }
-        
+         // ---------- TAB RENDERERS ----------
         function renderRuntimePlansTable() {
-            fetch('/api/get_saved_plans').then(r => {
-                if(!r.ok) throw new Error("HTTP error " + r.status);
-                return r.json();
-            }).then(data => {
+            fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
                 globalAllPlans = data;
                 let html = '';
                 let indexCounter = 0;
@@ -1039,7 +996,7 @@
                     html += `</tbody></table></div></div>`;
                 }
                 document.getElementById('savedPlansWrapperContainer').innerHTML = html || `<div class="text-center text-muted p-4">No active live execution plans scheduled.</div>`;
-            }).catch(e => console.error("Render Plans Error:", e));
+            });
             
             if(currentRole === 'viscor01' || currentRole === 'packwell01') document.getElementById('board-plant-tab').click();
             if(currentRole === 'viscor02' || currentRole === 'packwell02') document.getElementById('printers-tab').click();
@@ -1050,10 +1007,7 @@
 
         function renderBoardPlantTable() {
             document.getElementById('generic-tab-title').innerHTML = "<i class='bi bi-tools'></i> Board Plant Stage";
-            fetch('/api/get_saved_plans').then(r => {
-                if(!r.ok) throw new Error("HTTP error " + r.status);
-                return r.json();
-            }).then(data => {
+            fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
                 globalAllPlans = data;
                 let hasAnyRecords = false;
                 
@@ -1139,7 +1093,7 @@
                 contentHtml += '</div>';
 
                 document.getElementById('generic-stage-container').innerHTML = hasAnyRecords ? (navHtml + contentHtml) : "<p class='text-muted p-3'>No jobs currently in Board Plant.</p>";
-            }).catch(e => console.error("Render Board Plant Error:", e));
+            });
         }
 
         function showBoardPlantForm(id) {
@@ -1248,10 +1202,7 @@
 
         function renderPrintersTable() {
             document.getElementById('generic-tab-title').innerHTML = "<i class='bi bi-printer'></i> Printers Stage";
-            fetch('/api/get_saved_plans').then(r => {
-                if(!r.ok) throw new Error("HTTP error " + r.status);
-                return r.json();
-            }).then(data => {
+            fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
                 globalAllPlans = data;
                 
                 let html = `
@@ -1300,7 +1251,7 @@
                 }
                 html += `</tbody></table>`;
                 document.getElementById('generic-stage-container').innerHTML = hasRecords ? html : "<p class='text-muted p-3'>No jobs in Printers.</p>";
-            }).catch(e => console.error("Render Printers Error:", e));
+            });
         }
 
         function calcBalanceTriggerBox(id, prefix) {
@@ -1331,55 +1282,65 @@
             let formHtml = `
             <div class="card card-body bg-white m-3 border-secondary text-start shadow-sm position-relative">
                 <button type="button" class="btn btn-danger btn-sm position-absolute top-0 end-0 m-2 px-3 shadow-sm fw-bold" style="z-index: 10; border-radius: 6px;" aria-label="Close" onclick="closeFormRow('print_card_row_${id}')"><i class="bi bi-x-lg me-1"></i> Close</button>
-                <h5 class="border-bottom pb-2 text-primary fw-bold text-center mt-2">PRINTERS & QUALITY CHECK FORM</h5>
+                <h5 class="border-bottom pb-2 text-success fw-bold mt-2">PRINTERS & QUALITY CHECK FORM</h5>
                 <form id="form_print_${id}" onsubmit="submitPrinter(event, ${id})">
                     
-                    <div class="row g-2 mb-4 bg-light p-3 rounded border border-secondary-subtle">
-                        <div class="col-md-4 text-center"><span class="small text-muted fw-bold d-block text-uppercase">PO No</span><span class="fw-bold text-primary fs-5">${plan.po_no}</span><input type="hidden" name="po_no" value="${plan.po_no}"></div>
-                        <div class="col-md-5 text-center border-start border-end"><span class="small text-muted fw-bold d-block text-uppercase">Customer / Product</span><span class="fw-bold text-dark fs-6">${plan.customer_name} - ${plan.product_name||''}</span><input type="hidden" name="cust_prod" value="${plan.customer_name} - ${plan.product_name||''}"></div>
-                        <div class="col-md-3 text-center"><span class="small text-muted fw-bold d-block text-uppercase">Target Qty</span><span class="fw-bold text-danger fs-5">${plan.qty}</span><input type="hidden" id="print_target_qty_${id}" name="target_qty" value="${plan.qty}"></div>
-                    </div>
-
-                    <h6 class="text-secondary fw-bold border-bottom pb-1">Production Details</h6>
-                    <div class="row g-2 mb-3">
-                        <div class="col-md-4"><label class="small fw-bold">No. of Colors</label><input type="number" class="form-control" required name="colors"></div>
-                        <div class="col-md-4"><label class="small fw-bold">Die Cut Required?</label><select class="form-select" required name="die_req"><option value="No">No</option><option value="Yes">Yes</option></select></div>
-                        <div class="col-md-4"><label class="small fw-bold">Slotting Req?</label><select class="form-select" required name="slot_req"><option value="No">No</option><option value="Yes">Yes</option></select></div>
-                    </div>
-                    <div class="row g-2 mb-3">
-                        <div class="col-md-4"><label class="small fw-bold text-primary">Date</label><input type="date" class="form-control border-primary" required name="pr_date" value="${currentIsoDate}"></div>
-                        <div class="col-md-4"><label class="small fw-bold text-success">Finished Qty</label><input type="number" class="form-control border-success fw-bold" id="print_finished_qty_${id}" required name="finished_qty" oninput="calcBalanceTriggerBox(${id}, 'print')"></div>
-                        <div class="col-md-4"><label class="small fw-bold text-danger">Balance Qty</label><input type="number" class="form-control border-danger fw-bold text-danger bg-light" id="print_balance_qty_${id}" name="balance_qty" readonly value="0"></div>
-                    </div>
-
-                    <div id="print_command_box_${id}" class="alert alert-warning border border-warning" style="display:none;">
-                        <label class="small fw-bold text-dark mb-1"><i class="bi bi-exclamation-triangle"></i> Action required for the Balance Quantity:</label>
-                        <select class="form-select border-warning fw-bold text-danger" id="print_balance_option_${id}" name="balance_option">
-                            <option value="">-- Select Action --</option>
-                            <option value="Discard Shortage">Discard Shortage & Proceed</option>
-                            <option value="Hold in Balance PO">Hold in Balance PO (Pending Production)</option>
-                        </select>
+                    <div class="row g-2 mb-3 mt-2 bg-light p-2 rounded">
+                        <div class="col-md-2"><label class="small fw-bold text-primary">Date</label><input type="date" class="form-control border-primary" required name="pr_date" value="${currentIsoDate}"></div>
+                        <div class="col-md-7 d-flex align-items-end gap-3 pb-1">
+                            <div class="form-check"><input class="form-check-input" type="checkbox" name="printer_select" value="PS500NL" id="p1_${id}"><label class="form-check-label fw-semibold" for="p1_${id}">PS500NL</label></div>
+                            <div class="form-check"><input class="form-check-input" type="checkbox" name="printer_select" value="TCY" id="p2_${id}"><label class="form-check-label fw-semibold" for="p2_${id}">TCY</label></div>
+                            <div class="form-check"><input class="form-check-input" type="checkbox" name="printer_select" value="ZK1224" id="p3_${id}"><label class="form-check-label fw-semibold" for="p3_${id}">ZK1224</label></div>
+                        </div>
+                        <div class="col-md-3"><label class="small fw-bold">Pass/Fail</label><select class="form-select" name="pr_pass" required><option value="Pass">Pass</option><option value="Fail">Fail</option></select></div>
                     </div>
                     
-                    <h6 class="text-secondary fw-bold border-bottom pb-1 mt-4">Quality Check Section</h6>
-                    <div class="row g-2 mb-3">
-                        <div class="col-md-3"><label class="small fw-bold">Shade</label><select class="form-select" required name="qc_shade"><option value="Pass">Pass</option><option value="Fail">Fail</option></select></div>
-                        <div class="col-md-3"><label class="small fw-bold">Reg & Position</label><select class="form-select" required name="qc_reg"><option value="Pass">Pass</option><option value="Fail">Fail</option></select></div>
-                        <div class="col-md-3"><label class="small fw-bold">Smudge/Bleed</label><select class="form-select" required name="qc_smudge"><option value="None">None</option><option value="Found">Found</option></select></div>
-                        <div class="col-md-3"><label class="small fw-bold">Slotting/Creasing</label><select class="form-select" required name="qc_slot"><option value="Pass">Pass</option><option value="Fail">Fail</option></select></div>
+                    <div class="row g-2 mb-3 p-3 bg-light border border-secondary-subtle rounded mt-2">
+                        <div class="col-md-4"><label class="small fw-bold">Target Qty (From Plan)</label><input type="number" class="form-control bg-white fw-bold text-dark" id="pr_target_qty_${id}" value="${plan.qty}" readonly></div>
+                        <div class="col-md-4"><label class="small fw-bold">Finished Qty</label><input type="number" class="form-control border-primary fw-bold" required name="finished_qty" id="pr_finished_qty_${id}" oninput="calcBalanceTriggerBox(${id}, 'pr')"></div>
+                        <div class="col-md-4"><label class="small fw-bold">Balance Qty</label><input type="number" class="form-control bg-white fw-bold text-danger" required name="balance_qty" id="pr_balance_qty_${id}" readonly></div>
                     </div>
+
+                    <div id="pr_command_box_${id}" style="display:none;" class="alert alert-warning border-warning shadow-sm mt-3">
+                        <h6 class="fw-bold text-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>Balance එකක් පවතී! (Balance Qty > 0)</h6>
+                        <label class="small fw-bold mt-1">ඔබට මෙම ඉතිරි ප්‍රමාණය නැවත කිරීමට (Balance PO) අවශ්‍යද?</label>
+                        <select class="form-select border-warning mt-2" name="process_balance" id="pr_balance_option_${id}">
+                            <option value="">-- තීරණය තෝරන්න (Required) --</option>
+                            <option value="yes">ඔව්, Balance PO එකක් ලෙස නව Tab එකට මාරු කරන්න</option>
+                            <option value="no">නැත, ඉතිරි ප්‍රමාණය අවශ්‍ය නැත</option>
+                        </select>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-3"><label class="small fw-bold">Plant BD Counter Qty</label><input type="text" class="form-control" required name="pr_plant"></div>
+                        <div class="col-md-3"><label class="small fw-bold">Slot BDs Counter Qty</label><input type="text" class="form-control" required name="pr_slot"></div>
+                        <div class="col-md-3"><label class="small fw-bold">Slot BDs Add Feed</label><input type="number" class="form-control" required name="pr_addqty"></div>
+                        <div class="col-md-3"><label class="small fw-bold">Slot BDs Excess</label><input type="number" class="form-control" required name="pr_excess"></div>
+                    </div>
+                    
+                    <h6 class="text-secondary fw-bold border-bottom pb-1">Printers QC Section</h6>
                     <div class="row g-2 mb-4">
-                        <div class="col-md-3"><label class="small fw-bold">Barcodes/QR</label><select class="form-select" required name="qc_bar"><option value="Scannable">Scannable</option><option value="Fail">Fail</option></select></div>
+                       <div class="col-md-3"><label class="small fw-bold">Measurement</label><select class="form-select" required name="qc_measurement"><option value="INT">INT</option><option value="EXT">EXT</option><option value="Flap_overlap">Flap_overlap</option><option value="F-F_EXT">F-F_EXT</option></select></div>
+                        <div class="col-md-3"><label class="small fw-bold">Caliper (mm)</label><input type="text" class="form-control" required name="qc_caliper"></div>
+                        <div class="col-md-3"><label class="small fw-bold">Combination</label><select class="form-select" required name="qc_combination"><option value="WL">WL</option><option value="WKL">WKL</option><option value="KL">KL</option><option value="BL">BL</option></select></div>
                         <div class="col-md-3"><label class="small fw-bold">QC Approval</label><select class="form-select" required name="qc_app"><option value="Approved">Approved</option><option value="Rejected">Rejected</option></select></div>
                     </div>
                     
-                    <input type="hidden" name="target_tab" id="print_target_tab_${id}">
+                    <h6 class="text-secondary fw-bold border-bottom pb-1 mt-3">Sample/Art Work Details</h6>
+                    <div class="mb-4">
+                        <div class="form-check mb-1"><input class="form-check-input" type="checkbox" name="sample_no" value="1" id="c_sample_${id}"><label class="form-check-label" for="c_sample_${id}">Sample No</label></div>
+                        <div class="form-check mb-1"><input class="form-check-input" type="checkbox" name="code_no" value="2" id="c_code_${id}"><label class="form-check-label" for="c_code_${id}">Code No</label></div>
+                        <div class="form-check mb-1"><input class="form-check-input" type="checkbox" name="printing_details" value="3" id="c_print_${id}"><label class="form-check-label" for="c_print_${id}">Printing Details</label></div>
+                        <div class="form-check mb-1"><input class="form-check-input" type="checkbox" name="colours" value="4" id="c_color_${id}"><label class="form-check-label" for="c_color_${id}">Colours</label></div>
+                        <div class="form-check mb-1"><input class="form-check-input" type="checkbox" name="measurement" value="5" id="c_measure_${id}"><label class="form-check-label" for="c_measure_${id}">Measurement</label></div>
+                    </div>
+                    
+                    <input type="hidden" name="target_tab" id="target_tab_pr_${id}">
                     <div class="d-flex justify-content-end gap-2 mt-3 flex-wrap">
-                        <button type="button" class="btn btn-warning fw-bold px-4" onclick="document.getElementById('print_target_tab_${id}').value='Die Cut'; document.getElementById('form_print_${id}').requestSubmit();">Transfer to Die Cut</button>
-                        <button type="button" class="btn btn-danger fw-bold px-4" onclick="document.getElementById('print_target_tab_${id}').value='Semi Auto'; document.getElementById('form_print_${id}').requestSubmit();">Transfer to Semi Auto</button>
-                        <button type="button" class="btn btn-primary fw-bold px-4" onclick="document.getElementById('print_target_tab_${id}').value='Gluer'; document.getElementById('form_print_${id}').requestSubmit();">Transfer to Gluer</button>
-                        <button type="button" class="btn btn-info text-dark fw-bold px-4" onclick="document.getElementById('print_target_tab_${id}').value='Stitching'; document.getElementById('form_print_${id}').requestSubmit();">Transfer to Stitching</button>
-                        <button type="button" class="btn btn-dark fw-bold px-4" onclick="document.getElementById('print_target_tab_${id}').value='Finished Goods'; document.getElementById('form_print_${id}').requestSubmit();">To Finished Goods</button>
+                        <button type="button" class="btn btn-primary fw-bold px-4" onclick="document.getElementById('target_tab_pr_${id}').value='Gluer'; document.getElementById('form_print_${id}').requestSubmit();">Save & Transfer to Gluer</button>
+                        <button type="button" class="btn btn-info fw-bold px-4 text-white" onclick="document.getElementById('target_tab_pr_${id}').value='Stitching'; document.getElementById('form_print_${id}').requestSubmit();">Save & Transfer to Stitching</button>
+                        <button type="button" class="btn btn-warning fw-bold px-4" onclick="document.getElementById('target_tab_pr_${id}').value='Die Cut'; document.getElementById('form_print_${id}').requestSubmit();">Save & Transfer to Die Cut</button>
+                        <button type="button" class="btn btn-danger fw-bold px-4" onclick="document.getElementById('target_tab_pr_${id}').value='Semi Auto'; document.getElementById('form_print_${id}').requestSubmit();">Save & Transfer to Semi Auto</button>
                     </div>
                 </form>
             </div>`;
@@ -1392,359 +1353,562 @@
             const formData = new FormData(form);
             const dataObj = Object.fromEntries(formData.entries());
             dataObj.saved_at = new Date().getTime(); 
-            let target = dataObj.target_tab;
             
-            if (dataObj.balance_option === 'Hold in Balance PO') {
-                target = 'Balance PO';
-                dataObj.pending_next_stage = dataObj.target_tab;
+            let selectedPrinters = [];
+            form.querySelectorAll('input[name="printer_select"]:checked').forEach(cb => selectedPrinters.push(cb.value));
+            dataObj.printer_select = selectedPrinters.join(" & ");
+
+            let bal = parseInt(document.getElementById(`pr_balance_qty_${id}`).value) || 0;
+            let option = document.getElementById(`pr_balance_option_${id}`).value;
+            if(bal > 0 && !option) {
+                alert("කරුණාකර Balance එක පිළිබඳව ලබා දී ඇති Command Box එකෙහි තීරණය තෝරන්න.");
+                return;
             }
 
+            const target = dataObj.target_tab;
             transferPlan(id, target, dataObj, 'printer');
         }
 
         function renderDieCutSemiAutoTable() {
-            document.getElementById('generic-tab-title').innerHTML = "<i class='bi bi-scissors'></i> Diecut & Semi Auto Stage";
-            renderGenericTable('Die Cut', 'diecut', ['Semi Auto', 'Gluer', 'Stitching', 'Finished Goods']);
-        }
-
-        function renderFinishingTable() {
-            document.getElementById('generic-tab-title').innerHTML = "<i class='bi bi-box-seam'></i> Finishing Stage (Gluer & Stitching)";
-            renderGenericTable('Gluer', 'finishing', ['Stitching', 'Finished Goods']);
-        }
-
-        function renderGenericTable(stageName, customType = null, targetStages = []) {
-            let actualStages = (customType === 'diecut') ? ['Die Cut', 'Semi Auto'] : (customType === 'finishing' ? ['Gluer', 'Stitching'] : [stageName]);
-            if (!customType) document.getElementById('generic-tab-title').innerHTML = `<i class='bi bi-check-circle-fill'></i> ${stageName}`;
-            
-            fetch('/api/get_saved_plans').then(r => {
-                if(!r.ok) throw new Error("HTTP error " + r.status);
-                return r.json();
-            }).then(data => {
+            document.getElementById('generic-tab-title').innerHTML = "<i class='bi bi-gear'></i> Die Cut & Semi Auto Stage";
+            fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
                 globalAllPlans = data;
-                let html = `
-                <table class="table table-bordered table-striped align-middle text-center mb-0">
-                    <thead class="table-dark small">
-                        <tr>
-                            <th>PO No</th>
-                            <th>Customer & Product</th>
-                            <th>Qty</th>
-                            <th>Current Stage</th>
-                            <th>Attachment</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>`;
+                let dcRows = buildSpecificRows(data, 'Die Cut', 'dc');
+                let saRows = buildSpecificRows(data, 'Semi Auto', 'sa');
                 
-                let hasRecords = false;
-                for (const [size, plans] of Object.entries(data)) {
-                    plans.filter(p => actualStages.includes(p.status)).forEach(p => {
-                        hasRecords = true;
-                        let s = p.status;
-                        let formTypeStr = s === 'Die Cut'?'diecut':s==='Semi Auto'?'semiauto':s==='Gluer'?'gluer':s==='Stitching'?'stitching':'general';
-                        
-                        let actHtml = '';
-                        if(s === 'Finished Goods') {
-                            actHtml = canAct('Finished Goods') ? `
-                                <div class="d-flex align-items-center gap-2">
-                                    <input type="text" id="ad_no_${p.id}" class="form-control form-control-sm border-danger fw-bold text-center" placeholder="AD No..." style="width:120px;">
-                                    <button class="btn btn-sm btn-danger fw-bold text-uppercase px-3" onclick="dispatchFinishedGoods(${p.id})">Dispatch <i class="bi bi-send-fill ms-1"></i></button>
-                                </div>
-                            ` : `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
-                        } else {
-                            actHtml = canAct(s) ? `<button class="btn btn-sm btn-success fw-bold" onclick="showGenericForm(${p.id}, '${s}', '${formTypeStr}')">Proceed Stage</button>` : `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
-                        }
-                        
-                        html += `
-                        <tr>
-                            <td class="fw-bold text-primary">${p.po_no}</td>
-                            <td>${p.customer_name} - ${p.product_name||''}</td>
-                            <td><span class="badge bg-secondary fs-6">${p.qty}</span></td>
-                            <td><span class="badge bg-dark">${p.status}</span></td>
-                            <td><button class="btn btn-sm btn-outline-info fw-bold" onclick="viewStageAttachment(${p.id})"><i class="bi bi-eye"></i> View Log</button></td>
-                            <td>${actHtml}</td>
-                        </tr>
-                        <tr id="gen_card_row_${p.id}" style="display:none;">
-                            <td colspan="6" class="p-0 border-0 position-relative" id="gen_card_container_${p.id}"></td>
-                        </tr>`;
-                    });
-                }
-                html += `</tbody></table>`;
-                document.getElementById('generic-stage-container').innerHTML = hasRecords ? html : `<p class='text-muted p-3'>No jobs in ${actualStages.join(' / ')}.</p>`;
-            }).catch(e => console.error("Render Stage Error:", e));
+                let html = `
+                <div class="mb-3 d-flex justify-content-between align-items-center">
+                    <span class="text-secondary fw-bold"><i class="bi bi-funnel"></i> Filter Job Cards</span>
+                    <div class="input-group shadow-sm w-25">
+                        <span class="input-group-text bg-primary text-white border-primary"><i class="bi bi-search"></i></span>
+                        <input type="text" id="dcSaSearch" class="form-control border-primary" placeholder="Search PO No..." onkeyup="filterByPONo('dcTable', 'dcSaSearch', 0); filterByPONo('saTable', 'dcSaSearch', 0)">
+                    </div>
+                </div>
+                <ul class="nav nav-tabs mb-3" id="dc-sa-tabs" role="tablist">
+                    <li class="nav-item" role="presentation"><button class="nav-link active fw-bold text-uppercase border" data-bs-toggle="tab" data-bs-target="#dc-pane" type="button" role="tab">Die Cut</button></li>
+                    <li class="nav-item" role="presentation"><button class="nav-link fw-bold text-uppercase border" data-bs-toggle="tab" data-bs-target="#sa-pane" type="button" role="tab">Semi Auto</button></li>
+                </ul>
+                <div class="tab-content" id="dc-sa-tabsContent">
+                    <div class="tab-pane fade show active" id="dc-pane" role="tabpanel">
+                        <table id="dcTable" class="table table-bordered table-striped align-middle text-center mb-0">
+                            <thead class="table-dark small"><tr><th>PO No</th><th>Customer</th><th>Size</th><th>Qty</th><th>Attachment</th><th>Action</th></tr></thead>
+                            <tbody>${dcRows}</tbody>
+                        </table>
+                    </div>
+                    <div class="tab-pane fade" id="sa-pane" role="tabpanel">
+                        <table id="saTable" class="table table-bordered table-striped align-middle text-center mb-0">
+                            <thead class="table-dark small"><tr><th>PO No</th><th>Customer</th><th>Size</th><th>Qty</th><th>Attachment</th><th>Action</th></tr></thead>
+                            <tbody>${saRows}</tbody>
+                        </table>
+                    </div>
+                </div>`;
+                document.getElementById('generic-stage-container').innerHTML = html;
+            });
         }
 
-        function renderBalancePOTable() {
-            document.getElementById('generic-tab-title').innerHTML = "<i class='bi bi-exclamation-triangle-fill text-warning'></i> Balance PO (Pending Action)";
-            fetch('/api/get_saved_plans').then(r => {
-                if(!r.ok) throw new Error("HTTP error " + r.status);
-                return r.json();
-            }).then(data => {
-                globalAllPlans = data;
-                let html = `
-                <table class="table table-bordered table-striped align-middle text-center mb-0">
-                    <thead class="table-warning small">
-                        <tr>
-                            <th>PO No</th>
-                            <th>Customer & Product</th>
-                            <th>Original Target Qty</th>
-                            <th>Pending Balance Qty</th>
-                            <th>Held Stage</th>
-                            <th>Next Stage Expected</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>`;
-                
-                let hasRecords = false;
-                for (const [size, plans] of Object.entries(data)) {
-                    plans.filter(p => p.status === 'Balance PO').forEach(p => {
-                        hasRecords = true;
-                        
-                        let heldStage = "Unknown";
-                        let nextExpected = "Unknown";
-                        let balQty = 0;
+        function buildSpecificRows(data, statusVal, formPrefix) {
+            let rows = '';
+            let hasRecords = false;
+            for (const [size, plans] of Object.entries(data)) {
+                plans.filter(p => p.status === statusVal).forEach(p => {
+                    hasRecords = true;
+                    let actionMethod = formPrefix === 'dc' ? `showDieCutForm(${p.id})` : `showSemiAutoForm(${p.id})`;
+                    let actHtml = canAct(statusVal) ? `<button class="btn btn-sm btn-primary fw-bold" onclick="${actionMethod}">Proceed</button>` : `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
 
-                        if (p.printer_form && p.printer_form.balance_option === 'Hold in Balance PO') {
-                            heldStage = "Printers";
-                            nextExpected = p.printer_form.pending_next_stage || "Gluer";
-                            balQty = p.printer_form.balance_qty || 0;
-                        } else if (p.diecut_form && p.diecut_form.balance_option === 'Hold in Balance PO') {
-                            heldStage = "Die Cut";
-                            nextExpected = p.diecut_form.pending_next_stage || "Gluer";
-                            balQty = p.diecut_form.balance_qty || 0;
-                        } else if (p.semiauto_form && p.semiauto_form.balance_option === 'Hold in Balance PO') {
-                            heldStage = "Semi Auto";
-                            nextExpected = p.semiauto_form.pending_next_stage || "Gluer";
-                            balQty = p.semiauto_form.balance_qty || 0;
-                        } else if (p.gluer_form && p.gluer_form.balance_option === 'Hold in Balance PO') {
-                            heldStage = "Gluer";
-                            nextExpected = p.gluer_form.pending_next_stage || "Finished Goods";
-                            balQty = p.gluer_form.balance_qty || 0;
-                        } else if (p.stitching_form && p.stitching_form.balance_option === 'Hold in Balance PO') {
-                            heldStage = "Stitching";
-                            nextExpected = p.stitching_form.pending_next_stage || "Finished Goods";
-                            balQty = p.stitching_form.balance_qty || 0;
-                        }
-
-                        let actHtml = canAct('Balance PO') ? `
-                            <button class="btn btn-sm btn-success fw-bold py-1" onclick="resolveBalancePO(${p.id}, '${nextExpected}', ${balQty})">
-                                Resume to ${nextExpected}
-                            </button>
-                        ` : `<span class="badge bg-secondary">View Only</span>`;
-                        
-                        html += `
-                        <tr>
-                            <td class="fw-bold text-primary">${p.po_no}</td>
-                            <td>${p.customer_name} - ${p.product_name||''}</td>
-                            <td>${p.qty}</td>
-                            <td class="fw-bold text-danger fs-6">${balQty}</td>
-                            <td><span class="badge bg-dark">${heldStage}</span></td>
-                            <td><span class="badge bg-info text-dark">${nextExpected}</span></td>
-                            <td>${actHtml}</td>
-                        </tr>`;
-                    });
-                }
-                html += `</tbody></table>`;
-                document.getElementById('generic-stage-container').innerHTML = hasRecords ? html : `<p class='text-muted p-3'>No Balance POs pending action.</p>`;
-            }).catch(e => console.error("Render Balance PO Error:", e));
-        }
-
-        function resolveBalancePO(id, targetStage, qty) {
-            if(confirm(`Are you sure you want to resume this Balance PO with Qty: ${qty} and transfer to ${targetStage}?`)) {
-                fetch('/api/update_plan_qty', {
-                    method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({id: id, qty: qty})
-                }).then(r => r.json()).then(res1 => {
-                    if(res1.success) {
-                        transferPlan(id, targetStage, null, null); 
-                    }
-                }).catch(e => console.error(e));
+                    rows += `
+                    <tr>
+                        <td class="fw-bold">${p.po_no}</td><td>${p.customer_name}</td><td>${size} cm</td><td><span class="badge bg-secondary fs-6">${p.qty}</span></td>
+                        <td><button class="btn btn-sm btn-outline-dark fw-bold shadow-sm" onclick="viewStageAttachment(${p.id})"><i class="bi bi-file-earmark-text text-danger"></i> View Log</button></td>
+                        <td>${actHtml}</td>
+                    </tr>
+                    <tr id="${formPrefix}_row_${p.id}" style="display:none;"><td colspan="6" class="p-0 border-0 position-relative" id="${formPrefix}_container_${p.id}"></td></tr>`;
+                });
             }
+            if(!hasRecords) rows = `<tr><td colspan="6" class="text-muted py-3">No jobs currently in ${statusVal}.</td></tr>`;
+            return rows;
         }
 
-        function showGenericForm(id, stageName, formType) {
-            document.getElementById(`gen_card_row_${id}`).style.display = 'table-row';
+        function showDieCutForm(id) {
+            document.getElementById(`dc_row_${id}`).style.display = 'table-row';
             let plan;
             for (const key in globalAllPlans) { let f = globalAllPlans[key].find(x => x.id === id); if(f) plan = f; }
             if(!plan) return;
 
-            let targetOptions = '';
-            if(stageName === 'Die Cut') targetOptions = `<button type="button" class="btn btn-primary" onclick="document.getElementById('gen_target_tab_${id}').value='Gluer'; document.getElementById('form_gen_${id}').requestSubmit();">Transfer Gluer</button><button type="button" class="btn btn-info" onclick="document.getElementById('gen_target_tab_${id}').value='Stitching'; document.getElementById('form_gen_${id}').requestSubmit();">Transfer Stitching</button><button type="button" class="btn btn-dark" onclick="document.getElementById('gen_target_tab_${id}').value='Finished Goods'; document.getElementById('form_gen_${id}').requestSubmit();">To Finished</button>`;
-            else if(stageName === 'Semi Auto') targetOptions = `<button type="button" class="btn btn-primary" onclick="document.getElementById('gen_target_tab_${id}').value='Gluer'; document.getElementById('form_gen_${id}').requestSubmit();">Transfer Gluer</button><button type="button" class="btn btn-info" onclick="document.getElementById('gen_target_tab_${id}').value='Stitching'; document.getElementById('form_gen_${id}').requestSubmit();">Transfer Stitching</button><button type="button" class="btn btn-dark" onclick="document.getElementById('gen_target_tab_${id}').value='Finished Goods'; document.getElementById('form_gen_${id}').requestSubmit();">To Finished</button>`;
-            else if(stageName === 'Gluer' || stageName === 'Stitching') targetOptions = `<button type="button" class="btn btn-info" onclick="document.getElementById('gen_target_tab_${id}').value='${stageName === 'Gluer' ? 'Stitching' : 'Gluer'}'; document.getElementById('form_gen_${id}').requestSubmit();">Transfer ${stageName === 'Gluer' ? 'Stitching' : 'Gluer'}</button><button type="button" class="btn btn-dark" onclick="document.getElementById('gen_target_tab_${id}').value='Finished Goods'; document.getElementById('form_gen_${id}').requestSubmit();">To Finished Goods</button>`;
-
-            let preHtml = `
-            <div class="card card-body bg-white m-3 border-secondary text-start shadow-sm position-relative">
-                <button type="button" class="btn btn-danger btn-sm position-absolute top-0 end-0 m-2 px-3 shadow-sm fw-bold" style="z-index: 10;" aria-label="Close" onclick="closeFormRow('gen_card_row_${id}')"><i class="bi bi-x-lg me-1"></i> Close</button>
-                <h5 class="border-bottom pb-2 text-primary fw-bold text-center mt-2">${stageName.toUpperCase()} & QUALITY CHECK FORM</h5>
-                <form id="form_gen_${id}" onsubmit="submitGenericForm(event, ${id}, '${formType}')">
+            let formHtml = `
+            <div class="card card-body bg-light m-3 border-primary text-start shadow-sm position-relative">
+                <button type="button" class="btn btn-danger btn-sm position-absolute top-0 end-0 m-2 px-3 shadow-sm fw-bold" onclick="closeFormRow('dc_row_${id}')"><i class="bi bi-x-lg me-1"></i> Close</button>
+                <h6 class="border-bottom pb-2 text-primary fw-bold mt-2 text-uppercase">DIE CUT STAGE FORM</h6>
+                <form id="form_dc_${id}" onsubmit="submitMiniForm(event, ${id}, 'diecut', 'dc')">
                     
-                    <div class="row g-2 mb-4 bg-light p-3 rounded border border-secondary-subtle">
-                        <div class="col-md-4 text-center"><span class="small text-muted fw-bold d-block text-uppercase">PO No</span><span class="fw-bold text-primary fs-5">${plan.po_no}</span><input type="hidden" name="po_no" value="${plan.po_no}"></div>
-                        <div class="col-md-5 text-center border-start border-end"><span class="small text-muted fw-bold d-block text-uppercase">Customer</span><span class="fw-bold text-dark fs-6">${plan.customer_name}</span></div>
-                        <div class="col-md-3 text-center"><span class="small text-muted fw-bold d-block text-uppercase">Target Qty</span><span class="fw-bold text-danger fs-5">${plan.qty}</span><input type="hidden" id="gen_target_qty_${id}" name="target_qty" value="${plan.qty}"></div>
+                    <div class="row g-2 mb-3 mt-3">
+                        <div class="col-md-3"><label class="small fw-bold text-primary">Date</label><input type="date" class="form-control border-primary" required name="stage_date" value="${currentIsoDate}"></div>
+                        <div class="col-md-3"><label class="small fw-bold">Counter Qty</label><input type="number" class="form-control" required name="dc_counter_qty"></div>
+                        <div class="col-md-3"><label class="small fw-bold">Damaged Qty</label><input type="number" class="form-control" required name="dc_damaged_qty"></div>
+                        <div class="col-md-3"><label class="small fw-bold">Excess Qty</label><input type="number" class="form-control" required name="dc_excess_qty"></div>
+                        <div class="col-md-4"><label class="small fw-bold">C: Hand EPF No</label><input type="text" class="form-control" required name="dc_epf_no"></div>
                     </div>
 
-                    <h6 class="text-secondary fw-bold border-bottom pb-1">Production Details</h6>
-                    <div class="row g-2 mb-3">
-                        <div class="col-md-4"><label class="small fw-bold text-primary">Date</label><input type="date" class="form-control border-primary" required name="gen_date" value="${currentIsoDate}"></div>
-                        <div class="col-md-4"><label class="small fw-bold text-success">Finished Qty</label><input type="number" class="form-control border-success fw-bold" id="gen_finished_qty_${id}" required name="finished_qty" oninput="calcBalanceTriggerBox(${id}, 'gen')"></div>
-                        <div class="col-md-4"><label class="small fw-bold text-danger">Balance Qty</label><input type="number" class="form-control border-danger fw-bold text-danger bg-light" id="gen_balance_qty_${id}" name="balance_qty" readonly value="0"></div>
+                    <h6 class="text-secondary fw-bold border-bottom pb-1 mt-4">Quality Check Section</h6>
+                    <div class="row g-2 mb-4">
+                        <div class="col-md-3"><label class="small fw-bold">Flute</label><select class="form-select" required name="qc_flute"><option value="B">B</option><option value="C">C</option><option value="E">E</option><option value="N">N</option><option value="BC">BC</option></select></div>
+                        <div class="col-md-3"><label class="small fw-bold">Measurement</label><select class="form-select" required name="qc_measurement"><option value="OK">OK</option><option value="Not OK">Not OK</option></select></div>
+                        <div class="col-md-3"><label class="small fw-bold">Quality Approval</label><select class="form-select" required name="qc_approval"><option value="Approved">Approved</option><option value="Rejected">Rejected</option></select></div>
+                        <div class="col-md-3"><label class="small fw-bold">Waste Cut Sample</label><select class="form-select" required name="qc_waste_sample"><option value="Matched">Matched</option><option value="Not Matched">Not Matched</option></select></div>
                     </div>
 
-                    <div id="gen_command_box_${id}" class="alert alert-warning border border-warning" style="display:none;">
-                        <label class="small fw-bold text-dark mb-1"><i class="bi bi-exclamation-triangle"></i> Action required for Balance Qty:</label>
-                        <select class="form-select border-warning fw-bold text-danger" id="gen_balance_option_${id}" name="balance_option">
-                            <option value="">-- Select Action --</option>
-                            <option value="Discard Shortage">Discard Shortage</option>
-                            <option value="Hold in Balance PO">Hold in Balance PO</option>
+                    <div class="row g-2 mb-3 p-3 bg-white border border-secondary-subtle rounded mt-2">
+                        <div class="col-md-4"><label class="small fw-bold">Target Qty</label><input type="number" class="form-control bg-light fw-bold text-dark" id="dc_target_qty_${id}" value="${plan.qty}" readonly></div>
+                        <div class="col-md-4"><label class="small fw-bold">Finished Qty</label><input type="number" class="form-control border-primary fw-bold" required name="finished_qty" id="dc_finished_qty_${id}" oninput="calcBalanceTriggerBox(${id}, 'dc')"></div>
+                        <div class="col-md-4"><label class="small fw-bold">Balance Qty</label><input type="number" class="form-control bg-light fw-bold text-danger" required name="balance_qty" id="dc_balance_qty_${id}" readonly></div>
+                    </div>
+
+                    <div id="dc_command_box_${id}" style="display:none;" class="alert alert-warning border-warning shadow-sm mt-3">
+                        <h6 class="fw-bold text-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>Balance එකක් පවතී!</h6>
+                        <label class="small fw-bold mt-1">මෙම ඉතිරි ප්‍රමාණය නැවත කිරීමට (Balance PO) අවශ්‍යද?</label>
+                        <select class="form-select border-warning mt-2" name="process_balance" id="dc_balance_option_${id}">
+                            <option value="">-- තීරණය තෝරන්න (Required) --</option>
+                            <option value="yes">ඔව්, Balance PO එකක් ලෙස නව Tab එකට මාරු කරන්න (To Board Plant)</option>
+                            <option value="no">නැත, ඉතිරි ප්‍රමාණය අවශ්‍ය නැත</option>
                         </select>
                     </div>
 
-                    <h6 class="text-secondary fw-bold border-bottom pb-1 mt-4">Quality Control</h6>
-                    <div class="row g-2 mb-4">
-                        <div class="col-md-4"><label class="small fw-bold">Dimension/Fold check</label><select class="form-select" required name="qc_dim"><option value="Pass">Pass</option><option value="Fail">Fail</option></select></div>
-                        <div class="col-md-4"><label class="small fw-bold">Tearing/Damage</label><select class="form-select" required name="qc_tear"><option value="None">None</option><option value="Found">Found</option></select></div>
-                        <div class="col-md-4"><label class="small fw-bold">QC Approval</label><select class="form-select" required name="qc_app"><option value="Approved">Approved</option><option value="Rejected">Rejected</option></select></div>
-                    </div>
-                    
-                    <input type="hidden" name="target_tab" id="gen_target_tab_${id}">
+                    <input type="hidden" name="target_tab" id="dc_target_tab_${id}">
                     <div class="d-flex justify-content-end gap-2 mt-3 flex-wrap">
-                        ${targetOptions}
+                        <button type="button" class="btn btn-info fw-bold px-4 text-white" onclick="document.getElementById('dc_target_tab_${id}').value='Printers'; document.getElementById('form_dc_${id}').requestSubmit();">Save & Transfer to Printer</button>
+                        <button type="button" class="btn btn-primary fw-bold px-4" onclick="document.getElementById('dc_target_tab_${id}').value='Gluer'; document.getElementById('form_dc_${id}').requestSubmit();">Save & Transfer to Gluer</button>
+                        <button type="button" class="btn btn-warning fw-bold px-4" onclick="document.getElementById('dc_target_tab_${id}').value='Stitching'; document.getElementById('form_dc_${id}').requestSubmit();">Save & Transfer to Stitching</button>
+                        <button type="button" class="btn btn-dark fw-bold px-4" onclick="document.getElementById('dc_target_tab_${id}').value='Finished Goods'; document.getElementById('form_dc_${id}').requestSubmit();">Save & Transfer to Finished Goods</button>
                     </div>
                 </form>
             </div>`;
-            document.getElementById(`gen_card_container_${id}`).innerHTML = preHtml;
+            document.getElementById(`dc_container_${id}`).innerHTML = formHtml;
         }
 
-        function submitGenericForm(e, id, formType) {
+        function showSemiAutoForm(id) {
+            document.getElementById(`sa_row_${id}`).style.display = 'table-row';
+            let plan;
+            for (const key in globalAllPlans) { let f = globalAllPlans[key].find(x => x.id === id); if(f) plan = f; }
+            if(!plan) return;
+
+            let formHtml = `
+            <div class="card card-body bg-light m-3 border-secondary text-start shadow-sm position-relative">
+                <button type="button" class="btn btn-danger btn-sm position-absolute top-0 end-0 m-2 px-3 shadow-sm fw-bold" onclick="closeFormRow('sa_row_${id}')"><i class="bi bi-x-lg me-1"></i> Close</button>
+                <h6 class="border-bottom pb-2 text-secondary fw-bold mt-2 text-uppercase">SEMI AUTO STAGE FORM</h6>
+                <form id="form_sa_${id}" onsubmit="submitMiniForm(event, ${id}, 'semiauto', 'sa')">
+                    
+                    <div class="row g-2 mb-3 mt-3">
+                        <div class="col-md-4"><label class="small fw-bold text-primary">Date</label><input type="date" class="form-control border-primary" required name="stage_date" value="${currentIsoDate}"></div>
+                        <div class="col-md-4"><label class="small fw-bold">Excess Qty</label><input type="number" class="form-control" required name="sa_excess_qty"></div>
+                        <div class="col-md-4"><label class="small fw-bold">C: Hand EPF No</label><input type="text" class="form-control" required name="sa_epf_no"></div>
+                    </div>
+
+                    <h6 class="text-secondary fw-bold border-bottom pb-1 mt-4">Quality Check Section</h6>
+                    <div class="row g-2 mb-4">
+                        <div class="col-md-3"><label class="small fw-bold">Flute</label><select class="form-select" required name="qc_flute"><option value="B">B</option><option value="C">C</option><option value="E">E</option><option value="N">N</option><option value="BC">BC</option></select></div>
+                        <div class="col-md-3"><label class="small fw-bold">Measurement</label><select class="form-select" required name="qc_measurement"><option value="OK">OK</option><option value="Not OK">Not OK</option></select></div>
+                        <div class="col-md-3"><label class="small fw-bold">Quality Approval</label><select class="form-select" required name="qc_approval"><option value="Approved">Approved</option><option value="Rejected">Rejected</option></select></div>
+                        <div class="col-md-3"><label class="small fw-bold">Sample Matched</label><select class="form-select" required name="qc_sample"><option value="Matched">Matched</option><option value="Not Matched">Not Matched</option></select></div>
+                    </div>
+
+                    <div class="row g-2 mb-3 p-3 bg-white border border-secondary-subtle rounded mt-2">
+                        <div class="col-md-4"><label class="small fw-bold">Target Qty</label><input type="number" class="form-control bg-light fw-bold text-dark" id="sa_target_qty_${id}" value="${plan.qty}" readonly></div>
+                        <div class="col-md-4"><label class="small fw-bold">Finished Qty</label><input type="number" class="form-control border-primary fw-bold" required name="finished_qty" id="sa_finished_qty_${id}" oninput="calcBalanceTriggerBox(${id}, 'sa')"></div>
+                        <div class="col-md-4"><label class="small fw-bold">Balance Qty</label><input type="number" class="form-control bg-light fw-bold text-danger" required name="balance_qty" id="sa_balance_qty_${id}" readonly></div>
+                    </div>
+
+                    <div id="sa_command_box_${id}" style="display:none;" class="alert alert-warning border-warning shadow-sm mt-3">
+                        <h6 class="fw-bold text-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>Balance එකක් පවතී!</h6>
+                        <label class="small fw-bold mt-1">මෙම ඉතිරි ප්‍රමාණය නැවත කිරීමට (Balance PO) අවශ්‍යද?</label>
+                        <select class="form-select border-warning mt-2" name="process_balance" id="sa_balance_option_${id}">
+                            <option value="">-- තීරණය තෝරන්න (Required) --</option>
+                            <option value="yes">ඔව්, Balance PO එකක් ලෙස නව Tab එකට මාරු කරන්න (To Board Plant)</option>
+                            <option value="no">නැත, ඉතිරි ප්‍රමාණය අවශ්‍ය නැත</option>
+                        </select>
+                    </div>
+
+                    <input type="hidden" name="target_tab" id="sa_target_tab_${id}">
+                    <div class="d-flex justify-content-end gap-2 mt-3 flex-wrap">
+                        <button type="button" class="btn btn-info fw-bold px-4 text-white" onclick="document.getElementById('sa_target_tab_${id}').value='Printers'; document.getElementById('form_sa_${id}').requestSubmit();">Save & Transfer to Printer</button>
+                        <button type="button" class="btn btn-dark fw-bold px-4" onclick="document.getElementById('sa_target_tab_${id}').value='Finished Goods'; document.getElementById('form_sa_${id}').requestSubmit();">Save & Transfer to Finished Goods</button>
+                    </div>
+                </form>
+            </div>`;
+            document.getElementById(`sa_container_${id}`).innerHTML = formHtml;
+        }
+
+        function submitMiniForm(e, id, dbFormType, prefix) {
+            e.preventDefault();
+            const form = e.target;
+            const formData = new FormData(form);
+            const dataObj = Object.fromEntries(formData.entries());
+            dataObj.saved_at = new Date().getTime();
+
+            let bal = parseInt(document.getElementById(`${prefix}_balance_qty_${id}`).value) || 0;
+            let option = document.getElementById(`${prefix}_balance_option_${id}`).value;
+            if(bal > 0 && !option) {
+                alert("කරුණාකර Balance එක පිළිබඳව ලබා දී ඇති Command Box එකෙහි තීරණය තෝරන්න.");
+                return;
+            }
+
+            const target = dataObj.target_tab;
+            transferPlan(id, target, dataObj, dbFormType);
+        }
+
+        function renderFinishingTable() {
+            document.getElementById('generic-tab-title').innerHTML = "<i class='bi bi-boxes'></i> Finishing Stage";
+            fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
+                globalAllPlans = data;
+                
+                let gluerRows = buildSpecificRows(data, 'Gluer', 'gl');
+                let stitchingRows = buildSpecificRows(data, 'Stitching', 'st');
+
+                gluerRows = ''; stitchingRows = '';
+                for (const [size, plans] of Object.entries(data)) {
+                    plans.filter(p => p.status === 'Gluer').forEach(p => {
+                        let actHtml = canAct('Gluer') ? `<button class="btn btn-sm btn-success fw-bold shadow-sm" onclick="showGluerForm(${p.id})">Proceed Stage</button>` : `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
+                        gluerRows += `
+                        <tr>
+                            <td class="fw-bold text-primary">${p.po_no}</td><td>${p.customer_name} - ${p.product_name||''}</td><td><span class="badge bg-secondary fs-6">${p.qty}</span></td>
+                            <td><button class="btn btn-sm btn-info fw-bold text-white shadow-sm" onclick="viewStageAttachment(${p.id})"><i class="bi bi-file-earmark-text"></i> View Log</button></td>
+                            <td>${actHtml}</td>
+                        </tr>
+                        <tr id="gluer_row_${p.id}" style="display:none;"><td colspan="5" class="p-0 border-0 position-relative" id="gluer_container_${p.id}"></td></tr>`;
+                    });
+                    
+                    plans.filter(p => p.status === 'Stitching').forEach(p => {
+                        let actHtml = canAct('Stitching') ? `<button class="btn btn-sm btn-primary fw-bold shadow-sm" onclick="showStitchingForm(${p.id})">Proceed Stage</button>` : `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
+                        stitchingRows += `
+                        <tr>
+                            <td class="fw-bold text-primary">${p.po_no}</td><td>${p.customer_name} - ${p.product_name||''}</td><td><span class="badge bg-secondary fs-6">${p.qty}</span></td>
+                            <td><button class="btn btn-sm btn-info fw-bold text-white shadow-sm" onclick="viewStageAttachment(${p.id})"><i class="bi bi-file-earmark-text"></i> View Log</button></td>
+                            <td>${actHtml}</td>
+                        </tr>
+                        <tr id="stitching_row_${p.id}" style="display:none;"><td colspan="5" class="p-0 border-0 position-relative" id="stitching_container_${p.id}"></td></tr>`;
+                    });
+                }
+                if(!gluerRows) gluerRows = `<tr><td colspan="5" class="text-muted p-3">No jobs currently in Gluers.</td></tr>`;
+                if(!stitchingRows) stitchingRows = `<tr><td colspan="5" class="text-muted p-3">No jobs currently in Stitching.</td></tr>`;
+
+                let html = `
+                <div class="mb-3 d-flex justify-content-between align-items-center">
+                    <span class="text-secondary fw-bold"><i class="bi bi-funnel"></i> Filter Job Cards</span>
+                    <div class="input-group shadow-sm w-25">
+                        <span class="input-group-text bg-success text-white border-success"><i class="bi bi-search"></i></span>
+                        <input type="text" id="finishSearch" class="form-control border-success" placeholder="Search PO No..." onkeyup="filterByPONo('gluerTable', 'finishSearch', 0); filterByPONo('stitchingTable', 'finishSearch', 0)">
+                    </div>
+                </div>
+                <ul class="nav nav-tabs mb-3" id="finishing-tabs" role="tablist">
+                    <li class="nav-item" role="presentation"><button class="nav-link active fw-bold text-uppercase border" data-bs-toggle="tab" data-bs-target="#gluer-pane" type="button" role="tab">Gluers</button></li>
+                    <li class="nav-item" role="presentation"><button class="nav-link fw-bold text-uppercase border" data-bs-toggle="tab" data-bs-target="#stitching-pane" type="button" role="tab">Stitching</button></li>
+                </ul>
+                <div class="tab-content" id="finishing-tabsContent">
+                    <div class="tab-pane fade show active table-responsive" id="gluer-pane" role="tabpanel">
+                        <table id="gluerTable" class="table table-bordered table-striped align-middle text-center mb-0">
+                            <thead class="table-dark small"><tr><th>PO No</th><th>Customer & Product Name</th><th>Qty</th><th>Attachment</th><th>Action</th></tr></thead>
+                            <tbody>${gluerRows}</tbody>
+                        </table>
+                    </div>
+                    <div class="tab-pane fade table-responsive" id="stitching-pane" role="tabpanel">
+                        <table id="stitchingTable" class="table table-bordered table-striped align-middle text-center mb-0">
+                            <thead class="table-dark small"><tr><th>PO No</th><th>Customer & Product Name</th><th>Qty</th><th>Attachment</th><th>Action</th></tr></thead>
+                            <tbody>${stitchingRows}</tbody>
+                        </table>
+                    </div>
+                </div>`;
+                document.getElementById('generic-stage-container').innerHTML = html;
+            });
+        }
+
+        function showGluerForm(id) {
+            document.getElementById(`gluer_row_${id}`).style.display = 'table-row';
+            let plan;
+            for (const key in globalAllPlans) { let f = globalAllPlans[key].find(x => x.id === id); if(f) plan = f; }
+            if(!plan) return;
+
+            let formHtml = `
+            <div class="card card-body bg-white m-3 border-success text-start shadow-sm position-relative">
+                <button type="button" class="btn btn-danger btn-sm position-absolute top-0 end-0 m-2 px-3 shadow-sm fw-bold" style="z-index: 10; border-radius: 6px;" onclick="closeFormRow('gluer_row_${id}')"><i class="bi bi-x-lg me-1"></i> Close</button>
+                <h5 class="border-bottom pb-2 text-success fw-bold text-center mt-2">GLUER STAGE ENTRY FORM</h5>
+                
+                <form id="form_gluer_${id}" onsubmit="submitGluerForm(event, ${id})">
+                    <div class="row g-2 mb-3 mt-4">
+                        <div class="col-md-4">
+                            <label class="small fw-bold">1. Select Gluer</label>
+                            <div class="d-flex gap-3 mt-1 p-2 border rounded bg-light">
+                                <div class="form-check"><input class="form-check-input" type="checkbox" name="gluer_select" value="Gluer_1" id="g1_${id}"><label class="form-check-label fw-semibold" for="g1_${id}">Gluer 1</label></div>
+                                <div class="form-check"><input class="form-check-input" type="checkbox" name="gluer_select" value="Gluer_2" id="g2_${id}"><label class="form-check-label fw-semibold" for="g2_${id}">Gluer 2</label></div>
+                                <div class="form-check"><input class="form-check-input" type="checkbox" name="gluer_select" value="Gluer_3" id="g3_${id}"><label class="form-check-label fw-semibold" for="g3_${id}">Gluer 3</label></div>
+                            </div>
+                        </div>
+                        <div class="col-md-2"><label class="small fw-bold text-primary">Date</label><input type="date" class="form-control border-primary mt-1" required name="gl_date" value="${currentIsoDate}"></div>
+                        <div class="col-md-3"><label class="small fw-bold">Pass / Fail</label><select class="form-select mt-1" required name="pass_fail"><option value="Pass">Pass</option><option value="Fail">Fail</option></select></div>
+                        <div class="col-md-3"><label class="small fw-bold">Batch Number</label><input type="text" class="form-control mt-1" required name="batch_number" placeholder="Number & Text"></div>
+                    </div>
+                    
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-3"><label class="small fw-bold">Counter Qty</label><input type="number" class="form-control" required name="counter_qty"></div>
+                        <div class="col-md-3"><label class="small fw-bold">Excess</label><input type="number" class="form-control" required name="excess"></div>
+                        <div class="col-md-3"><label class="small fw-bold">Damaged Qty</label><input type="number" class="form-control" required name="damaged_qty"></div>
+                        <div class="col-md-3"><label class="small fw-bold">C: Hand & OPR EPF No</label><input type="text" class="form-control" required name="epf_no" placeholder="0000/0000"></div>
+                    </div>
+
+                    <div class="row g-2 mb-3 p-3 bg-light border border-secondary-subtle rounded mt-2">
+                        <div class="col-md-4"><label class="small fw-bold">Target Qty (From Plan)</label><input type="number" class="form-control bg-white fw-bold text-dark" id="gl_target_qty_${id}" value="${plan.qty}" readonly></div>
+                        <div class="col-md-4"><label class="small fw-bold">Finished Qty</label><input type="number" class="form-control border-primary fw-bold" required name="finished_qty" id="gl_finished_qty_${id}" oninput="calcBalanceTriggerBox(${id}, 'gl')"></div>
+                        <div class="col-md-4"><label class="small fw-bold">Balance Qty</label><input type="number" class="form-control bg-white fw-bold text-danger" required name="balance_qty" id="gl_balance_qty_${id}" readonly></div>
+                    </div>
+
+                    <div id="gl_command_box_${id}" style="display:none;" class="alert alert-warning border-warning shadow-sm mt-3">
+                        <h6 class="fw-bold text-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>Balance එකක් පවතී! (Balance Qty > 0)</h6>
+                        <label class="small fw-bold mt-1">ඔබට මෙම ඉතිරි ප්‍රමාණය නැවත කිරීමට (Balance PO) අවශ්‍යද?</label>
+                        <select class="form-select border-warning mt-2 fw-semibold" name="balance_target" id="gl_balance_option_${id}" onchange="document.getElementById('gl_process_hidden_${id}').value = (this.value==='no'||this.value==='') ? 'no' : 'yes';">
+                            <option value="">-- තීරණය තෝරන්න (Required) --</option>
+                            <option value="Printers">ඔව්, Excess board තිබේනම් (Balance PO -> Printers)</option>
+                            <option value="Board Plant">ඔව්, Excess Board නොමැති නම් (Balance PO -> Board Plant)</option>
+                            <option value="Die Cut">ඔව්, Excess without Die cut board තිබේ නම් (Balance PO -> Die Cut)</option>
+                            <option value="no">නැත, ඉතිරි ප්‍රමාණය අවශ්‍ය නැත</option>
+                        </select>
+                        <input type="hidden" name="process_balance" id="gl_process_hidden_${id}" value="no">
+                    </div>
+
+                    <h6 class="text-secondary fw-bold border-bottom pb-1 mt-4">Gluer QC Section</h6>
+                    <div class="row g-2 mb-4">
+                        <div class="col-md-6"><label class="small fw-bold">QC Approval or not</label><select class="form-select" required name="qc_approval"><option value="Approved">Approved</option><option value="Rejected">Rejected</option></select></div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-end gap-2 mt-3">
+                        <button type="submit" class="btn btn-dark fw-bold px-4">Save & Complete Gluer Stage (To Finished Goods)</button>
+                    </div>
+                </form>
+            </div>`;
+            document.getElementById(`gluer_container_${id}`).innerHTML = formHtml;
+        }
+
+        function submitGluerForm(e, id) {
             e.preventDefault();
             const form = e.target;
             const formData = new FormData(form);
             const dataObj = Object.fromEntries(formData.entries());
             dataObj.saved_at = new Date().getTime(); 
-            let target = dataObj.target_tab;
+            
+            let selected = [];
+            form.querySelectorAll('input[name="gluer_select"]:checked').forEach(cb => selected.push(cb.value));
+            dataObj.gluer_select = selected.join(" & ");
 
-            if (dataObj.balance_option === 'Hold in Balance PO') {
-                target = 'Balance PO';
-                dataObj.pending_next_stage = dataObj.target_tab;
+            let bal = parseInt(document.getElementById(`gl_balance_qty_${id}`).value) || 0;
+            let option = document.getElementById(`gl_balance_option_${id}`).value;
+            if(bal > 0 && !option) {
+                alert("කරුණාකර Balance එක පිළිබඳව ලබා දී ඇති Command Box එකෙහි තීරණය තෝරන්න.");
+                return;
             }
 
-            transferPlan(id, target, dataObj, formType);
+            transferPlan(id, 'Finished Goods', dataObj, 'gluer');
         }
 
-        // ================= FIX FOR THE REPORTED ERROR =================
-        function viewStageAttachment(id) {
-            fetch(`/api/get_plan_details/${id}`)
-            .then(async r => {
-                if (!r.ok) {
-                    throw new Error("HTTP Status " + r.status);
-                }
-                return r.json();
-            })
-            .then(res => {
-                if(res && res.success) {
-                    let p = res.plan;
-                    let mBody = document.getElementById('attachmentModalBody');
-                    let formsHtml = `<h4 class="text-center text-primary fw-bold mb-4">PRODUCTION LOG FOR PO: ${p.po_no}</h4>`;
+        function showStitchingForm(id) {
+            document.getElementById(`stitching_row_${id}`).style.display = 'table-row';
+            let plan;
+            for (const key in globalAllPlans) { let f = globalAllPlans[key].find(x => x.id === id); if(f) plan = f; }
+            if(!plan) return;
+
+            let formHtml = `
+            <div class="card card-body bg-white m-3 border-primary text-start shadow-sm position-relative">
+                <button type="button" class="btn btn-danger btn-sm position-absolute top-0 end-0 m-2 px-3 shadow-sm fw-bold" style="z-index: 10; border-radius: 6px;" onclick="closeFormRow('stitching_row_${id}')"><i class="bi bi-x-lg me-1"></i> Close</button>
+                <h5 class="border-bottom pb-2 text-primary fw-bold text-center mt-2">STITCHING STAGE ENTRY FORM</h5>
+                
+                <form id="form_stitching_${id}" onsubmit="submitStitchingForm(event, ${id})">
+                    <div class="row g-2 mb-3 mt-4">
+                        <div class="col-md-4">
+                            <label class="small fw-bold">1. Select Machine</label>
+                            <div class="d-flex gap-3 mt-1 p-2 border rounded bg-light">
+                                <div class="form-check"><input class="form-check-input" type="checkbox" name="stitching_select" value="Machine_1" id="m1_${id}"><label class="form-check-label fw-semibold" for="m1_${id}">Machine 1</label></div>
+                                <div class="form-check"><input class="form-check-input" type="checkbox" name="stitching_select" value="Machine_2" id="m2_${id}"><label class="form-check-label fw-semibold" for="m2_${id}">Machine 2</label></div>
+                            </div>
+                        </div>
+                        <div class="col-md-2"><label class="small fw-bold text-primary">Date</label><input type="date" class="form-control border-primary mt-1" required name="st_date" value="${currentIsoDate}"></div>
+                        <div class="col-md-3"><label class="small fw-bold">Pass / Fail</label><select class="form-select mt-1" required name="pass_fail"><option value="Pass">Pass</option><option value="Fail">Fail</option></select></div>
+                    </div>
                     
-                    if(p.board_plant_form) {
-                        formsHtml += `<div class="card mb-3 border-secondary"><div class="card-header bg-secondary text-white fw-bold">BOARD PLANT LOG</div><div class="card-body"><pre class="mb-0 bg-light p-2 rounded" style="white-space: pre-wrap; font-size: 0.85rem;">${JSON.stringify(p.board_plant_form, null, 2)}</pre></div></div>`;
-                    }
-                    if(p.printer_form) {
-                        formsHtml += `<div class="card mb-3 border-info"><div class="card-header bg-info text-white fw-bold">PRINTER LOG</div><div class="card-body"><pre class="mb-0 bg-light p-2 rounded" style="white-space: pre-wrap; font-size: 0.85rem;">${JSON.stringify(p.printer_form, null, 2)}</pre></div></div>`;
-                    }
-                    if(p.diecut_form) {
-                        formsHtml += `<div class="card mb-3 border-primary"><div class="card-header bg-primary text-white fw-bold">DIE CUT LOG</div><div class="card-body"><pre class="mb-0 bg-light p-2 rounded" style="white-space: pre-wrap; font-size: 0.85rem;">${JSON.stringify(p.diecut_form, null, 2)}</pre></div></div>`;
-                    }
-                    if(p.semiauto_form) {
-                        formsHtml += `<div class="card mb-3 border-dark"><div class="card-header bg-dark text-white fw-bold">SEMI AUTO LOG</div><div class="card-body"><pre class="mb-0 bg-light p-2 rounded" style="white-space: pre-wrap; font-size: 0.85rem;">${JSON.stringify(p.semiauto_form, null, 2)}</pre></div></div>`;
-                    }
-                    if(p.gluer_form) {
-                        formsHtml += `<div class="card mb-3 border-success"><div class="card-header bg-success text-white fw-bold">GLUER LOG</div><div class="card-body"><pre class="mb-0 bg-light p-2 rounded" style="white-space: pre-wrap; font-size: 0.85rem;">${JSON.stringify(p.gluer_form, null, 2)}</pre></div></div>`;
-                    }
-                    if(p.stitching_form) {
-                        formsHtml += `<div class="card mb-3 border-warning"><div class="card-header bg-warning text-dark fw-bold">STITCHING LOG</div><div class="card-body"><pre class="mb-0 bg-light p-2 rounded" style="white-space: pre-wrap; font-size: 0.85rem;">${JSON.stringify(p.stitching_form, null, 2)}</pre></div></div>`;
-                    }
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-4"><label class="small fw-bold">Counter Qty</label><input type="number" class="form-control" required name="counter_qty"></div>
+                        <div class="col-md-4"><label class="small fw-bold">Excess Qty</label><input type="number" class="form-control" required name="excess_qty"></div>
+                        <div class="col-md-4"><label class="small fw-bold">Damaged Qty</label><input type="number" class="form-control" required name="damaged_qty"></div>
+                    </div>
                     
-                    if(!p.board_plant_form && !p.printer_form && !p.diecut_form && !p.semiauto_form && !p.gluer_form && !p.stitching_form) {
-                        formsHtml += `<div class="alert alert-warning">No production forms attached yet.</div>`;
-                    }
-                    mBody.innerHTML = formsHtml;
-                    new bootstrap.Modal(document.getElementById('viewAttachmentModal')).show();
-                } else {
-                    alert("Could not load details.");
+                    <div class="row g-2 mb-3 p-3 bg-light border border-secondary-subtle rounded mt-2">
+                        <div class="col-md-4"><label class="small fw-bold">Target Qty (From Plan)</label><input type="number" class="form-control bg-white fw-bold text-dark" id="st_target_qty_${id}" value="${plan.qty}" readonly></div>
+                        <div class="col-md-4"><label class="small fw-bold">Finished Qty</label><input type="number" class="form-control border-primary fw-bold" required name="finished_qty" id="st_finished_qty_${id}" oninput="calcBalanceTriggerBox(${id}, 'st')"></div>
+                        <div class="col-md-4"><label class="small fw-bold">Balance Qty</label><input type="number" class="form-control bg-white fw-bold text-danger" required name="balance_qty" id="st_balance_qty_${id}" readonly></div>
+                    </div>
+
+                    <div id="st_command_box_${id}" style="display:none;" class="alert alert-warning border-warning shadow-sm mt-3">
+                        <h6 class="fw-bold text-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>Balance එකක් පවතී! (Balance Qty > 0)</h6>
+                        <label class="small fw-bold mt-1">ඔබට මෙම ඉතිරි ප්‍රමාණය නැවත කිරීමට (Balance PO) අවශ්‍යද?</label>
+                        <select class="form-select border-warning mt-2 fw-semibold" name="balance_target" id="st_balance_option_${id}" onchange="document.getElementById('st_process_hidden_${id}').value = (this.value==='no'||this.value==='') ? 'no' : 'yes';">
+                            <option value="">-- තීරණය තෝරන්න (Required) --</option>
+                            <option value="Printers">ඔව්, Excess board තිබේනම් (Balance PO -> Printers)</option>
+                            <option value="Board Plant">ඔව්, Excess Board නොමැති නම් (Balance PO -> Board Plant)</option>
+                            <option value="Die Cut">ඔව්, Excess without Die cut board තිබේ නම් (Balance PO -> Die Cut)</option>
+                            <option value="no">නැත, ඉතිරි ප්‍රමාණය අවශ්‍ය නැත</option>
+                        </select>
+                        <input type="hidden" name="process_balance" id="st_process_hidden_${id}" value="no">
+                    </div>
+                    
+                    <div class="d-flex justify-content-end gap-2 mt-3">
+                        <button type="submit" class="btn btn-dark fw-bold px-4">Save & Complete Stitching Stage (To Finished Goods)</button>
+                    </div>
+                </form>
+            </div>`;
+            document.getElementById(`stitching_container_${id}`).innerHTML = formHtml;
+        }
+
+        function submitStitchingForm(e, id) {
+            e.preventDefault();
+            const form = e.target;
+            const formData = new FormData(form);
+            const dataObj = Object.fromEntries(formData.entries());
+            dataObj.saved_at = new Date().getTime(); 
+            
+            let selected = [];
+            form.querySelectorAll('input[name="stitching_select"]:checked').forEach(cb => selected.push(cb.value));
+            dataObj.stitching_select = selected.join(" & ");
+
+            let bal = parseInt(document.getElementById(`st_balance_qty_${id}`).value) || 0;
+            let option = document.getElementById(`st_balance_option_${id}`).value;
+            if(bal > 0 && !option) {
+                alert("කරුණාකර Balance එක පිළිබඳව ලබා දී ඇති Command Box එකෙහි තීරණය තෝරන්න.");
+                return;
+            }
+
+            transferPlan(id, 'Finished Goods', dataObj, 'stitching');
+        }
+
+        function renderGenericTable(stageName) {
+            document.getElementById('generic-tab-title').innerHTML = "<i class='bi bi-box-seam'></i> " + stageName + " Stage";
+            fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
+                globalAllPlans = data;
+                let html = `
+                <table class="table table-bordered table-striped align-middle text-center mb-0">
+                    <thead class="table-dark small"><tr><th>PO No</th><th>Customer</th><th>Size</th><th>Qty</th><th>Status</th><th>Action</th></tr></thead>
+                    <tbody>`;
+                let hasRecords = false;
+                for (const [size, plans] of Object.entries(data)) {
+                    plans.filter(p => p.status === stageName).forEach(p => {
+                        hasRecords = true;
+                        let actHtml = `<button class="btn btn-sm btn-dark fw-bold" onclick="dispatchFinishedGoods(${p.id})">Dispatch Job</button>`;
+                        html += `
+                        <tr>
+                            <td class="fw-bold">${p.po_no}</td>
+                            <td>${p.customer_name}</td>
+                            <td>${size} cm</td>
+                            <td><span class="badge bg-secondary fs-6">${p.qty}</span></td>
+                            <td><span class="badge bg-warning text-dark">${p.status}</span></td>
+                            <td>
+                                <input type="text" id="ad_no_${p.id}" class="form-control form-control-sm d-inline-block w-50 me-2" placeholder="AD Number">
+                                ${actHtml}
+                            </td>
+                        </tr>`;
+                    });
                 }
-            })
-            .catch(err => {
-                console.error("View Attachment Fetch Error:", err);
-                alert("⚠️ Error fetching data: API endpoint returned 404 or server issue. Check backend '/api/get_plan_details/" + id + "' route.");
+                if(!hasRecords) html += `<tr><td colspan="6" class="text-muted py-3">No jobs currently in ${stageName}.</td></tr>`;
+                html += `</tbody></table>`;
+                document.getElementById('generic-stage-container').innerHTML = html;
             });
         }
-        // ================= END OF FIX =================
+
+        function renderBalancePOTable() {
+            document.getElementById('generic-tab-title').innerHTML = "<i class='bi bi-exclamation-triangle-fill text-warning'></i> Balance PO Stage";
+            fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
+                globalAllPlans = data;
+                let html = `
+                <table class="table table-bordered table-striped align-middle text-center mb-0">
+                    <thead class="table-dark small"><tr><th>PO No</th><th>Customer</th><th>Size</th><th>Balance Qty</th><th>Requested Stage</th><th>Action</th></tr></thead>
+                    <tbody>`;
+                let hasRecords = false;
+                for (const [size, plans] of Object.entries(data)) {
+                    plans.filter(p => p.status === 'Balance PO').forEach(p => {
+                        hasRecords = true;
+                        let target = p.balance_target || 'Board Plant';
+                        let actHtml = `<button class="btn btn-sm btn-warning fw-bold" onclick="transferPlan(${p.id}, '${target}')">Send to ${target}</button>`;
+                        html += `
+                        <tr>
+                            <td class="fw-bold text-danger">${p.po_no}</td>
+                            <td>${p.customer_name}</td>
+                            <td>${size} cm</td>
+                            <td><span class="badge bg-danger fs-6">${p.balance_qty || p.qty}</span></td>
+                            <td><span class="badge bg-info text-dark">${target}</span></td>
+                            <td>${actHtml}</td>
+                        </tr>`;
+                    });
+                }
+                if(!hasRecords) html += `<tr><td colspan="6" class="text-muted py-3">No Balance POs currently.</td></tr>`;
+                html += `</tbody></table>`;
+                document.getElementById('generic-stage-container').innerHTML = html;
+            });
+        }
 
         function loadHistoryLogs(reset = false) {
-            if(reset) {
+            if (reset) {
                 document.getElementById('historyStartDate').value = '';
                 document.getElementById('historyEndDate').value = '';
                 document.getElementById('historySearchPO').value = '';
                 document.getElementById('historySearchCustomer').value = '';
             }
-            let sDate = document.getElementById('historyStartDate').value;
-            let eDate = document.getElementById('historyEndDate').value;
-            let url = '/api/get_saved_plans';
-            if(sDate && eDate) url += `?start_date=${sDate}&end_date=${eDate}`;
-
-            fetch(url).then(r => {
-                if(!r.ok) throw new Error("HTTP error " + r.status);
-                return r.json();
-            }).then(data => {
+            fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
+                globalAllPlans = data;
                 let html = '';
                 let hasLogs = false;
+                
                 for (const [size, plans] of Object.entries(data)) {
-                    plans.forEach(p => {
+                    // MAIN REQUIREMENT FILTER: DO NOT VIEW IF STATUS IS CLOSED
+                    let logs = plans.filter(p => p.status && p.status !== 'Live Planning' && p.status !== 'Draft' && p.status.toLowerCase() !== 'closed');
+                    
+                    logs.forEach(log => {
                         hasLogs = true;
-                        let dt = new Date(p.created_at);
-                        let fmtDate = dt.toLocaleString();
-                        let sheetSizeCalculated = p.cut_length ? `${size} cm &times; ${p.cut_length} cm` : '-';
-                        let combinationSpecsString = (p.materials && Array.isArray(p.materials)) ? p.materials.map((m,i)=> `L${i+1}: ${m.gsm} - ${m.name}`).join('<br>') : '-';
-                        let adHtml = p.ad_number ? `<span class="badge bg-danger fw-bold px-2 py-1">${p.ad_number}</span>` : '-';
+                        let combinationSpecsString = (log.materials && Array.isArray(log.materials)) ? log.materials.map((m,i)=> `L${i+1}: ${m.gsm} - ${m.name}`).join('<br>') : '-';
+                        let dateStr = log.saved_at ? new Date(parseInt(log.saved_at)).toLocaleString() : '-';
+                        if(dateStr === 'Invalid Date' || !log.saved_at) dateStr = log.saved_at || '-';
 
                         html += `
                         <tr>
-                            <td>${fmtDate}</td>
-                            <td class="fw-bold text-primary">${p.po_no}</td>
-                            <td>${p.customer_name}</td>
-                            <td class="text-danger fw-bold font-monospace">${sheetSizeCalculated}</td>
-                            <td><span class="badge bg-secondary">${p.ply} Ply</span></td>
-                            <td><span class="badge bg-dark">${p.qty}</span></td>
-                            <td class="text-start ps-2 font-monospace" style="font-size: 0.8rem;">${combinationSpecsString}</td>
-                            <td><span class="badge bg-success">${p.status}</span></td>
-                            <td>${adHtml}</td>
+                            <td>${dateStr}</td>
+                            <td class="fw-bold text-primary">${log.po_no}</td>
+                            <td>${log.customer_name}</td>
+                            <td>${size} cm</td>
+                            <td>${log.ply}</td>
+                            <td>${log.qty}</td>
+                            <td class="text-start ps-2 font-monospace" style="font-size: 0.82rem;">${combinationSpecsString}</td>
+                            <td><span class="badge bg-secondary">${log.status}</span></td>
+                            <td>${log.ad_number || '-'}</td>
                         </tr>`;
                     });
                 }
-                document.getElementById('historyLogsTableBody').innerHTML = hasLogs ? html : "<tr><td colspan='9' class='text-muted py-4'>No history logs found.</td></tr>";
-                if(hasLogs && (document.getElementById('historySearchPO').value || document.getElementById('historySearchCustomer').value)) filterHistoryTable();
-            }).catch(e => console.error("History Error:", e));
+                
+                if (!hasLogs) {
+                    html = '<tr><td colspan="9" class="text-muted py-4">No history audit logs available.</td></tr>';
+                }
+                
+                document.getElementById('historyLogsTableBody').innerHTML = html;
+                filterHistoryTable(); 
+            }).catch(err => {
+                document.getElementById('historyLogsTableBody').innerHTML = '<tr><td colspan="9" class="text-danger py-4">Error loading history logs data.</td></tr>';
+                console.error("Error fetching history:", err);
+            });
         }
 
-        socket.on('planning_update', (data) => {
-            document.getElementById('alertSound').play().catch(e=>console.log(e));
-            const toast = document.createElement('div');
-            toast.className = 'alert alert-info position-fixed top-0 end-0 m-3 shadow fw-bold z-3';
-            toast.innerHTML = `<i class="bi bi-info-circle-fill me-2"></i> ${data.message}`;
-            document.body.appendChild(toast);
-            setTimeout(() => { toast.remove(); }, 5000);
-            
-            if(document.getElementById('live-planning-tab') && document.getElementById('live-planning-tab').classList.contains('active')) renderRuntimePlansTable();
-            if(document.getElementById('board-plant-tab') && document.getElementById('board-plant-tab').classList.contains('active')) renderBoardPlantTable();
-            if(document.getElementById('printers-tab') && document.getElementById('printers-tab').classList.contains('active')) renderPrintersTable();
-            if(document.getElementById('diecut-tab') && document.getElementById('diecut-tab').classList.contains('active')) renderDieCutSemiAutoTable();
-            if(document.getElementById('finishing-tab') && document.getElementById('finishing-tab').classList.contains('active')) renderFinishingTable();
-            if(document.getElementById('balance-tab') && document.getElementById('balance-tab').classList.contains('active')) renderBalancePOTable();
+        function viewStageAttachment(id) {
+            document.getElementById('attachmentModalBody').innerHTML = `<p class="text-center text-muted my-4">Document log viewer activated for Job ID: ${id}. Detailed view configurations will be rendered here.</p>`;
+            var myModal = new bootstrap.Modal(document.getElementById('viewAttachmentModal'));
+            myModal.show();
+        }
+            document.addEventListener('DOMContentLoaded', () => {
+            const activeTabBtn = document.querySelector('.nav-tabs .nav-link.active');
+            if (activeTabBtn) {
+                activeTabBtn.click(); // මෙය මගින් අදාල renderBoardPlantTable() වැනි function එක trigger වේ.
+            } else {
+                renderRuntimePlansTable(); // Fallback
+            }
         });
-
     </script>
 </body>
 </html>
