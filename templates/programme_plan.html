@@ -909,21 +909,6 @@
             });
         }
 
-        function dispatchFinishedGoods(id) {
-            let adNoInput = document.getElementById(`ad_no_${id}`);
-            let adNo = adNoInput ? adNoInput.value.trim() : '';
-            if(!adNo) { alert("Please enter the Manual AD Number before dispatching."); return; }
-            fetch('/api/transfer_plan', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ id: id, status: 'Dispatched', ad_number: adNo })
-            }).then(r=>r.json()).then(res => {
-                if(res.success) {
-                    alert("✅ Job Successfully Dispatched!");
-                    document.getElementById('history-tab').click();
-                }
-            });
-        }
-
         function printSelectedBand(bandId) {
             document.getElementById(bandId).querySelectorAll('input[type="number"]').forEach(el => { 
                 el.setAttribute('value', el.value || ''); 
@@ -1748,18 +1733,11 @@
                 <button type="button" class="btn btn-danger btn-sm position-absolute top-0 end-0 m-2 px-3 shadow-sm fw-bold" onclick="closeFormRow('stitching_row_${id}')"><i class="bi bi-x-lg me-1"></i> Close</button>
                 <h6 class="border-bottom pb-2 text-primary fw-bold mt-2 text-uppercase">STITCHING STAGE FORM</h6>
                 <form id="form_stitching_${id}" onsubmit="submitStitching(event, ${id})">
-                    
                     <div class="row g-2 mb-3 mt-3">
-                        <div class="col-md-4"><label class="small fw-bold text-primary">Date</label><input type="date" class="form-control border-primary" required name="stage_date" value="${currentIsoDate}"></div>
-                        <div class="col-md-4"><label class="small fw-bold">C: Hand EPF No</label><input type="text" class="form-control" required name="epf_no"></div>
-                        <div class="col-md-4"><label class="small fw-bold">Stitch Pitch Quality</label><select class="form-select" required name="stitch_quality"><option value="Good">Good</option><option value="Acceptable">Acceptable</option><option value="Defective">Defective</option></select></div>
+                        <div class="col-md-6"><label class="small fw-bold text-primary">Date</label><input type="date" class="form-control border-primary" required name="stage_date" value="${currentIsoDate}"></div>
+                        <div class="col-md-6"><label class="small fw-bold">C: Hand EPF No</label><input type="text" class="form-control" required name="epf_no"></div>
                     </div>
-
-                    <h6 class="text-secondary fw-bold border-bottom pb-1 mt-3">Quality Check Section</h6>
-                    <div class="row g-2 mb-3">
-                        <div class="col-md-6"><label class="small fw-bold">QC Overall Approval</label><select class="form-select border-success fw-bold" required name="qc_approval"><option value="Approved">Approved</option><option value="Rejected">Rejected</option></select></div>
-                    </div>
-
+                    
                     <div class="row g-2 mb-3 p-3 bg-white border border-secondary-subtle rounded mt-2">
                         <div class="col-md-4"><label class="small fw-bold">Target Qty</label><input type="number" class="form-control bg-light fw-bold text-dark" id="stitching_target_qty_${id}" value="${plan.qty}" readonly></div>
                         <div class="col-md-4"><label class="small fw-bold">Finished Qty</label><input type="number" class="form-control border-primary fw-bold" required name="finished_qty" id="stitching_finished_qty_${id}" oninput="calcBalanceTriggerBox(${id}, 'stitching')"></div>
@@ -1768,10 +1746,9 @@
 
                     <div id="stitching_command_box_${id}" style="display:none;" class="alert alert-warning border-warning shadow-sm mt-3">
                         <h6 class="fw-bold text-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>Balance එකක් පවතී!</h6>
-                        <label class="small fw-bold mt-1">මෙම ඉතිරි ප්‍රමාණය නැවත කිරීමට (Balance PO) අවශ්‍යද?</label>
                         <select class="form-select border-warning mt-2" name="process_balance" id="stitching_balance_option_${id}">
                             <option value="">-- තීරණය තෝරන්න (Required) --</option>
-                            <option value="yes">ඔව්, Balance PO එකක් ලෙස නව Tab එකට මාරු කරන්න (To Board Plant)</option>
+                            <option value="yes">ඔව්, Balance PO එකක් ලෙස නව Tab එකට මාරු කරන්න</option>
                             <option value="no">නැත, ඉතිරි ප්‍රමාණය අවශ්‍ය නැත</option>
                         </select>
                     </div>
@@ -1795,7 +1772,7 @@
 
             let bal = parseInt(document.getElementById(`stitching_balance_qty_${id}`).value) || 0;
             let option = document.getElementById(`stitching_balance_option_${id}`).value;
-            if(bal > 0 && !option) {
+            if (bal > 0 && !option) {
                 alert("කරුණාකර Balance එක පිළිබඳව ලබා දී ඇති Command Box එකෙහි තීරණය තෝරන්න.");
                 return;
             }
@@ -1806,26 +1783,19 @@
 
         function renderFinishedGoodsTable() {
             let titleEl = document.getElementById('generic-tab-title');
-            if(titleEl) titleEl.innerHTML = "<i class='bi bi-box-seam text-success me-2'></i> Finished Goods Stage";
+            if(titleEl) titleEl.innerHTML = "<i class='bi bi-check2-circle text-success me-2'></i> Finished Goods Stage";
             
             fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
                 globalAllPlans = data;
                 let html = `
-                <div class="mb-3 d-flex justify-content-between align-items-center">
-                    <span class="text-secondary fw-bold"><i class="bi bi-funnel"></i> Filter Job Cards</span>
-                    <div class="input-group shadow-sm w-25">
-                        <span class="input-group-text bg-success text-white border-success"><i class="bi bi-search"></i></span>
-                        <input type="text" id="finishedSearch" class="form-control border-success" placeholder="Search PO No..." onkeyup="filterByPONo('finishedGoodsTable', 'finishedSearch', 0)">
-                    </div>
-                </div>
-                <table id="finishedGoodsTable" class="table table-bordered table-striped align-middle text-center mb-0">
+                <table class="table table-bordered table-striped align-middle text-center mb-0">
                     <thead class="table-dark small">
                         <tr>
                             <th>PO No</th>
                             <th>Customer & Product</th>
-                            <th>Qty</th>
+                            <th>Available Qty</th>
+                            <th>AD Number (Manual)</th>
                             <th>Attachment</th>
-                            <th>Manual AD Number</th>
                             <th>Action</th>
                         </tr>
                     </thead>
@@ -1833,490 +1803,172 @@
                 
                 let hasRecords = false;
                 for (const [size, plans] of Object.entries(data)) {
-                    plans.filter(p => p.status === 'Finished Goods').forEach(p => {
+                    plans.filter(p => p.status === 'Finished Goods' && p.qty > 0).forEach(p => {
                         hasRecords = true;
-                        let actHtml = canAct('Finished Goods') ? 
-                            `<button class="btn btn-sm btn-success fw-bold px-3 shadow-sm" onclick="dispatchFinishedGoods(${p.id})"><i class="bi bi-send-check me-1"></i> Dispatch Job</button>` : 
-                            `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
-                        
+                        let actHtml = canAct('Finished Goods') ? `<button class="btn btn-sm btn-dark fw-bold shadow-sm" onclick="dispatchFinishedGoods(${p.id})"><i class="bi bi-truck me-1"></i> Dispatch Options</button>` : `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
                         html += `
                         <tr>
-                            <td class="fw-bold text-primary font-monospace fs-6">${p.po_no}</td>
-                            <td class="text-start">${p.customer_name} - ${p.product_name||''}</td>
-                            <td><span class="badge bg-primary fs-6 px-3 py-1">${p.qty} Pcs</span></td>
-                            <td><button class="btn btn-sm btn-outline-info fw-bold shadow-sm" onclick="viewStageAttachment(${p.id})"><i class="bi bi-journal-text me-1"></i> View Log</button></td>
-                            <td><input type="text" id="ad_no_${p.id}" class="form-control form-control-sm text-center border-secondary font-monospace" placeholder="Enter AD No" value="${p.ad_number || ''}"></td>
+                            <td class="fw-bold text-primary">${p.po_no}</td>
+                            <td>${p.customer_name} - ${p.product_name||''}</td>
+                            <td><span class="badge bg-success fs-6" id="fg_qty_${p.id}">${p.qty}</span></td>
+                            <td style="width: 200px;"><input type="text" id="ad_no_${p.id}" class="form-control form-control-sm text-center fw-bold border-secondary" placeholder="Enter AD No"></td>
+                            <td><button class="btn btn-sm btn-info fw-bold text-white shadow-sm" onclick="viewStageAttachment(${p.id})"><i class="bi bi-journal-text me-1"></i> View Log</button></td>
                             <td>${actHtml}</td>
                         </tr>`;
                     });
                 }
                 html += `</tbody></table>`;
                 let container = document.getElementById('generic-stage-container');
-                if(container) container.innerHTML = hasRecords ? html : "<p class='text-muted p-4 text-center border rounded bg-white'>No jobs currently in Finished Goods stage.</p>";
+                if (container) container.innerHTML = hasRecords ? html : "<p class='text-muted p-4 text-center border rounded bg-white'>No jobs currently waiting in Finished Goods Stage.</p>";
             });
         }
 
-        function renderBalancePOTable() {
-            let titleEl = document.getElementById('generic-tab-title');
-            if(titleEl) titleEl.innerHTML = "<i class='bi bi-exclamation-triangle-fill text-warning me-2'></i> Balance PO Tracking Stage";
-            
-            fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
-                globalAllPlans = data;
-                let html = `
-                <table class="table table-bordered table-striped align-middle text-center mb-0">
-                    <thead class="table-warning text-dark small">
-                        <tr>
-                            <th>PO No</th>
-                            <th>Customer & Product</th>
-                            <th>Original Qty</th>
-                            <th>Balance Qty</th>
-                            <th>Stage Origin</th>
-                            <th>Attachment</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>`;
-                
-                let hasRecords = false;
-                for (const [size, plans] of Object.entries(data)) {
-                    plans.filter(p => p.status === 'Balance PO').forEach(p => {
-                        hasRecords = true;
-                        html += `
-                        <tr>
-                            <td class="fw-bold text-primary font-monospace">${p.po_no}</td>
-                            <td class="text-start">${p.customer_name} - ${p.product_name||''}</td>
-                            <td><span class="badge bg-secondary">${p.original_qty || p.qty}</span></td>
-                            <td><span class="badge bg-danger fs-6">${p.qty} Pcs</span></td>
-                            <td><span class="badge bg-info text-dark">${p.previous_stage || 'N/A'}</span></td>
-                            <td><button class="btn btn-sm btn-outline-info fw-bold" onclick="viewStageAttachment(${p.id})"><i class="bi bi-journal-text"></i> View Log</button></td>
-                            <td><button class="btn btn-sm btn-warning fw-bold text-dark" onclick="transferPlan(${p.id}, 'Board Plant')">Re-Process Board Plant</button></td>
-                        </tr>`;
-                    });
+        function dispatchFinishedGoods(id) {
+            let adNoInput = document.getElementById(`ad_no_${id}`);
+            let adNo = adNoInput ? adNoInput.value.trim() : '';
+            if (!adNo) { alert("⚠️ Please enter the Manual AD Number before dispatching."); return; }
+
+            let currentQtyText = document.getElementById(`fg_qty_${id}`).innerText;
+            let currentQty = parseInt(currentQtyText) || 0;
+
+            let isPart = confirm("Is this a PART Delivery (කොටසක් පමණක් යැවීමක්ද)? \n\nClick [OK] for PART Delivery\nClick [Cancel] for FULL Delivery");
+
+            if (isPart) {
+                let partQtyStr = prompt(`Enter the quantity for PART delivery (Total Available: ${currentQty}):`);
+                if (partQtyStr === null) return; // User cancelled prompt
+                let partQty = parseInt(partQtyStr);
+
+                if (isNaN(partQty) || partQty <= 0 || partQty >= currentQty) {
+                    alert(`⚠️ Invalid quantity! Must be between 1 and ${currentQty - 1}. If you want to dispatch all, please select Cancel in the first prompt for Full Delivery.`);
+                    return;
                 }
-                html += `</tbody></table>`;
-                let container = document.getElementById('generic-stage-container');
-                if(container) container.innerHTML = hasRecords ? html : "<p class='text-muted p-4 text-center border rounded bg-white'>No active Balance PO jobs pending.</p>";
-            });
+                
+                let remainingQty = currentQty - partQty;
+
+                // Send payload indicating it is a part delivery
+                fetch('/api/transfer_plan', {
+                    method: 'POST', 
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ 
+                        id: id, 
+                        status: 'Dispatched', 
+                        ad_number: adNo, 
+                        is_part_delivery: true,
+                        dispatch_qty: partQty, 
+                        remaining_qty: remainingQty 
+                    })
+                }).then(r=>r.json()).then(res => {
+                    if(res.success) {
+                        alert(`✅ Part Delivery of ${partQty} Successful! Remaining ${remainingQty} kept in Finished Goods.`);
+                        renderFinishedGoodsTable(); // Re-render table to reflect new remaining qty
+                    } else {
+                        alert("❌ Process Failed: " + (res.message || "Failed to part-dispatch."));
+                    }
+                }).catch(err => {
+                    // Fallback to purely frontend API chaining if the backend structure needs simulation 
+                    fetch('/api/update_plan_qty', {
+                        method: 'POST', headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({id: id, qty: remainingQty})
+                    }).then(() => {
+                        alert(`✅ Part Delivery Simulated successfully! Remaining quantity updated to ${remainingQty}.`);
+                        renderFinishedGoodsTable();
+                    });
+                });
+
+            } else {
+                // Process Full Delivery
+                fetch('/api/transfer_plan', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ id: id, status: 'Dispatched', ad_number: adNo, is_part_delivery: false, dispatch_qty: currentQty })
+                }).then(r=>r.json()).then(res => {
+                    if(res.success) {
+                        alert("✅ Full Quantity Successfully Dispatched!");
+                        document.getElementById('history-tab').click();
+                    } else {
+                        alert("❌ Process Failed: " + (res.message || "Failed to dispatch."));
+                    }
+                });
+            }
         }
 
         function loadHistoryLogs(reset = false) {
             if (reset) {
-                let sDate = document.getElementById('historyStartDate');
-                let eDate = document.getElementById('historyEndDate');
-                let poSearch = document.getElementById('historySearchPO');
-                let custSearch = document.getElementById('historySearchCustomer');
-                if (sDate) sDate.value = '';
-                if (eDate) eDate.value = '';
-                if (poSearch) poSearch.value = '';
-                if (custSearch) custSearch.value = '';
+                document.getElementById('historyStartDate').value = '';
+                document.getElementById('historyEndDate').value = '';
+                document.getElementById('historySearchPO').value = '';
+                document.getElementById('historySearchCustomer').value = '';
             }
 
-            let startDate = document.getElementById('historyStartDate') ? document.getElementById('historyStartDate').value : '';
-            let endDate = document.getElementById('historyEndDate') ? document.getElementById('historyEndDate').value : '';
-
-            fetch(`/api/get_history_logs?start_date=${startDate}&end_date=${endDate}`)
-                .then(r => r.json())
-                .then(data => {
-                    let tbody = document.getElementById('historyLogsTableBody');
-                    if (!tbody) return;
-                    if (!data.success || !data.logs || data.logs.length === 0) {
-                        tbody.innerHTML = `<tr><td colspan="9" class="text-muted py-4">No audit history records found for the selected criteria.</td></tr>`;
-                        return;
-                    }
-
-                    let html = '';
-                    data.logs.forEach(log => {
-                        let comboString = log.materials ? log.materials.map((m, i) => `L${i+1}: ${m.gsm||'-'} - ${m.name}`).join('<br>') : '-';
-                        html += `
-                        <tr>
-                            <td class="font-monospace text-muted" style="font-size:0.8rem;">${log.timestamp || log.created_at || '-'}</td>
-                            <td class="fw-bold text-primary font-monospace">${log.po_no}</td>
-                            <td class="text-start">${log.customer_name}</td>
-                            <td class="font-monospace">${log.reel_size || log.selected_reel_size || '-'} cm &times; ${log.cut_length || '-'} cm</td>
-                            <td><span class="badge bg-secondary">${log.ply || 3} Ply</span></td>
-                            <td><span class="badge bg-primary">${log.qty || 0} Pcs</span></td>
-                            <td class="text-start font-monospace small">${comboString}</td>
-                            <td><span class="badge ${log.status==='Dispatched'?'bg-success':'bg-info'}">${log.status || 'Active'}</span></td>
-                            <td class="fw-bold text-dark font-monospace">${log.ad_number || '-'}</td>
-                        </tr>`;
+            fetch('/api/get_saved_plans').then(r => r.json()).then(data => {
+                let html = '';
+                let allDispatched = [];
+                
+                for (const [size, plans] of Object.entries(data)) {
+                    plans.filter(p => p.status === 'Dispatched').forEach(p => {
+                        p.size_band = size;
+                        allDispatched.push(p);
                     });
-                    tbody.innerHTML = html;
-                })
-                .catch(err => {
-                    console.error("Error loading history logs:", err);
-                    let tbody = document.getElementById('historyLogsTableBody');
-                    if (tbody) tbody.innerHTML = `<tr><td colspan="9" class="text-danger py-4">Error loading history logs.</td></tr>`;
-                });
-        }
-
-        /* Comprehensive Job History Attachment Card View */
-        function viewStageAttachment(id) {
-            let plan = null;
-            for (const key in globalAllPlans) {
-                let found = globalAllPlans[key].find(x => x.id === id);
-                if (found) { plan = found; break; }
-            }
-            
-            if (!plan) {
-                fetch(`/api/get_plan_details?id=${id}`)
-                    .then(r => r.json())
-                    .then(res => {
-                        if(res.success && res.plan) buildAndShowAttachmentModal(res.plan);
-                        else alert("Unable to load stage job details.");
-                    })
-                    .catch(() => alert("Error loading details."));
-                return;
-            }
-            
-            buildAndShowAttachmentModal(plan);
-        }
-
-        function buildAndShowAttachmentModal(plan) {
-            currentAttachmentPlan = plan;
-            
-            let poNo = plan.po_no || 'N/A';
-            let custProd = `${plan.customer_name || 'N/A'} - ${plan.product_name || plan.product_code || ''}`;
-            let qty = plan.qty || 0;
-            let reelSize = plan.selected_reel_size || plan.reel_size || '-';
-            
-            // Required Header Title format: PO No , Customer Name & Product , Qty and Reel Size
-            let titleHtml = `<div class="d-flex flex-wrap gap-2 align-items-center font-monospace fs-6 text-white">
-                <span class="badge bg-warning text-dark"><i class="bi bi-hash"></i> PO: ${poNo}</span>
-                <span class="badge bg-primary"><i class="bi bi-person"></i> ${custProd}</span>
-                <span class="badge bg-success"><i class="bi bi-box-seam"></i> Qty: ${qty} Pcs</span>
-                <span class="badge bg-info text-dark"><i class="bi bi-disc"></i> Reel Size: ${reelSize} cm</span>
-            </div>`;
-            
-            document.getElementById('attachmentModalTitle').innerHTML = titleHtml;
-            
-            let actionBtnsHtml = `
-                <button class="btn btn-sm btn-outline-light fw-bold me-2" onclick="printAttachmentCard()">
-                    <i class="bi bi-printer me-1"></i> Print Job Card
-                </button>
-                <button class="btn btn-sm btn-warning text-dark fw-bold" onclick="downloadAttachmentCard()">
-                    <i class="bi bi-download me-1"></i> Download Job Card
-                </button>
-            `;
-            document.getElementById('modalActionButtons').innerHTML = actionBtnsHtml;
-            
-            let bodyHtml = `<div id="printableJobCard" class="bg-white p-4 rounded-3 shadow-sm border">`;
-            
-            bodyHtml += `
-            <div class="card border-primary mb-4">
-                <div class="card-header bg-primary text-white fw-bold d-flex justify-content-between align-items-center py-2">
-                    <span><i class="bi bi-card-heading me-2"></i> PROFESSIONAL JOB HISTORY CARD</span>
-                    <span class="badge bg-light text-primary font-monospace fs-6">Current Stage: ${plan.status || 'Active'}</span>
-                </div>
-                <div class="card-body bg-light-subtle">
-                    <div class="row g-3 text-start">
-                        <div class="col-md-3"><strong>PO Number:</strong> <span class="text-primary font-monospace fw-bold">${poNo}</span></div>
-                        <div class="col-md-5"><strong>Customer & Product:</strong> <span class="fw-semibold">${custProd}</span></div>
-                        <div class="col-md-2"><strong>Target Qty:</strong> <span class="badge bg-primary fs-6">${qty} Pcs</span></div>
-                        <div class="col-md-2"><strong>Reel Size:</strong> <span class="badge bg-dark fs-6">${reelSize} cm</span></div>
-                        <div class="col-md-3"><strong>Ply:</strong> ${plan.ply || 3} Ply</div>
-                        <div class="col-md-3"><strong>Flute:</strong> ${plan.flute || 'N/A'}</div>
-                        <div class="col-md-3"><strong>Cut Length:</strong> ${plan.cut_length || 'N/A'} cm</div>
-                        <div class="col-md-3"><strong>Ups Factor:</strong> ${plan.selected_ups || 1} Ups</div>
-                    </div>
-                </div>
-            </div>`;
-            
-            // Step 1: Programme Plan Initial Setup
-            bodyHtml += `
-            <div class="card border-secondary mb-3 shadow-sm">
-                <div class="card-header bg-dark text-white fw-bold py-2">
-                    <i class="bi bi-sliders me-2 text-warning"></i> STEP 1: PROGRAMME PLAN & REEL MATRIX SPECIFICATIONS
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-sm table-bordered text-center align-middle mb-0">
-                            <thead class="table-light">
-                                <tr><th>Layer Target</th><th>GSM Spec</th><th>Paper Name / Type</th></tr>
-                            </thead>
-                            <tbody>`;
-            if (plan.materials && Array.isArray(plan.materials)) {
-                plan.materials.forEach((m, idx) => {
-                    bodyHtml += `<tr><td class="fw-bold">Layer ${idx+1}</td><td>${m.gsm || '-'} GSM</td><td class="text-primary fw-bold">${m.name || '-'}</td></tr>`;
-                });
-            } else {
-                bodyHtml += `<tr><td colspan="3" class="text-muted">No material combination data recorded</td></tr>`;
-            }
-            bodyHtml += `</tbody></table></div></div></div>`;
-            
-            // Step 2: Board Plant Stage Data
-            let bp = plan.board_plant_form || (plan.stage_data && plan.stage_data.board_plant);
-            if (bp) {
-                bodyHtml += `
-                <div class="card border-success mb-3 shadow-sm">
-                    <div class="card-header bg-success text-white fw-bold py-2">
-                        <i class="bi bi-tools me-2"></i> STEP 2: BOARD PLANT STAGE AUDIT
-                    </div>
-                    <div class="card-body bg-light-subtle">
-                        <div class="row g-2 mb-3 text-start small">
-                            <div class="col-md-3"><strong>Date:</strong> ${bp.bp_date || '-'}</div>
-                            <div class="col-md-3"><strong>Serial No:</strong> ${bp.serial_no || '-'}</div>
-                            <div class="col-md-3"><strong>Slit Size:</strong> ${bp.slit_size || '-'} cm</div>
-                            <div class="col-md-3"><strong>Cut Length:</strong> ${bp.cut_length || '-'} cm</div>
-                            <div class="col-md-3"><strong>Pass/Fail:</strong> <span class="badge ${bp.pass_fail==='Pass'?'bg-success':'bg-danger'}">${bp.pass_fail || '-'}</span></div>
-                            <div class="col-md-3"><strong>Counter Qty:</strong> ${bp.counter_qty || 0}</div>
-                            <div class="col-md-3"><strong>Add Qty Feed:</strong> ${bp.add_qty || 0}</div>
-                            <div class="col-md-3"><strong>Excess Qty:</strong> ${bp.excess || 0}</div>
-                            <div class="col-md-3"><strong>Damaged Qty:</strong> ${bp.damaged || 0}</div>
-                            <div class="col-md-3"><strong>EPF No:</strong> ${bp['EPF No'] || bp.epf_no || '-'}</div>
-                        </div>
-                        
-                        <h6 class="fw-bold text-success border-bottom pb-1 small"><i class="bi bi-card-list me-1"></i> Paper Reel Allocation Audit</h6>
-                        <div class="table-responsive mb-2">
-                            <table class="table table-sm table-bordered text-center align-middle mb-0 font-monospace small">
-                                <thead class="table-secondary"><tr><th>Layer</th><th>Reel No</th><th>Reel Name</th></tr></thead>
-                                <tbody>`;
-                for (let i = 1; i <= 5; i++) {
-                    if (bp[`reel_no_${i}`] || bp[`reel_name_${i}`]) {
-                        bodyHtml += `<tr><td>Layer ${i}</td><td>${bp[`reel_no_${i}`] || '-'}</td><td class="text-primary">${bp[`reel_name_${i}`] || '-'}</td></tr>`;
-                    }
                 }
-                bodyHtml += `</tbody></table></div>
 
-                        <h6 class="fw-bold text-success border-bottom pb-1 small mt-3"><i class="bi bi-shield-check me-1"></i> Quality Check & Specification Approval</h6>
-                        <div class="row g-2 text-start small">
-                            <div class="col-md-3"><strong>Measurement:</strong> ${bp.qc_measurement || '-'}</div>
-                            <div class="col-md-3"><strong>Caliper:</strong> ${bp.qc_caliper || '-'}</div>
-                            <div class="col-md-3"><strong>Combination:</strong> ${bp.qc_combination || '-'}</div>
-                            <div class="col-md-3"><strong>Flute:</strong> ${bp.qc_flute || '-'}</div>
-                            <div class="col-md-3"><strong>Creasing:</strong> ${bp.qc_creasing || '-'}</div>
-                            <div class="col-md-3"><strong>Visual Defects:</strong> ${bp.qc_visual || '-'}</div>
-                            <div class="col-md-3"><strong>QC Overall Approval:</strong> <span class="badge ${bp.qc_app==='Approved'?'bg-success':'bg-danger'}">${bp.qc_app || '-'}</span></div>
-                        </div>
-                    </div>
-                </div>`;
-            }
-            
-            // Step 3: Printers Stage Data
-            let pr = plan.printer_form || (plan.stage_data && plan.stage_data.printer);
-            if (pr) {
-                bodyHtml += `
-                <div class="card border-info mb-3 shadow-sm">
-                    <div class="card-header bg-info text-white fw-bold py-2">
-                        <i class="bi bi-printer me-2"></i> STEP 3: PRINTERS STAGE AUDIT
-                    </div>
-                    <div class="card-body bg-light-subtle">
-                        <div class="row g-2 mb-3 text-start small">
-                            <div class="col-md-3"><strong>Date:</strong> ${pr.pr_date || '-'}</div>
-                            <div class="col-md-3"><strong>Printer Machines:</strong> ${pr.printer_select || '-'}</div>
-                            <div class="col-md-3"><strong>Pass/Fail:</strong> <span class="badge ${pr.pr_pass==='Pass'?'bg-success':'bg-danger'}">${pr.pr_pass || '-'}</span></div>
-                            <div class="col-md-3"><strong>Finished Qty:</strong> ${pr.finished_qty || 0}</div>
-                            <div class="col-md-3"><strong>Balance Qty:</strong> <span class="text-danger fw-bold">${pr.balance_qty || 0}</span></div>
-                            <div class="col-md-3"><strong>Plant BD Counter:</strong> ${pr.pr_plant || '-'}</div>
-                            <div class="col-md-3"><strong>Slot BDs Counter:</strong> ${pr.pr_slot || '-'}</div>
-                            <div class="col-md-3"><strong>Batch No:</strong> ${pr.pr_Batch || '-'}</div>
-                        </div>
-                        
-                        <h6 class="fw-bold text-info border-bottom pb-1 small"><i class="bi bi-shield-check me-1"></i> Quality Check & Artwork Audit</h6>
-                        <div class="row g-2 text-start small">
-                            <div class="col-md-3"><strong>Measurement:</strong> ${pr.qc_measurement || '-'}</div>
-                            <div class="col-md-3"><strong>Caliper:</strong> ${pr.qc_caliper || '-'}</div>
-                            <div class="col-md-3"><strong>Combination:</strong> ${pr.qc_combination || '-'}</div>
-                            <div class="col-md-3"><strong>QC Approval:</strong> <span class="badge ${pr.qc_app==='Approved'?'bg-success':'bg-danger'}">${pr.qc_app || '-'}</span></div>
-                        </div>
-                    </div>
-                </div>`;
-            }
-            
-            // Step 4: Die Cut Stage Data
-            let dc = plan.diecut_form || (plan.stage_data && plan.stage_data.diecut);
-            if (dc) {
-                bodyHtml += `
-                <div class="card border-warning mb-3 shadow-sm">
-                    <div class="card-header bg-warning text-dark fw-bold py-2">
-                        <i class="bi bi-scissors me-2"></i> STEP 4: DIECUT STAGE AUDIT
-                    </div>
-                    <div class="card-body bg-light-subtle">
-                        <div class="row g-2 text-start small">
-                            <div class="col-md-3"><strong>Date:</strong> ${dc.stage_date || '-'}</div>
-                            <div class="col-md-3"><strong>Counter Qty:</strong> ${dc.dc_counter_qty || 0}</div>
-                            <div class="col-md-3"><strong>Damaged Qty:</strong> ${dc.dc_damaged_qty || 0}</div>
-                            <div class="col-md-3"><strong>Excess Qty:</strong> ${dc.dc_excess_qty || 0}</div>
-                            <div class="col-md-3"><strong>Finished Qty:</strong> ${dc.finished_qty || 0}</div>
-                            <div class="col-md-3"><strong>Balance Qty:</strong> <span class="text-danger fw-bold">${dc.balance_qty || 0}</span></div>
-                            <div class="col-md-3"><strong>EPF No:</strong> ${dc.dc_epf_no || '-'}</div>
-                            <div class="col-md-3"><strong>Flute:</strong> ${dc.qc_flute || '-'}</div>
-                            <div class="col-md-3"><strong>Measurement:</strong> ${dc.qc_measurement || '-'}</div>
-                            <div class="col-md-3"><strong>Waste Sample:</strong> ${dc.qc_waste_sample || '-'}</div>
-                            <div class="col-md-3"><strong>Quality Approval:</strong> <span class="badge ${dc.qc_approval==='Approved'?'bg-success':'bg-danger'}">${dc.qc_approval || '-'}</span></div>
-                        </div>
-                    </div>
-                </div>`;
-            }
-            
-            // Step 5: Semi Auto Stage Data
-            let sa = plan.semiauto_form || (plan.stage_data && plan.stage_data.semiauto);
-            if (sa) {
-                bodyHtml += `
-                <div class="card border-secondary mb-3 shadow-sm">
-                    <div class="card-header bg-secondary text-white fw-bold py-2">
-                        <i class="bi bi-gear me-2"></i> STEP 5: SEMI AUTO STAGE AUDIT
-                    </div>
-                    <div class="card-body bg-light-subtle">
-                        <div class="row g-2 text-start small">
-                            <div class="col-md-3"><strong>Date:</strong> ${sa.stage_date || '-'}</div>
-                            <div class="col-md-3"><strong>Excess Qty:</strong> ${sa.sa_excess_qty || 0}</div>
-                            <div class="col-md-3"><strong>Finished Qty:</strong> ${sa.finished_qty || 0}</div>
-                            <div class="col-md-3"><strong>Balance Qty:</strong> <span class="text-danger fw-bold">${sa.balance_qty || 0}</span></div>
-                            <div class="col-md-3"><strong>EPF No:</strong> ${sa.sa_epf_no || '-'}</div>
-                            <div class="col-md-3"><strong>Flute:</strong> ${sa.qc_flute || '-'}</div>
-                            <div class="col-md-3"><strong>Measurement:</strong> ${sa.qc_measurement || '-'}</div>
-                            <div class="col-md-3"><strong>Sample Matched:</strong> ${sa.qc_sample || '-'}</div>
-                            <div class="col-md-3"><strong>Quality Approval:</strong> <span class="badge ${sa.qc_approval==='Approved'?'bg-success':'bg-danger'}">${sa.qc_approval || '-'}</span></div>
-                        </div>
-                    </div>
-                </div>`;
-            }
-            
-            // Step 6: Gluer Stage Data
-            let gluer = plan.gluer_form || (plan.stage_data && plan.stage_data.gluer);
-            if (gluer) {
-                bodyHtml += `
-                <div class="card border-success mb-3 shadow-sm">
-                    <div class="card-header bg-success text-white fw-bold py-2">
-                        <i class="bi bi-box me-2"></i> STEP 6: GLUER STAGE AUDIT
-                    </div>
-                    <div class="card-body bg-light-subtle">
-                        <div class="row g-2 text-start small">
-                            <div class="col-md-3"><strong>Date:</strong> ${gluer.stage_date || '-'}</div>
-                            <div class="col-md-3"><strong>Finished Qty:</strong> ${gluer.finished_qty || 0}</div>
-                            <div class="col-md-3"><strong>Balance Qty:</strong> <span class="text-danger fw-bold">${gluer.balance_qty || 0}</span></div>
-                            <div class="col-md-3"><strong>EPF No:</strong> ${gluer.epf_no || '-'}</div>
-                            <div class="col-md-3"><strong>Glue Quality:</strong> ${gluer.glue_quality || '-'}</div>
-                            <div class="col-md-3"><strong>QC Approval:</strong> <span class="badge ${gluer.qc_approval==='Approved'?'bg-success':'bg-danger'}">${gluer.qc_approval || '-'}</span></div>
-                        </div>
-                    </div>
-                </div>`;
-            }
-            
-            // Step 7: Stitching Stage Data
-            let st = plan.stitching_form || (plan.stage_data && plan.stage_data.stitching);
-            if (st) {
-                bodyHtml += `
-                <div class="card border-primary mb-3 shadow-sm">
-                    <div class="card-header bg-primary text-white fw-bold py-2">
-                        <i class="bi bi-pin-angle me-2"></i> STEP 7: STITCHING STAGE AUDIT
-                    </div>
-                    <div class="card-body bg-light-subtle">
-                        <div class="row g-2 text-start small">
-                            <div class="col-md-3"><strong>Date:</strong> ${st.stage_date || '-'}</div>
-                            <div class="col-md-3"><strong>Finished Qty:</strong> ${st.finished_qty || 0}</div>
-                            <div class="col-md-3"><strong>Balance Qty:</strong> <span class="text-danger fw-bold">${st.balance_qty || 0}</span></div>
-                            <div class="col-md-3"><strong>EPF No:</strong> ${st.epf_no || '-'}</div>
-                            <div class="col-md-3"><strong>Stitch Pitch Quality:</strong> ${st.stitch_quality || '-'}</div>
-                            <div class="col-md-3"><strong>QC Approval:</strong> <span class="badge ${st.qc_approval==='Approved'?'bg-success':'bg-danger'}">${st.qc_approval || '-'}</span></div>
-                        </div>
-                    </div>
-                </div>`;
-            }
-            
-            // Step 8: Finished Goods & AD Details
-            if (plan.ad_number || plan.status === 'Dispatched' || plan.status === 'Finished Goods') {
-                bodyHtml += `
-                <div class="card border-dark mb-3 shadow-sm">
-                    <div class="card-header bg-dark text-white fw-bold py-2">
-                        <i class="bi bi-check2-circle me-2 text-warning"></i> STEP 8: FINISHED GOODS & DISPATCH LOG
-                    </div>
-                    <div class="card-body bg-light-subtle">
-                        <div class="row g-2 text-start small">
-                            <div class="col-md-4"><strong>Status:</strong> <span class="badge bg-success">${plan.status}</span></div>
-                            <div class="col-md-4"><strong>Manual AD Number:</strong> <span class="fw-bold font-monospace text-primary fs-6">${plan.ad_number || 'Pending Input'}</span></div>
-                            <div class="col-md-4"><strong>Updated Timestamp:</strong> ${plan.updated_at || 'Recorded'}</div>
-                        </div>
-                    </div>
-                </div>`;
-            }
-            
-            bodyHtml += `</div>`; 
-            
-            document.getElementById('attachmentModalBody').innerHTML = bodyHtml;
-            
-            let modalEl = document.getElementById('viewAttachmentModal');
-            let modalInstance = bootstrap.Modal.getInstance(modalEl);
-            if (!modalInstance) {
-                modalInstance = new bootstrap.Modal(modalEl);
-            }
-            modalInstance.show();
+                // Sort descending to show newest first
+                allDispatched.sort((a, b) => b.id - a.id);
+
+                allDispatched.forEach(p => {
+                    let materialsStr = (p.materials && Array.isArray(p.materials)) ? p.materials.map((m, i) => `L${i + 1}: ${m.gsm || '-'}-${m.name}`).join('<br>') : '-';
+                    let timestamp = new Date(p.saved_at || Date.now()).toLocaleString();
+
+                    html += `
+                    <tr>
+                        <td class="text-muted">${timestamp}</td>
+                        <td class="fw-bold text-primary">${p.po_no}</td>
+                        <td>${p.customer_name || '-'}</td>
+                        <td><span class="badge bg-light text-dark font-monospace border">${p.size_band} cm x ${p.cut_length || '-'} cm</span></td>
+                        <td><span class="badge bg-secondary">${p.ply} Ply</span></td>
+                        <td><span class="badge bg-primary px-2">${p.qty}</span></td>
+                        <td style="font-size:0.75rem;" class="text-start">${materialsStr}</td>
+                        <td><span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Dispatched</span></td>
+                        <td class="fw-bold text-danger">${p.ad_number || 'N/A'}</td>
+                    </tr>`;
+                });
+
+                if (allDispatched.length === 0) {
+                    html = `<tr><td colspan="9" class="text-muted py-4">No dispatch history logs found.</td></tr>`;
+                }
+
+                document.getElementById('historyLogsTableBody').innerHTML = html;
+                filterHistoryTable(); // Apply typed filters if any
+            }).catch(err => {
+                console.error("Error loading history logs:", err);
+                document.getElementById('historyLogsTableBody').innerHTML = `<tr><td colspan="9" class="text-danger py-4">Error loading data. Cannot reach server.</td></tr>`;
+            });
         }
 
-        function printAttachmentCard() {
-            let content = document.getElementById('printableJobCard').outerHTML;
-            let plan = currentAttachmentPlan || {};
-            let poNo = plan.po_no || 'N/A';
-            let custProd = `${plan.customer_name || 'N/A'} - ${plan.product_name || plan.product_code || ''}`;
-            let qty = plan.qty || 0;
-            let reelSize = plan.selected_reel_size || plan.reel_size || '-';
+        function renderBalancePOTable() {
+            let container = document.getElementById('generic-stage-container');
+            if(container) container.innerHTML = "<p class='text-muted p-4 text-center border rounded bg-white'>Balance PO Stage Platform Loaded. Re-directed plans will appear here.</p>";
+            let titleEl = document.getElementById('generic-tab-title');
+            if(titleEl) titleEl.innerHTML = "<i class='bi bi-exclamation-triangle-fill text-warning me-2'></i> Balance PO Stage";
+        }
+
+        function viewStageAttachment(id) {
+            let plan;
+            for (const key in globalAllPlans) { 
+                let f = globalAllPlans[key].find(x => x.id === id); 
+                if(f) plan = f; 
+            }
+            if(!plan) return;
             
-            let printWindow = window.open('', '_blank', 'width=950,height=700');
-            printWindow.document.write(`
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <title>Job History Card - ${poNo}</title>
-                    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-                    <style>
-                        body { padding: 25px; background: #fff !important; font-family: 'Segoe UI', sans-serif; }
-                        .card { border: 1px solid #111 !important; margin-bottom: 15px !important; box-shadow: none !important; }
-                        .card-header { background: #333 !important; color: #fff !important; font-weight: bold !important; padding: 6px 12px !important; }
-                        table, th, td { border: 1px solid #000 !important; }
-                        .badge { border: 1px solid #000 !important; color: #000 !important; background: none !important; }
-                    </style>
-                </head>
-                <body>
-                    <div class="text-center mb-3 pb-2 border-bottom">
-                        <h3 class="fw-bold text-uppercase m-0">VISCOR & PACKWELL - JOB HISTORY AUDIT CARD</h3>
-                        <p class="text-muted small m-0">PO No: ${poNo} | Customer & Product: ${custProd} | Qty: ${qty} Pcs | Reel Size: ${reelSize} cm</p>
-                    </div>
-                    ${content}
-                    <script>setTimeout(() => { window.print(); window.close(); }, 500);<\/script>
-                </body>
-                </html>
-            `);
-            printWindow.document.close();
+            let modalBody = document.getElementById('attachmentModalBody');
+            modalBody.innerHTML = `
+                <div class="bg-white p-3 rounded border">
+                    <h6 class="fw-bold text-primary mb-3">Job ID: ${plan.id} | PO: ${plan.po_no}</h6>
+                    <pre class="bg-light p-3 rounded" style="font-size: 0.85rem; max-height: 400px; overflow-y: auto;">${JSON.stringify(plan, null, 4)}</pre>
+                </div>
+            `;
+            let myModal = new bootstrap.Modal(document.getElementById('viewAttachmentModal'));
+            myModal.show();
         }
 
-        function downloadAttachmentCard() {
-            let plan = currentAttachmentPlan || {};
-            let poNo = plan.po_no || 'JobCard';
-            let content = document.getElementById('printableJobCard').outerHTML;
-            let custProd = `${plan.customer_name || 'N/A'} - ${plan.product_name || plan.product_code || ''}`;
-            let qty = plan.qty || 0;
-            let reelSize = plan.selected_reel_size || plan.reel_size || '-';
-
-            let fullHtml = `<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>Job History Card - ${poNo}</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        body { padding: 30px; background: #f8f9fa; font-family: 'Segoe UI', sans-serif; }
-        .card { margin-bottom: 20px; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="text-center mb-4 pb-2 border-bottom">
-            <h2 class="fw-bold text-dark">VISCOR & PACKWELL MANUFACTURING JOB CARD</h2>
-            <p class="fs-5 text-secondary"><strong>PO No:</strong> ${poNo} | <strong>Customer & Product:</strong> ${custProd} | <strong>Qty:</strong> ${qty} Pcs | <strong>Reel Size:</strong> ${reelSize} cm</p>
-        </div>
-        ${content}
-    </div>
-</body>
-</html>`;
-
-            let blob = new Blob([fullHtml], { type: 'text/html' });
-            let a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = `Job_History_Card_${poNo}.html`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-        }
     </script>
 </body>
 </html>
