@@ -1316,6 +1316,7 @@
                         <div class="col-md-3"><label class="small fw-bold">Slot BDs Counter Qty</label><input type="text" class="form-control" required name="pr_slot"></div>
                         <div class="col-md-3"><label class="small fw-bold">Slot BDs Add Feed</label><input type="number" class="form-control" required name="pr_addqty"></div>
                         <div class="col-md-3"><label class="small fw-bold">Slot BDs Excess</label><input type="number" class="form-control" required name="pr_excess"></div>
+                        <div class="col-md-3"><label class="small fw-bold">Batch Number</label><input type="text" class="form-control" required name="pr_Batch"></div>
                     </div>
                     
                     <h6 class="text-secondary fw-bold border-bottom pb-1">Printers QC Section</h6>
@@ -1341,6 +1342,7 @@
                         <button type="button" class="btn btn-info fw-bold px-4 text-white" onclick="document.getElementById('target_tab_pr_${id}').value='Stitching'; document.getElementById('form_print_${id}').requestSubmit();">Save & Transfer to Stitching</button>
                         <button type="button" class="btn btn-warning fw-bold px-4" onclick="document.getElementById('target_tab_pr_${id}').value='Die Cut'; document.getElementById('form_print_${id}').requestSubmit();">Save & Transfer to Die Cut</button>
                         <button type="button" class="btn btn-danger fw-bold px-4" onclick="document.getElementById('target_tab_pr_${id}').value='Semi Auto'; document.getElementById('form_print_${id}').requestSubmit();">Save & Transfer to Semi Auto</button>
+                         <button type="button" class="btn btn-danger fw-bold px-4" onclick="document.getElementById('target_tab_pr_${id}').value='Finished Goods'; document.getElementById('form_print_${id}').requestSubmit();">Save & Transfer to Finished Goods</button>
                     </div>
                 </form>
             </div>`;
