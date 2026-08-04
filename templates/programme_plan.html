@@ -85,7 +85,6 @@
             </div>
         </div>
     </nav>
-
     <div class="container-fluid px-4">
         
         <ul class="nav nav-tabs mb-4 no-print" id="planningTabs" role="tablist">
@@ -325,16 +324,21 @@
     </div>
 
     <!-- Enhanced Professional View Attachment / View Log Modal -->
-    <div class="modal fade" id="viewAttachmentModal" tabindex="-1">
+  <div class="modal fade" id="viewAttachmentModal" tabindex="-1">
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content border-0 shadow-lg rounded-3">
-          <div class="modal-header bg-dark text-white border-bottom border-warning border-3">
-            <h5 class="modal-title w-100 fw-bold d-flex align-items-center justify-content-between" id="attachmentModalTitle">
-               <span><i class="bi bi-journal-text text-warning me-2"></i> Integrated Production Document & Log Audit</span>
-            </h5>
-            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+          <div class="modal-header bg-dark text-white border-bottom border-warning border-3 d-flex flex-column align-items-start">
+            <div class="w-100 d-flex justify-content-between align-items-center mb-2">
+               <h5 class="modal-title fw-bold" id="attachmentModalTitle">
+                   <i class="bi bi-journal-text text-warning me-2"></i> Log Audit View
+               </h5>
+               <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <!-- Print and Download Action Buttons Container -->
+            <div class="w-100 d-flex justify-content-end" id="modalActionButtons"></div>
           </div>
           <div class="modal-body bg-light p-4" id="attachmentModalBody">
+             <!-- Modal body content will be rendered here dynamically -->
           </div>
           <div class="modal-footer bg-white border-top">
             <button type="button" class="btn btn-secondary fw-bold px-4" data-bs-dismiss="modal">Close Audit View</button>
@@ -362,6 +366,13 @@
         let sampleCustName = "";
         let globalSampleSheetLength = 0;
         let globalRequiredSize = 0; 
+
+        // [Your existing JavaScript logic goes here without changes...]
+        // (canAct, reqPackwellTransfer, filterByPONo, searchMasterProduct, etc.)
+
+        // *** NEW/MODIFIED FUNCTIONS FOR PROFESSIONAL VIEW LOG & PRINT/DOWNLOAD ***
+
+        // Function to render the View Log modal professionally
 
         function canAct(stage) {
             if (currentRole === 'admin') return true;
@@ -1779,172 +1790,192 @@
             });
         }
 
-        /* --- PROFESSIONAL ENHANCEMENT: VIEW LOG ATTACHMENT AUDIT MODAL --- */
-        function viewStageAttachment(id) {
-    // 1. අදාල Plan එක සොයා ගැනීම
-    let plan;
-    for (const key in globalAllPlans) {
-        let f = globalAllPlans[key].find(x => x.id === id);
-        if (f) { plan = f; break; }
-    }
-    if (!plan) return;
+function viewStageAttachment(id) {
+            let plan = null;
+            let stdReelSize = 'N/A';
+            
+            // Find the plan from global object (which is grouped by size)
+            for (const key in globalAllPlans) { 
+                let f = globalAllPlans[key].find(x => x.id === id); 
+                if (f) { 
+                    plan = f; 
+                    stdReelSize = key; // Size key represents Standard Reel Size
+                    break; 
+                } 
+            }
+            
+            if(!plan) {
+                alert("Could not load plan details.");
+                return;
+            }
 
-    // 2. Modal Title එක Professional ලෙස සැකසීම (PO, Customer, Product, Qty සහිතව)
-    const modalTitle = document.getElementById('attachmentModalTitle');
-    let prodNameDisplay = plan.product_name ? `- ${plan.product_name}` : '';
-    let prodCodeDisplay = plan.product_code || '';
-    
-    modalTitle.innerHTML = `
-        <div class="d-flex w-100 justify-content-between align-items-center me-3 flex-wrap gap-2">
-            <span><i class="bi bi-journal-check text-warning me-2"></i> Log Audit Overview</span>
-            <div class="d-flex flex-wrap gap-2 text-dark font-monospace" style="font-size: 0.85rem;">
-                <span class="badge bg-light text-dark border border-secondary shadow-sm p-2">
-                    <i class="bi bi-hash text-primary"></i> PO: ${plan.po_no || '-'}
-                </span>
-                <span class="badge bg-light text-dark border border-secondary shadow-sm p-2">
-                    <i class="bi bi-person-fill text-success"></i> ${plan.customer_name || '-'}
-                </span>
-                <span class="badge bg-light text-dark border border-secondary shadow-sm p-2">
-                    <i class="bi bi-box-seam text-danger"></i> ${prodCodeDisplay} ${prodNameDisplay}
-                </span>
-                <span class="badge bg-warning text-dark border border-warning shadow-sm p-2 fs-6">
-                    <i class="bi bi-layers-fill"></i> Qty: ${plan.qty || 0}
-                </span>
-            </div>
-        </div>
-    `;
+            let prodCode = plan.product_code ? plan.product_code : '';
+            let prodName = plan.product_name ? plan.product_name : '';
+            let fullProdInfo = `${prodCode} ${prodName}`.trim() || 'N/A';
 
-    // 3. Modal Body එක Professional View එකකට සැකසීම
-    let bodyHtml = `<div class="container-fluid p-0">`;
+            // 1. SET MODAL TITLE
+            let titleText = `<i class="bi bi-journal-text text-warning me-2"></i> PO: <span class="text-info">${plan.po_no}</span> | Cust: <span class="text-info">${plan.customer_name}</span> | Prod: <span class="text-info">${fullProdInfo}</span> | Qty: <span class="text-danger">${plan.qty}</span>`;
+            document.getElementById('attachmentModalTitle').innerHTML = titleText;
 
-    // --- Standard Reel Size සහ මූලික විස්තර (General Info) ---
-    bodyHtml += `
-        <div class="card border-0 shadow-sm mb-4 bg-white rounded-3">
-            <div class="card-header bg-dark text-white fw-bold py-2">
-                <i class="bi bi-card-checklist me-2 text-info"></i> Programme Specification Outline
-            </div>
-            <div class="card-body p-3">
-                <div class="row text-center g-3">
-                    <div class="col-md-3 border-end">
-                        <span class="text-muted d-block small fw-bold text-uppercase">Standard Reel Size</span>
-                        <span class="fw-bold text-primary fs-5">${plan.selected_reel_size || 'N/A'} cm</span>
-                    </div>
-                    <div class="col-md-3 border-end">
-                        <span class="text-muted d-block small fw-bold text-uppercase">Cut Length</span>
-                        <span class="fw-bold text-dark fs-5">${plan.cut_length || 'N/A'} cm</span>
-                    </div>
-                    <div class="col-md-3 border-end">
-                        <span class="text-muted d-block small fw-bold text-uppercase">Ply Build</span>
-                        <span class="fw-bold text-dark fs-5">${plan.ply || '-'} Ply</span>
-                    </div>
-                    <div class="col-md-3">
-                        <span class="text-muted d-block small fw-bold text-uppercase">Current Status</span>
-                        <span class="badge bg-success fs-6 mt-1">${plan.status || 'Unknown'}</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
+            // 2. SET PRINT & DOWNLOAD BUTTONS
+            let actionBtns = `
+                <button class="btn btn-sm btn-outline-info me-2 fw-bold" onclick="printModalContent()"><i class="bi bi-printer-fill me-1"></i> Print Log</button>
+                <button class="btn btn-sm btn-outline-success fw-bold" onclick="downloadModalContent('${plan.po_no}')"><i class="bi bi-cloud-arrow-down-fill me-1"></i> Download File</button>
+            `;
+            document.getElementById('modalActionButtons').innerHTML = actionBtns;
 
-    // --- Board Plant Form Data (Professional View) ---
-    if (plan.board_plant_form) {
-        let bp = typeof plan.board_plant_form === 'string' ? JSON.parse(plan.board_plant_form) : plan.board_plant_form;
-        
-        bodyHtml += `
-        <div class="card border-0 shadow-sm mb-4 border-start border-primary border-4 rounded-3">
-            <div class="card-header bg-light fw-bold py-2 text-primary text-uppercase" style="font-size: 0.9rem;">
-                <i class="bi bi-tools me-2"></i> Board Plant Execution Data Log
-            </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-bordered m-0 text-center align-middle">
-                        <thead class="table-secondary small text-uppercase">
-                            <tr>
-                                <th>Operation Date</th>
-                                <th>Serial No</th>
-                                <th>Slit Size</th>
-                                <th>Cut Length</th>
-                                <th>Counter Qty</th>
-                                <th>Pass/Fail Status</th>
-                            </tr>
-                        </thead>
-                        <tbody class="fw-semibold small bg-white">
-                            <tr>
-                                <td><i class="bi bi-calendar3 me-1 text-muted"></i> ${bp.bp_date || '-'}</td>
-                                <td class="text-primary font-monospace fw-bold fs-6">${bp.serial_no || '-'}</td>
-                                <td>${bp.slit_size || '-'} cm</td>
-                                <td>${bp.cut_length || '-'} cm</td>
-                                <td class="text-danger fw-bold">${bp.counter_qty || '-'}</td>
-                                <td>
-                                    <span class="badge ${bp.pass_fail === 'Pass' ? 'bg-success' : 'bg-danger'} px-3 py-2 shadow-sm">
-                                        ${bp.pass_fail || '-'}
-                                    </span>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+            // 3. RENDER BOARD PLANT DATA (PROFESSIONAL VIEW)
+            let bpData = plan.board_plant_form; 
+            let bpRowsHtml = '';
+            
+            if (bpData && typeof bpData === 'object' && Object.keys(bpData).length > 0) {
+                for (const [key, value] of Object.entries(bpData)) {
+                    // Format key to look nice (e.g. "cut_length" -> "Cut Length")
+                    let formattedKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                    bpRowsHtml += `
+                        <tr>
+                            <th class="bg-light text-secondary w-50 small align-middle">${formattedKey}</th>
+                            <td class="fw-bold align-middle">${value || '-'}</td>
+                        </tr>
+                    `;
+                }
+            } else {
+                bpRowsHtml = `<tr><td colspan="2" class="text-center text-muted p-4"><i class="bi bi-exclamation-circle me-1"></i> Board Plant records are not available yet.</td></tr>`;
+            }
+
+            // Constructing the body UI
+            let bodyHtml = `
+            <div class="container-fluid p-0" id="printLogArea">
+                <style>
+                    /* Scoped print styles for this section */
+                    @media print {
+                        body * { visibility: hidden; }
+                        #printLogArea, #printLogArea * { visibility: visible; }
+                        #printLogArea { position: absolute; left: 0; top: 0; width: 100%; }
+                        .card { border: 1px solid #ccc !important; box-shadow: none !important; }
+                        th { background-color: #f8f9fa !important; }
+                    }
+                </style>
+                <div class="row g-4">
+                    <!-- General Details Panel -->
+                    <div class="col-lg-6">
+                        <div class="card shadow-sm border-primary h-100">
+                            <div class="card-header bg-primary text-white fw-bold d-flex align-items-center">
+                                <i class="bi bi-info-circle-fill me-2"></i> Master Job Information
+                            </div>
+                            <div class="card-body p-0">
+                                <table class="table table-bordered mb-0">
+                                    <tbody>
+                                        <tr><th class="bg-light small w-50">PO Number</th><td class="fw-bold text-primary">${plan.po_no}</td></tr>
+                                        <tr><th class="bg-light small">Customer Name</th><td class="fw-bold">${plan.customer_name}</td></tr>
+                                        <tr><th class="bg-light small">Product Info</th><td class="fw-semibold text-secondary">${fullProdInfo}</td></tr>
+                                        <tr><th class="bg-light small">Target Quantity</th><td><span class="badge bg-danger fs-6">${plan.qty} Pcs</span></td></tr>
+                                        <tr><th class="bg-light small">Standard Reel Size</th><td class="fw-bold text-success fs-6">${stdReelSize} cm</td></tr>
+                                        <tr><th class="bg-light small">Flute & Ply</th><td><span class="badge bg-secondary">${plan.flute || '-'}</span> | <span class="badge bg-dark">${plan.ply} Ply</span></td></tr>
+                                        <tr><th class="bg-light small">Current Stage</th><td><span class="badge bg-info text-dark">${plan.status || 'N/A'}</span></td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Board Plant Data Panel -->
+                    <div class="col-lg-6">
+                        <div class="card shadow-sm border-dark h-100">
+                            <div class="card-header bg-dark text-white fw-bold d-flex align-items-center">
+                                <i class="bi bi-tools me-2 text-warning"></i> Board Plant Execution Data
+                            </div>
+                            <div class="card-body p-0 table-responsive" style="max-height: 400px;">
+                                <table class="table table-sm table-hover table-bordered mb-0">
+                                    <tbody>
+                                        ${bpRowsHtml}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 
-                <div class="p-3 bg-light-subtle">
-                    <h6 class="fw-bold text-secondary mb-3 small text-uppercase border-bottom pb-2">
-                        <i class="bi bi-shield-check me-2 text-success"></i> Quality Assurance (QC) Results
-                    </h6>
-                    <div class="row text-center small fw-bold g-2">
-                        <div class="col">
-                            <div class="p-2 border rounded bg-white shadow-sm">
-                                <span class="d-block text-muted mb-1">Measurement</span>
-                                <span class="text-dark fs-6">${bp.qc_measurement || '-'}</span>
-                            </div>
-                        </div>
-                        <div class="col">
-                            <div class="p-2 border rounded bg-white shadow-sm">
-                                <span class="d-block text-muted mb-1">Caliper (mm)</span>
-                                <span class="text-dark fs-6">${bp.qc_caliper || '-'}</span>
-                            </div>
-                        </div>
-                        <div class="col">
-                            <div class="p-2 border rounded bg-white shadow-sm">
-                                <span class="d-block text-muted mb-1">Combination</span>
-                                <span class="text-dark fs-6">${bp.qc_combination || '-'}</span>
-                            </div>
-                        </div>
-                        <div class="col">
-                            <div class="p-2 border rounded bg-white shadow-sm">
-                                <span class="d-block text-muted mb-1">Flute</span>
-                                <span class="text-dark fs-6">${bp.qc_flute || '-'}</span>
-                            </div>
-                        </div>
-                        <div class="col">
-                            <div class="p-2 border rounded bg-white shadow-sm">
-                                <span class="d-block text-muted mb-1">QC Decision</span>
-                                <span class="badge ${bp.qc_app === 'Approved' ? 'bg-success' : 'bg-danger'} w-100 py-2 mt-1">
-                                    ${bp.qc_app || '-'}
-                                </span>
-                            </div>
-                        </div>
+                <!-- Additional Notes / Materials (Optional logic if needed) -->
+                <div class="row mt-4">
+                    <div class="col-12">
+                         <div class="alert alert-secondary border-secondary-subtle small mb-0">
+                             <i class="bi bi-clock-history me-1"></i> Data automatically fetched and compiled from Live Operations. Ensure physical audit matches the digital log.
+                         </div>
                     </div>
                 </div>
             </div>
-        </div>`;
-    } else {
-        // Board Plant Data නොමැති විට පෙන්වන අලංකාර Alert එක
-        bodyHtml += `
-        <div class="alert alert-secondary border-0 d-flex align-items-center shadow-sm rounded-3">
-            <i class="bi bi-info-circle-fill fs-4 me-3 text-secondary"></i>
-            <div>
-                <strong>No Board Plant Data Available</strong><br>
-                <span class="small">Execution metrics for the Board Plant stage have not been logged yet for this Programme Plan.</span>
-            </div>
-        </div>`;
-    }
+            `;
 
-    bodyHtml += `</div>`; // Container අවසන් කිරීම
+            document.getElementById('attachmentModalBody').innerHTML = bodyHtml;
+            
+            // Show the modal
+            let viewModal = new bootstrap.Modal(document.getElementById('viewAttachmentModal'));
+            viewModal.show();
+        }
 
-    // 4. සකස් කල HTML කොටස Modal එකට ඇතුලත් කර Modal එක Show කිරීම
-    document.getElementById('attachmentModalBody').innerHTML = bodyHtml;
-    var viewModal = new bootstrap.Modal(document.getElementById('viewAttachmentModal'));
-    viewModal.show();
-    }
+        // Print function
+        function printModalContent() {
+            let printContent = document.getElementById('printLogArea').outerHTML;
+            let printWindow = window.open('', '_blank', 'width=1000,height=800');
+            printWindow.document.write(`
+                <html>
+                <head>
+                    <title>Print Production Log</title>
+                    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+                    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+                    <style>
+                        body { padding: 30px; font-family: sans-serif; background: #fff !important; }
+                        table th { background-color: #f1f3f5 !important; }
+                        .card { border: 1px solid #dee2e6 !important; margin-bottom: 20px; }
+                        .card-header { padding: 10px 15px; font-weight: bold; border-bottom: 1px solid #dee2e6; }
+                        .bg-primary { background-color: #0d6efd !important; color: white !important; }
+                        .bg-dark { background-color: #212529 !important; color: white !important; }
+                    </style>
+                </head>
+                <body>
+                    <h3 class="border-bottom pb-2 mb-4 text-uppercase">Production Document & Log Audit</h3>
+                    ${printContent}
+                    <script>
+                        setTimeout(() => { 
+                            window.print(); 
+                            window.close(); 
+                        }, 500);
+                    <\/script>
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+        }
+
+        // Download HTML File function
+        function downloadModalContent(poNo) {
+            let printContent = document.getElementById('printLogArea').outerHTML;
+            let htmlTemplate = `
+                <html>
+                <head>
+                    <title>Log Audit - ${poNo}</title>
+                    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+                </head>
+                <body style="padding: 40px; background-color: #f8f9fa;">
+                    <h3 class="border-bottom pb-3 mb-4 text-center">Production Log Audit : ${poNo}</h3>
+                    <div style="max-width: 900px; margin: auto;">
+                        ${printContent}
+                    </div>
+                </body>
+                </html>
+            `;
+            
+            let blob = new Blob([htmlTemplate], { type: 'text/html' });
+            let url = URL.createObjectURL(blob);
+            let a = document.createElement('a');
+            a.href = url;
+            a.download = `Log_Audit_${poNo}.html`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
             // 2. Printers Stage Data Log
             if(plan.printer_form) {
                 hasLogs = true;
