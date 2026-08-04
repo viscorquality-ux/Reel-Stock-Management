@@ -1957,6 +1957,14 @@
                 document.getElementById('historyLogsTableBody').innerHTML = html || `<tr><td colspan="9" class="text-muted py-4">No historical audit logs found matching criteria.</td></tr>`;
             });
         }
+        document.addEventListener('DOMContentLoaded', () => {
+            const activeTabBtn = document.querySelector('.nav-tabs .nav-link.active');
+            if (activeTabBtn) {
+                activeTabBtn.click(); // මෙය මගින් අදාල renderBoardPlantTable() වැනි function එක trigger වේ.
+            } else {
+                renderRuntimePlansTable(); // Fallback
+            }
+
     </script>
 </body>
 </html>
