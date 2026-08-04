@@ -324,7 +324,7 @@
     </div>
 
     <!-- Enhanced Professional View Attachment / View Log Modal -->
-  <div class="modal fade" id="viewAttachmentModal" tabindex="-1">
+    <div class="modal fade" id="viewAttachmentModal" tabindex="-1">
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content border-0 shadow-lg rounded-3">
           <div class="modal-header bg-dark text-white border-bottom border-warning border-3 d-flex flex-column align-items-start">
@@ -366,13 +366,6 @@
         let sampleCustName = "";
         let globalSampleSheetLength = 0;
         let globalRequiredSize = 0; 
-
-        // [Your existing JavaScript logic goes here without changes...]
-        // (canAct, reqPackwellTransfer, filterByPONo, searchMasterProduct, etc.)
-
-        // *** NEW/MODIFIED FUNCTIONS FOR PROFESSIONAL VIEW LOG & PRINT/DOWNLOAD ***
-
-        // Function to render the View Log modal professionally
 
         function canAct(stage) {
             if (currentRole === 'admin') return true;
@@ -902,7 +895,10 @@
                     else if(formType === 'gluer' || formType === 'stitching') document.getElementById('finishing-tab').click();
                     else if(formType === 'diecut' || formType === 'semiauto') document.getElementById('diecut-tab').click();
                     else if(newStatus === 'Dispatched') document.getElementById('history-tab').click();
-                    else document.querySelector('.nav-link.active').click(); 
+                    else {
+                        let activeTab = document.querySelector('.nav-link.active');
+                        if (activeTab) activeTab.click();
+                    }
                 }
             });
         }
@@ -1018,17 +1014,13 @@
                 }
                 document.getElementById('savedPlansWrapperContainer').innerHTML = html || `<div class="text-center text-muted p-4">No active live execution plans scheduled.</div>`;
             });
-            
-            if(currentRole === 'viscor01' || currentRole === 'packwell01') document.getElementById('board-plant-tab').click();
-            if(currentRole === 'viscor02' || currentRole === 'packwell02') document.getElementById('printers-tab').click();
-            if(currentRole === 'viscor03' || currentRole === 'packwell03') document.getElementById('diecut-tab').click();
-            if(currentRole === 'viscor04' || currentRole === 'packwell04') document.getElementById('finishing-tab').click();
-            if(currentRole === 'viscor05' || currentRole === 'packwell05') document.getElementById('finished-tab').click();
         }
 
-        /* --- PROFESSIONAL ENHANCEMENT: BOARD PLANT VIEW --- */
+        /* --- BOARD PLANT VIEW --- */
         function renderBoardPlantTable() {
-            document.getElementById('generic-tab-title').innerHTML = "<i class='bi bi-tools text-warning me-2'></i> Board Plant Stage Platform";
+            let titleEl = document.getElementById('generic-tab-title');
+            if(titleEl) titleEl.innerHTML = "<i class='bi bi-tools text-warning me-2'></i> Board Plant Stage Platform";
+            
             fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
                 globalAllPlans = data;
                 let hasAnyRecords = false;
@@ -1045,7 +1037,7 @@
                     let safeSize = size.toString().replace('.', '_');
                     let priorityVal = uiPriorities.bpTabs[safeSize] || '';
                     
-                    let printBtnHtml = (currentRole === 'programmer1' || currentRole === 'programmer2') ? 
+                    let printBtnHtml = (currentRole === 'programmer1' || currentRole === 'programmer2' || currentRole === 'admin') ? 
                         `<button class="btn btn-sm btn-outline-light no-print py-1" onclick="printSelectedBand('bp_print_band_${safeSize}')">
                             <i class="bi bi-printer me-1"></i> Print Size Band
                         </button>` : '';
@@ -1114,13 +1106,15 @@
                 navHtml += '</ul>';
                 contentHtml += '</div>';
 
-                document.getElementById('generic-stage-container').innerHTML = hasAnyRecords ? (navHtml + contentHtml) : "<p class='text-muted p-4 text-center border rounded bg-white'>No active jobs currently in Board Plant stage.</p>";
+                let container = document.getElementById('generic-stage-container');
+                if(container) container.innerHTML = hasAnyRecords ? (navHtml + contentHtml) : "<p class='text-muted p-4 text-center border rounded bg-white'>No active jobs currently in Board Plant stage.</p>";
             });
         }
 
-        /* --- PROFESSIONAL ENHANCEMENT: BOARD PLANT FORM UI --- */
+        /* --- BOARD PLANT FORM UI --- */
         function showBoardPlantForm(id) {
-            document.getElementById(`job_card_row_${id}`).style.display = 'table-row';
+            let row = document.getElementById(`job_card_row_${id}`);
+            if(row) row.style.display = 'table-row';
             let plan;
             for (const key in globalAllPlans) { let f = globalAllPlans[key].find(x => x.id === id); if(f) plan = f; }
             if(!plan) return;
@@ -1221,7 +1215,8 @@
                     </div>
                 </form>
             </div>`;
-            document.getElementById(`job_card_container_${id}`).innerHTML = formHtml;
+            let container = document.getElementById(`job_card_container_${id}`);
+            if(container) container.innerHTML = formHtml;
         }
 
         function submitBoardPlant(e, id) {
@@ -1235,7 +1230,9 @@
         }
 
         function renderPrintersTable() {
-            document.getElementById('generic-tab-title').innerHTML = "<i class='bi bi-printer'></i> Printers Stage";
+            let titleEl = document.getElementById('generic-tab-title');
+            if(titleEl) titleEl.innerHTML = "<i class='bi bi-printer'></i> Printers Stage";
+            
             fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
                 globalAllPlans = data;
                 
@@ -1284,7 +1281,8 @@
                     });
                 }
                 html += `</tbody></table>`;
-                document.getElementById('generic-stage-container').innerHTML = hasRecords ? html : "<p class='text-muted p-3'>No jobs currently in Printers Stage.</p>";
+                let container = document.getElementById('generic-stage-container');
+                if(container) container.innerHTML = hasRecords ? html : "<p class='text-muted p-3 text-center border rounded bg-white'>No jobs currently in Printers Stage.</p>";
             });
         }
 
@@ -1298,17 +1296,22 @@
             let box = document.getElementById(`${prefix}_command_box_${id}`);
             let sel = document.getElementById(`${prefix}_balance_option_${id}`);
             if(bal > 0) {
-                box.style.display = 'block';
-                sel.setAttribute('required', 'required');
+                if(box) box.style.display = 'block';
+                if(sel) {
+                    sel.setAttribute('required', 'required');
+                }
             } else {
-                box.style.display = 'none';
-                sel.removeAttribute('required');
-                sel.value = '';
+                if(box) box.style.display = 'none';
+                if(sel) {
+                    sel.removeAttribute('required');
+                    sel.value = '';
+                }
             }
         }
 
         function showPrinterForm(id) {
-            document.getElementById(`print_card_row_${id}`).style.display = 'table-row';
+            let row = document.getElementById(`print_card_row_${id}`);
+            if(row) row.style.display = 'table-row';
             let plan;
             for (const key in globalAllPlans) { let f = globalAllPlans[key].find(x => x.id === id); if(f) plan = f; }
             if(!plan) return;
@@ -1380,7 +1383,8 @@
                     </div>
                 </form>
             </div>`;
-            document.getElementById(`print_card_container_${id}`).innerHTML = formHtml;
+            let container = document.getElementById(`print_card_container_${id}`);
+            if(container) container.innerHTML = formHtml;
         }
 
         function submitPrinter(e, id) {
@@ -1406,7 +1410,9 @@
         }
 
         function renderDieCutSemiAutoTable() {
-            document.getElementById('generic-tab-title').innerHTML = "<i class='bi bi-gear'></i> Die Cut & Semi Auto Stage";
+            let titleEl = document.getElementById('generic-tab-title');
+            if(titleEl) titleEl.innerHTML = "<i class='bi bi-gear'></i> Die Cut & Semi Auto Stage";
+            
             fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
                 globalAllPlans = data;
                 let dcRows = buildSpecificRows(data, 'Die Cut', 'dc');
@@ -1438,7 +1444,8 @@
                         </table>
                     </div>
                 </div>`;
-                document.getElementById('generic-stage-container').innerHTML = html;
+                let container = document.getElementById('generic-stage-container');
+                if(container) container.innerHTML = html;
             });
         }
 
@@ -1465,7 +1472,8 @@
         }
 
         function showDieCutForm(id) {
-            document.getElementById(`dc_row_${id}`).style.display = 'table-row';
+            let row = document.getElementById(`dc_row_${id}`);
+            if(row) row.style.display = 'table-row';
             let plan;
             for (const key in globalAllPlans) { let f = globalAllPlans[key].find(x => x.id === id); if(f) plan = f; }
             if(!plan) return;
@@ -1517,11 +1525,13 @@
                     </div>
                 </form>
             </div>`;
-            document.getElementById(`dc_container_${id}`).innerHTML = formHtml;
+            let container = document.getElementById(`dc_container_${id}`);
+            if(container) container.innerHTML = formHtml;
         }
 
         function showSemiAutoForm(id) {
-            document.getElementById(`sa_row_${id}`).style.display = 'table-row';
+            let row = document.getElementById(`sa_row_${id}`);
+            if(row) row.style.display = 'table-row';
             let plan;
             for (const key in globalAllPlans) { let f = globalAllPlans[key].find(x => x.id === id); if(f) plan = f; }
             if(!plan) return;
@@ -1569,7 +1579,8 @@
                     </div>
                 </form>
             </div>`;
-            document.getElementById(`sa_container_${id}`).innerHTML = formHtml;
+            let container = document.getElementById(`sa_container_${id}`);
+            if(container) container.innerHTML = formHtml;
         }
 
         function submitMiniForm(e, id, dbFormType, prefix) {
@@ -1591,7 +1602,9 @@
         }
 
         function renderFinishingTable() {
-            document.getElementById('generic-tab-title').innerHTML = "<i class='bi bi-boxes'></i> Finishing Stage";
+            let titleEl = document.getElementById('generic-tab-title');
+            if(titleEl) titleEl.innerHTML = "<i class='bi bi-boxes'></i> Finishing Stage";
+            
             fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
                 globalAllPlans = data;
                 
@@ -1644,12 +1657,14 @@
                         </table>
                     </div>
                 </div>`;
-                document.getElementById('generic-stage-container').innerHTML = html;
+                let container = document.getElementById('generic-stage-container');
+                if(container) container.innerHTML = html;
             });
         }
 
         function showGluerForm(id) {
-            document.getElementById(`gluer_row_${id}`).style.display = 'table-row';
+            let row = document.getElementById(`gluer_row_${id}`);
+            if(row) row.style.display = 'table-row';
             let plan;
             for (const key in globalAllPlans) { let f = globalAllPlans[key].find(x => x.id === id); if(f) plan = f; }
             if(!plan) return;
@@ -1684,11 +1699,13 @@
                     </div>
                 </form>
             </div>`;
-            document.getElementById(`gluer_container_${id}`).innerHTML = formHtml;
+            let container = document.getElementById(`gluer_container_${id}`);
+            if(container) container.innerHTML = formHtml;
         }
 
         function showStitchingForm(id) {
-            document.getElementById(`stitching_row_${id}`).style.display = 'table-row';
+            let row = document.getElementById(`stitching_row_${id}`);
+            if(row) row.style.display = 'table-row';
             let plan;
             for (const key in globalAllPlans) { let f = globalAllPlans[key].find(x => x.id === id); if(f) plan = f; }
             if(!plan) return;
@@ -1723,59 +1740,35 @@
                     </div>
                 </form>
             </div>`;
-            document.getElementById(`stitching_container_${id}`).innerHTML = formHtml;
+            let container = document.getElementById(`stitching_container_${id}`);
+            if(container) container.innerHTML = formHtml;
         }
 
-        function renderBalancePOTable() {
-            document.getElementById('generic-tab-title').innerHTML = "<i class='bi bi-exclamation-triangle-fill text-warning'></i> Balance PO Queue";
-            fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
-                globalAllPlans = data;
-                let rows = '';
-                for (const [size, plans] of Object.entries(data)) {
-                    plans.filter(p => p.status === 'Balance PO').forEach(p => {
-                        rows += `
-                        <tr>
-                            <td class="fw-bold text-primary">${p.po_no}</td>
-                            <td>${p.customer_name}</td>
-                            <td class="fw-bold text-danger">${size} cm</td>
-                            <td><span class="badge bg-warning text-dark fs-6">${p.qty}</span></td>
-                            <td>${p.remarks || 'Balance Pending'}</td>
-                            <td><button class="btn btn-sm btn-primary fw-bold" onclick="transferPlan(${p.id}, 'Board Plant')">Re-Plan to Board Plant</button></td>
-                        </tr>`;
-                    });
-                }
-                let html = `
-                <table class="table table-bordered table-striped align-middle text-center mb-0">
-                    <thead class="table-dark small"><tr><th>PO No</th><th>Customer</th><th>Size</th><th>Balance Qty</th><th>Remarks</th><th>Action</th></tr></thead>
-                    <tbody>${rows || '<tr><td colspan="6" class="text-muted py-3">No pending Balance POs.</td></tr>'}</tbody>
-                </table>`;
-                document.getElementById('generic-stage-container').innerHTML = html;
-            });
-        }
-
+        /* --- GENERIC / FINISHED GOODS TABLE RENDERER --- */
         function renderGenericTable(stageName) {
-            document.getElementById('generic-tab-title').innerHTML = `<i class="bi bi-box-seam"></i> ${stageName} Stage`;
+            let titleEl = document.getElementById('generic-tab-title');
+            if(titleEl) titleEl.innerHTML = `<i class="bi bi-check2-square text-success me-2"></i> ${stageName} Stage`;
+            
             fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
                 globalAllPlans = data;
                 let rows = '';
+                let hasRecords = false;
                 for (const [size, plans] of Object.entries(data)) {
                     plans.filter(p => p.status === stageName).forEach(p => {
-                        let actHtml = '';
-                        if(stageName === 'Finished Goods' && canAct('Finished Goods')) {
-                            actHtml = `
-                            <div class="d-flex align-items-center justify-content-center gap-2">
-                                <input type="text" id="ad_no_${p.id}" class="form-control form-control-sm" style="width:110px;" placeholder="Manual AD No">
-                                <button class="btn btn-sm btn-success fw-bold text-nowrap" onclick="dispatchFinishedGoods(${p.id})">Dispatch</button>
-                            </div>`;
-                        } else {
-                            actHtml = `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
-                        }
+                        hasRecords = true;
+                        let actHtml = (canAct(stageName) && stageName === 'Finished Goods') ?
+                            `<div class="d-flex align-items-center justify-content-center gap-2">
+                                <input type="text" id="ad_no_${p.id}" class="form-control form-control-sm text-center font-monospace" style="width:130px;" placeholder="AD Number" value="${p.ad_number || ''}">
+                                <button class="btn btn-sm btn-success fw-bold text-nowrap" onclick="dispatchFinishedGoods(${p.id})"><i class="bi bi-truck me-1"></i> Dispatch</button>
+                             </div>` : `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
+
                         rows += `
                         <tr>
-                            <td class="fw-bold text-primary">${p.po_no}</td>
-                            <td>${p.customer_name}</td>
-                            <td>${size} cm</td>
-                            <td><span class="badge bg-success fs-6">${p.qty}</span></td>
+                            <td class="fw-bold text-primary font-monospace">${p.po_no}</td>
+                            <td class="text-start">${p.customer_name} - ${p.product_name||''}</td>
+                            <td class="fw-bold">${size} cm</td>
+                            <td><span class="badge bg-dark">${p.ply} Ply</span></td>
+                            <td><span class="badge bg-primary fs-6">${p.qty} Pcs</span></td>
                             <td><button class="btn btn-sm btn-outline-info fw-bold" onclick="viewStageAttachment(${p.id})"><i class="bi bi-eye"></i> View Log</button></td>
                             <td>${actHtml}</td>
                         </tr>`;
@@ -1783,361 +1776,187 @@
                 }
                 let html = `
                 <table class="table table-bordered table-striped align-middle text-center mb-0">
-                    <thead class="table-dark small"><tr><th>PO No</th><th>Customer</th><th>Size</th><th>Qty</th><th>Attachment Log</th><th>Action</th></tr></thead>
-                    <tbody>${rows || `<tr><td colspan="6" class="text-muted py-3">No jobs currently in ${stageName}.</td></tr>`}</tbody>
+                    <thead class="table-dark small text-uppercase font-monospace">
+                        <tr>
+                            <th>PO No</th>
+                            <th>Customer & Product</th>
+                            <th>Size</th>
+                            <th>Ply</th>
+                            <th>Qty</th>
+                            <th>Attachment</th>
+                            <th>Action / Dispatch</th>
+                        </tr>
+                    </thead>
+                    <tbody>${hasRecords ? rows : `<tr><td colspan="7" class="text-muted py-4">No jobs currently in ${stageName} stage.</td></tr>`}</tbody>
                 </table>`;
-                document.getElementById('generic-stage-container').innerHTML = html;
+                let container = document.getElementById('generic-stage-container');
+                if(container) container.innerHTML = html;
             });
         }
 
-function viewStageAttachment(id) {
-            let plan = null;
-            let stdReelSize = 'N/A';
+        /* --- BALANCE PO TABLE RENDERER --- */
+        function renderBalancePOTable() {
+            let titleEl = document.getElementById('generic-tab-title');
+            if(titleEl) titleEl.innerHTML = "<i class='bi bi-exclamation-triangle-fill text-warning me-2'></i> Balance PO Queue";
             
-            // Find the plan from global object (which is grouped by size)
-            for (const key in globalAllPlans) { 
-                let f = globalAllPlans[key].find(x => x.id === id); 
-                if (f) { 
-                    plan = f; 
-                    stdReelSize = key; // Size key represents Standard Reel Size
-                    break; 
-                } 
-            }
-            
-            if(!plan) {
-                alert("Could not load plan details.");
-                return;
-            }
-
-            let prodCode = plan.product_code ? plan.product_code : '';
-            let prodName = plan.product_name ? plan.product_name : '';
-            let fullProdInfo = `${prodCode} ${prodName}`.trim() || 'N/A';
-
-            // 1. SET MODAL TITLE
-            let titleText = `<i class="bi bi-journal-text text-warning me-2"></i> PO: <span class="text-info">${plan.po_no}</span> | Cust: <span class="text-info">${plan.customer_name}</span> | Prod: <span class="text-info">${fullProdInfo}</span> | Qty: <span class="text-danger">${plan.qty}</span>`;
-            document.getElementById('attachmentModalTitle').innerHTML = titleText;
-
-            // 2. SET PRINT & DOWNLOAD BUTTONS
-            let actionBtns = `
-                <button class="btn btn-sm btn-outline-info me-2 fw-bold" onclick="printModalContent()"><i class="bi bi-printer-fill me-1"></i> Print Log</button>
-                <button class="btn btn-sm btn-outline-success fw-bold" onclick="downloadModalContent('${plan.po_no}')"><i class="bi bi-cloud-arrow-down-fill me-1"></i> Download File</button>
-            `;
-            document.getElementById('modalActionButtons').innerHTML = actionBtns;
-
-            // 3. RENDER BOARD PLANT DATA (PROFESSIONAL VIEW)
-            let bpData = plan.board_plant_form; 
-            let bpRowsHtml = '';
-            
-            if (bpData && typeof bpData === 'object' && Object.keys(bpData).length > 0) {
-                for (const [key, value] of Object.entries(bpData)) {
-                    // Format key to look nice (e.g. "cut_length" -> "Cut Length")
-                    let formattedKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-                    bpRowsHtml += `
+            fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
+                globalAllPlans = data;
+                let rows = '';
+                let hasRecords = false;
+                for (const [size, plans] of Object.entries(data)) {
+                    plans.filter(p => p.status === 'Balance PO').forEach(p => {
+                        hasRecords = true;
+                        rows += `
                         <tr>
-                            <th class="bg-light text-secondary w-50 small align-middle">${formattedKey}</th>
-                            <td class="fw-bold align-middle">${value || '-'}</td>
-                        </tr>
-                    `;
+                            <td class="fw-bold text-primary font-monospace">${p.po_no}</td>
+                            <td class="text-start">${p.customer_name}</td>
+                            <td class="fw-bold text-danger font-monospace">${size} cm</td>
+                            <td><span class="badge bg-dark">${p.ply} Ply</span></td>
+                            <td><span class="badge bg-warning text-dark fs-6">${p.qty} Pcs</span></td>
+                            <td><button class="btn btn-sm btn-primary fw-bold" onclick="validateAndTransferToBP(${p.id})">Re-Transfer to Board Plant</button></td>
+                        </tr>`;
+                    });
                 }
-            } else {
-                bpRowsHtml = `<tr><td colspan="2" class="text-center text-muted p-4"><i class="bi bi-exclamation-circle me-1"></i> Board Plant records are not available yet.</td></tr>`;
+                let html = `
+                <table class="table table-bordered table-striped align-middle text-center mb-0">
+                    <thead class="table-dark small text-uppercase font-monospace">
+                        <tr><th>PO No</th><th>Customer</th><th>Size</th><th>Ply</th><th>Balance Qty</th><th>Action</th></tr>
+                    </thead>
+                    <tbody>${hasRecords ? rows : `<tr><td colspan="6" class="text-muted py-4">No active Balance PO jobs pending.</td></tr>`}</tbody>
+                </table>`;
+                let container = document.getElementById('generic-stage-container');
+                if(container) container.innerHTML = html;
+            });
+        }
+
+        /* --- VIEW ATTACHMENT / LOG AUDIT MODAL --- */
+        function viewStageAttachment(id) {
+            let plan;
+            for (const key in globalAllPlans) {
+                let f = globalAllPlans[key].find(x => x.id === id);
+                if(f) { plan = f; break; }
             }
+            if(!plan) { alert("Job details not found!"); return; }
 
-            // Constructing the body UI
-            let bodyHtml = `
-            <div class="container-fluid p-0" id="printLogArea">
-                <style>
-                    /* Scoped print styles for this section */
-                    @media print {
-                        body * { visibility: hidden; }
-                        #printLogArea, #printLogArea * { visibility: visible; }
-                        #printLogArea { position: absolute; left: 0; top: 0; width: 100%; }
-                        .card { border: 1px solid #ccc !important; box-shadow: none !important; }
-                        th { background-color: #f8f9fa !important; }
-                    }
-                </style>
-                <div class="row g-4">
-                    <!-- General Details Panel -->
-                    <div class="col-lg-6">
-                        <div class="card shadow-sm border-primary h-100">
-                            <div class="card-header bg-primary text-white fw-bold d-flex align-items-center">
-                                <i class="bi bi-info-circle-fill me-2"></i> Master Job Information
-                            </div>
-                            <div class="card-body p-0">
-                                <table class="table table-bordered mb-0">
-                                    <tbody>
-                                        <tr><th class="bg-light small w-50">PO Number</th><td class="fw-bold text-primary">${plan.po_no}</td></tr>
-                                        <tr><th class="bg-light small">Customer Name</th><td class="fw-bold">${plan.customer_name}</td></tr>
-                                        <tr><th class="bg-light small">Product Info</th><td class="fw-semibold text-secondary">${fullProdInfo}</td></tr>
-                                        <tr><th class="bg-light small">Target Quantity</th><td><span class="badge bg-danger fs-6">${plan.qty} Pcs</span></td></tr>
-                                        <tr><th class="bg-light small">Standard Reel Size</th><td class="fw-bold text-success fs-6">${stdReelSize} cm</td></tr>
-                                        <tr><th class="bg-light small">Flute & Ply</th><td><span class="badge bg-secondary">${plan.flute || '-'}</span> | <span class="badge bg-dark">${plan.ply} Ply</span></td></tr>
-                                        <tr><th class="bg-light small">Current Stage</th><td><span class="badge bg-info text-dark">${plan.status || 'N/A'}</span></td></tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
+            let modalTitle = document.getElementById('attachmentModalTitle');
+            let modalBody = document.getElementById('attachmentModalBody');
+            let actionBtns = document.getElementById('modalActionButtons');
 
-                    <!-- Board Plant Data Panel -->
-                    <div class="col-lg-6">
-                        <div class="card shadow-sm border-dark h-100">
-                            <div class="card-header bg-dark text-white fw-bold d-flex align-items-center">
-                                <i class="bi bi-tools me-2 text-warning"></i> Board Plant Execution Data
-                            </div>
-                            <div class="card-body p-0 table-responsive" style="max-height: 400px;">
-                                <table class="table table-sm table-hover table-bordered mb-0">
-                                    <tbody>
-                                        ${bpRowsHtml}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
+            if(modalTitle) modalTitle.innerHTML = `<i class="bi bi-journal-text text-warning me-2"></i> Log Audit View - PO: ${plan.po_no}`;
+            
+            let logsHtml = `
+                <div class="card p-3 mb-3 border-0 shadow-sm bg-white">
+                    <h6 class="fw-bold text-primary border-bottom pb-2">Plan Summary Details</h6>
+                    <div class="row g-2 small">
+                        <div class="col-md-4"><strong>PO Number:</strong> ${plan.po_no}</div>
+                        <div class="col-md-4"><strong>Customer:</strong> ${plan.customer_name}</div>
+                        <div class="col-md-4"><strong>Product Code:</strong> ${plan.product_code || 'N/A'}</div>
+                        <div class="col-md-4"><strong>Reel Size:</strong> ${plan.selected_reel_size || 'N/A'} cm</div>
+                        <div class="col-md-4"><strong>Ply:</strong> ${plan.ply || 'N/A'}</div>
+                        <div class="col-md-4"><strong>Target Qty:</strong> ${plan.qty || 0} Pcs</div>
+                        <div class="col-md-4"><strong>Status:</strong> <span class="badge bg-success">${plan.status}</span></div>
                     </div>
                 </div>
-                
-                <!-- Additional Notes / Materials (Optional logic if needed) -->
-                <div class="row mt-4">
-                    <div class="col-12">
-                         <div class="alert alert-secondary border-secondary-subtle small mb-0">
-                             <i class="bi bi-clock-history me-1"></i> Data automatically fetched and compiled from Live Operations. Ensure physical audit matches the digital log.
-                         </div>
-                    </div>
-                </div>
-            </div>
             `;
 
-            document.getElementById('attachmentModalBody').innerHTML = bodyHtml;
-            
-            // Show the modal
-            let viewModal = new bootstrap.Modal(document.getElementById('viewAttachmentModal'));
-            viewModal.show();
+            if (plan.board_plant_form) {
+                logsHtml += `<div class="card p-3 mb-3 border-0 shadow-sm bg-white"><h6 class="fw-bold text-dark border-bottom pb-2">Board Plant Execution Log</h6><pre class="bg-light p-2 rounded small m-0">${JSON.stringify(plan.board_plant_form, null, 2)}</pre></div>`;
+            }
+            if (plan.printer_form) {
+                logsHtml += `<div class="card p-3 mb-3 border-0 shadow-sm bg-white"><h6 class="fw-bold text-dark border-bottom pb-2">Printer Stage Execution Log</h6><pre class="bg-light p-2 rounded small m-0">${JSON.stringify(plan.printer_form, null, 2)}</pre></div>`;
+            }
+            if (plan.diecut_form) {
+                logsHtml += `<div class="card p-3 mb-3 border-0 shadow-sm bg-white"><h6 class="fw-bold text-dark border-bottom pb-2">Die Cut Stage Execution Log</h6><pre class="bg-light p-2 rounded small m-0">${JSON.stringify(plan.diecut_form, null, 2)}</pre></div>`;
+            }
+            if (plan.semiauto_form) {
+                logsHtml += `<div class="card p-3 mb-3 border-0 shadow-sm bg-white"><h6 class="fw-bold text-dark border-bottom pb-2">Semi Auto Stage Execution Log</h6><pre class="bg-light p-2 rounded small m-0">${JSON.stringify(plan.semiauto_form, null, 2)}</pre></div>`;
+            }
+            if (plan.gluer_form) {
+                logsHtml += `<div class="card p-3 mb-3 border-0 shadow-sm bg-white"><h6 class="fw-bold text-dark border-bottom pb-2">Gluer Stage Execution Log</h6><pre class="bg-light p-2 rounded small m-0">${JSON.stringify(plan.gluer_form, null, 2)}</pre></div>`;
+            }
+            if (plan.stitching_form) {
+                logsHtml += `<div class="card p-3 mb-3 border-0 shadow-sm bg-white"><h6 class="fw-bold text-dark border-bottom pb-2">Stitching Stage Execution Log</h6><pre class="bg-light p-2 rounded small m-0">${JSON.stringify(plan.stitching_form, null, 2)}</pre></div>`;
+            }
+
+            if(modalBody) modalBody.innerHTML = logsHtml;
+            if(actionBtns) actionBtns.innerHTML = `<button class="btn btn-sm btn-outline-light fw-bold" onclick="window.print()"><i class="bi bi-printer me-1"></i> Print Audit Log</button>`;
+
+            let modalEl = document.getElementById('viewAttachmentModal');
+            if(modalEl) {
+                let modal = new bootstrap.Modal(modalEl);
+                modal.show();
+            }
         }
 
-        // Print function
-        function printModalContent() {
-            let printContent = document.getElementById('printLogArea').outerHTML;
-            let printWindow = window.open('', '_blank', 'width=1000,height=800');
-            printWindow.document.write(`
-                <html>
-                <head>
-                    <title>Print Production Log</title>
-                    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-                    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
-                    <style>
-                        body { padding: 30px; font-family: sans-serif; background: #fff !important; }
-                        table th { background-color: #f1f3f5 !important; }
-                        .card { border: 1px solid #dee2e6 !important; margin-bottom: 20px; }
-                        .card-header { padding: 10px 15px; font-weight: bold; border-bottom: 1px solid #dee2e6; }
-                        .bg-primary { background-color: #0d6efd !important; color: white !important; }
-                        .bg-dark { background-color: #212529 !important; color: white !important; }
-                    </style>
-                </head>
-                <body>
-                    <h3 class="border-bottom pb-2 mb-4 text-uppercase">Production Document & Log Audit</h3>
-                    ${printContent}
-                    <script>
-                        setTimeout(() => { 
-                            window.print(); 
-                            window.close(); 
-                        }, 500);
-                    <\/script>
-                </body>
-                </html>
-            `);
-            printWindow.document.close();
-        }
-
-        // Download HTML File function
-        function downloadModalContent(poNo) {
-            let printContent = document.getElementById('printLogArea').outerHTML;
-            let htmlTemplate = `
-                <html>
-                <head>
-                    <title>Log Audit - ${poNo}</title>
-                    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-                </head>
-                <body style="padding: 40px; background-color: #f8f9fa;">
-                    <h3 class="border-bottom pb-3 mb-4 text-center">Production Log Audit : ${poNo}</h3>
-                    <div style="max-width: 900px; margin: auto;">
-                        ${printContent}
-                    </div>
-                </body>
-                </html>
-            `;
-            
-            let blob = new Blob([htmlTemplate], { type: 'text/html' });
-            let url = URL.createObjectURL(blob);
-            let a = document.createElement('a');
-            a.href = url;
-            a.download = `Log_Audit_${poNo}.html`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }
-            // 2. Printers Stage Data Log
-            if(plan.printer_form) {
-                hasLogs = true;
-                let pr = plan.printer_form;
-                bodyHtml += `
-                    <div class="card border-start border-4 border-info shadow-sm mb-3">
-                        <div class="card-header bg-info-subtle text-info-emphasis fw-bold d-flex justify-content-between align-items-center">
-                            <span><i class="bi bi-printer me-1"></i> 2. Printers Stage Execution Audit</span>
-                            <span class="badge bg-info text-dark">${pr.pr_date || 'N/A'}</span>
-                        </div>
-                        <div class="card-body p-3 small">
-                            <div class="row g-3 mb-2">
-                                <div class="col-md-4"><strong>Selected Printers:</strong> ${pr.printer_select || '-'}</div>
-                                <div class="col-md-4"><strong>Finished Qty:</strong> <span class="fw-bold text-success">${pr.finished_qty || 0} Pcs</span></div>
-                                <div class="col-md-4"><strong>Balance Qty:</strong> <span class="fw-bold text-danger">${pr.balance_qty || 0} Pcs</span></div>
-                                <div class="col-md-3"><strong>Batch Number:</strong> ${pr.pr_Batch || '-'}</div>
-                                <div class="col-md-3"><strong>Plant BD Counter:</strong> ${pr.pr_plant || '-'}</div>
-                                <div class="col-md-3"><strong>Slot BDs Counter:</strong> ${pr.pr_slot || '-'}</div>
-                                <div class="col-md-3"><strong>QC Approval:</strong> <span class="badge ${pr.qc_app === 'Approved' ? 'bg-success':'bg-danger'}">${pr.qc_app || '-'}</span></div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }
-
-            // 3. Die Cut / Semi Auto Data Log
-            if(plan.diecut_form) {
-                hasLogs = true;
-                let dc = plan.diecut_form;
-                bodyHtml += `
-                    <div class="card border-start border-4 border-warning shadow-sm mb-3">
-                        <div class="card-header bg-warning-subtle text-dark fw-bold d-flex justify-content-between align-items-center">
-                            <span><i class="bi bi-scissors me-1"></i> 3. Die Cut Stage Execution Audit</span>
-                            <span class="badge bg-warning text-dark">${dc.stage_date || 'N/A'}</span>
-                        </div>
-                        <div class="card-body p-3 small">
-                            <div class="row g-2">
-                                <div class="col-md-3"><strong>Counter Qty:</strong> ${dc.dc_counter_qty || 0}</div>
-                                <div class="col-md-3"><strong>Finished Qty:</strong> ${dc.finished_qty || 0}</div>
-                                <div class="col-md-3"><strong>Damaged Qty:</strong> ${dc.dc_damaged_qty || 0}</div>
-                                <div class="col-md-3"><strong>EPF No:</strong> ${dc.dc_epf_no || '-'}</div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }
-
-            if(plan.semiauto_form) {
-                hasLogs = true;
-                let sa = plan.semiauto_form;
-                bodyHtml += `
-                    <div class="card border-start border-4 border-secondary shadow-sm mb-3">
-                        <div class="card-header bg-secondary-subtle text-dark fw-bold d-flex justify-content-between align-items-center">
-                            <span><i class="bi bi-gear-fill me-1"></i> 3. Semi Auto Stage Execution Audit</span>
-                            <span class="badge bg-secondary">${sa.stage_date || 'N/A'}</span>
-                        </div>
-                        <div class="card-body p-3 small">
-                            <div class="row g-2">
-                                <div class="col-md-4"><strong>Finished Qty:</strong> ${sa.finished_qty || 0}</div>
-                                <div class="col-md-4"><strong>Excess Qty:</strong> ${sa.sa_excess_qty || 0}</div>
-                                <div class="col-md-4"><strong>EPF No:</strong> ${sa.sa_epf_no || '-'}</div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }
-
-            // 4. Gluer / Stitching Stage Data Log
-            if(plan.gluer_form) {
-                hasLogs = true;
-                let gl = plan.gluer_form;
-                bodyHtml += `
-                    <div class="card border-start border-4 border-success shadow-sm mb-3">
-                        <div class="card-header bg-success-subtle text-success fw-bold d-flex justify-content-between align-items-center">
-                            <span><i class="bi bi-box-seam me-1"></i> 4. Gluer Stage Execution Audit</span>
-                            <span class="badge bg-success">${gl.stage_date || 'N/A'}</span>
-                        </div>
-                        <div class="card-body p-3 small">
-                            <div class="row g-2">
-                                <div class="col-md-4"><strong>Finished Qty:</strong> ${gl.finished_qty || 0}</div>
-                                <div class="col-md-4"><strong>Damaged Qty:</strong> ${gl.gl_damaged_qty || 0}</div>
-                                <div class="col-md-4"><strong>Excess Qty:</strong> ${gl.gl_excess_qty || 0}</div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }
-
-            if(plan.stitching_form) {
-                hasLogs = true;
-                let st = plan.stitching_form;
-                bodyHtml += `
-                    <div class="card border-start border-4 border-primary shadow-sm mb-3">
-                        <div class="card-header bg-primary-subtle text-primary fw-bold d-flex justify-content-between align-items-center">
-                            <span><i class="bi bi-card-checklist me-1"></i> 4. Stitching Stage Execution Audit</span>
-                            <span class="badge bg-primary">${st.stage_date || 'N/A'}</span>
-                        </div>
-                        <div class="card-body p-3 small">
-                            <div class="row g-2">
-                                <div class="col-md-4"><strong>Finished Qty:</strong> ${st.finished_qty || 0}</div>
-                                <div class="col-md-4"><strong>Damaged Qty:</strong> ${st.st_damaged_qty || 0}</div>
-                                <div class="col-md-4"><strong>Excess Qty:</strong> ${st.st_excess_qty || 0}</div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }
-
-            if(!hasLogs) {
-                bodyHtml += `<div class="alert alert-light border text-center text-muted py-4 shadow-sm"><i class="bi bi-info-circle me-1"></i> No detailed stage execution form records have been logged yet for this programme.</div>`;
-            }
-
-            document.getElementById('attachmentModalBody').innerHTML = bodyHtml;
-            const modalObj = bootstrap.Modal.getOrCreateInstance(document.getElementById('viewAttachmentModal'));
-            modalObj.show();
-        }
-
+        /* --- HISTORY AUDIT LOGS --- */
         function loadHistoryLogs(reset = false) {
             if(reset) {
-                document.getElementById('historyStartDate').value = '';
-                document.getElementById('historyEndDate').value = '';
-                document.getElementById('historySearchPO').value = '';
-                document.getElementById('historySearchCustomer').value = '';
+                if(document.getElementById('historyStartDate')) document.getElementById('historyStartDate').value = '';
+                if(document.getElementById('historyEndDate')) document.getElementById('historyEndDate').value = '';
+                if(document.getElementById('historySearchPO')) document.getElementById('historySearchPO').value = '';
+                if(document.getElementById('historySearchCustomer')) document.getElementById('historySearchCustomer').value = '';
             }
-            let sDate = document.getElementById('historyStartDate').value;
-            let eDate = document.getElementById('historyEndDate').value;
+            let startDate = document.getElementById('historyStartDate') ? document.getElementById('historyStartDate').value : '';
+            let endDate = document.getElementById('historyEndDate') ? document.getElementById('historyEndDate').value : '';
 
-            fetch(`/api/get_history_logs?start_date=${encodeURIComponent(sDate)}&end_date=${encodeURIComponent(eDate)}`)
+            fetch(`/api/get_history_logs?start_date=${startDate}&end_date=${endDate}`)
             .then(r => r.json())
             .then(data => {
                 let tbody = document.getElementById('historyLogsTableBody');
-                if(!data.success || !data.logs || data.logs.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="9" class="text-muted py-4">No historical audit logs found.</td></tr>`;
+                if(!tbody) return;
+                if(!data || data.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="9" class="text-muted py-4">No plan history audit logs found.</td></tr>`;
                     return;
                 }
                 let html = '';
-                data.logs.forEach(l => {
-                    let mats = (l.materials && Array.isArray(l.materials)) ? l.materials.map((m,i)=> `L${i+1}: ${m.gsm}-${m.name}`).join(', ') : '-';
+                data.forEach(log => {
                     html += `
                     <tr>
-                        <td class="font-monospace text-muted">${l.timestamp || '-'}</td>
-                        <td class="fw-bold text-primary font-monospace">${l.po_no || '-'}</td>
-                        <td class="text-start">${l.customer_name || '-'}</td>
-                        <td>${l.selected_reel_size || '-'} cm</td>
-                        <td><span class="badge bg-secondary">${l.ply || 3} Ply</span></td>
-                        <td><span class="badge bg-success">${l.qty || 0}</span></td>
-                        <td class="text-start font-monospace small">${mats}</td>
-                        <td><span class="badge bg-dark">${l.status || 'Dispatched'}</span></td>
-                        <td class="fw-bold text-danger font-monospace">${l.ad_number || '-'}</td>
+                        <td class="small font-monospace">${log.timestamp || 'N/A'}</td>
+                        <td class="fw-bold text-primary font-monospace">${log.po_no || 'N/A'}</td>
+                        <td class="fw-semibold text-start">${log.customer_name || 'N/A'}</td>
+                        <td class="font-monospace">${log.selected_reel_size || 'N/A'} cm</td>
+                        <td><span class="badge bg-secondary">${log.ply || 'N/A'} Ply</span></td>
+                        <td><span class="badge bg-success">${log.qty || 0} Pcs</span></td>
+                        <td class="small font-monospace text-start">${log.materials_build || 'N/A'}</td>
+                        <td><span class="badge bg-dark">${log.status || 'N/A'}</span></td>
+                        <td class="fw-bold font-monospace text-danger">${log.ad_number || 'N/A'}</td>
                     </tr>`;
                 });
                 tbody.innerHTML = html;
+            })
+            .catch(err => {
+                console.error("Error loading history logs:", err);
+                let tbody = document.getElementById('historyLogsTableBody');
+                if(tbody) tbody.innerHTML = `<tr><td colspan="9" class="text-danger py-4">Error loading history logs.</td></tr>`;
             });
         }
 
-        // Socket Listeners for Real-time Refresh
-        socket.on('plan_transferred', function(data) { renderRuntimePlansTable(); });
-        socket.on('programme_plan_saved', function(data) { renderRuntimePlansTable(); });
-
-        // Initial Load
+        /* --- AUTOMATIC INITIALIZATION ON DOM CONTENT LOADED --- */
         document.addEventListener('DOMContentLoaded', function() {
-            renderRuntimePlansTable();
+            if (currentRole === 'viscor01' || currentRole === 'packwell01') {
+                renderBoardPlantTable();
+            } else if (currentRole === 'viscor02' || currentRole === 'packwell02') {
+                renderPrintersTable();
+            } else if (currentRole === 'viscor03' || currentRole === 'packwell03') {
+                renderDieCutSemiAutoTable();
+            } else if (currentRole === 'viscor04' || currentRole === 'packwell04') {
+                renderFinishingTable();
+            } else if (currentRole === 'viscor05' || currentRole === 'packwell05') {
+                renderGenericTable('Finished Goods');
+            } else {
+                renderRuntimePlansTable();
+            }
+        });
+
+        /* --- REALTIME SOCKET RE-RENDER LISTENER --- */
+        socket.on('update_plans', () => {
+            if (currentRole === 'viscor01' || currentRole === 'packwell01') renderBoardPlantTable();
+            else if (currentRole === 'viscor02' || currentRole === 'packwell02') renderPrintersTable();
+            else if (currentRole === 'viscor03' || currentRole === 'packwell03') renderDieCutSemiAutoTable();
+            else if (currentRole === 'viscor04' || currentRole === 'packwell04') renderFinishingTable();
+            else if (currentRole === 'viscor05' || currentRole === 'packwell05') renderGenericTable('Finished Goods');
+            else renderRuntimePlansTable();
         });
     </script>
 </body>
