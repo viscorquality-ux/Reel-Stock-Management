@@ -994,12 +994,17 @@
             let newCust = document.getElementById('transfer_new_customer').value.trim();
             let reason = document.getElementById('transfer_reason').value.trim();
 
+            // Plan ID එක හිස් දැයි පරීක්ෂා කිරීම
+            if(!id) {
+                alert("⚠️ දෝෂයකි: Plan ID එක හමුවී නැත. කරුණාකර නැවත උත්සාහ කරන්න.");
+                return;
+            }
+
             if(!newPo || !reason) {
                 alert("New PO Number and Reason are required fields!");
                 return;
             }
 
-            // Backend එක බලාපොරොත්තු වන විවිධ Key නාමයන් (Aliases) මඟින් 500 Error එක වැළැක්වීම
             let payload = {
                 id: id,
                 plan_id: id,
@@ -1013,6 +1018,9 @@
                 reason: reason
             };
 
+            // දත්ත නිවැරදිව යොමු වේදැයි බැලීමට Console එකට දමයි
+            console.log("Sending transfer payload:", payload);
+
             fetch('/api/transfer_order_identity', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
@@ -1024,7 +1032,8 @@
                 try {
                     data = JSON.parse(text);
                 } catch (e) {
-                    throw new Error(`Server Error (500 Internal Error): ${text.substring(0, 100)}...`);
+                    // Server එකෙන් HTML 500 Error page එකක් ආ විට එය මෙහිදී අල්ලාගත හැක
+                    throw new Error(`Server Error (500 Internal Error): Server කේතය තුළ දෝෂයක් පවතී. පිළිතුර: ${text.substring(0, 150)}...`);
                 }
                 if (!response.ok) {
                     throw new Error(data.message || `Server returned status ${response.status}`);
@@ -1032,16 +1041,15 @@
                 return data;
             })
             .then(res => {
-                if(res.success) {
+                if(res && res.success) {
                     alert("✅ Order Transferred Successfully!");
                     if(transferModalInstance) {
                         transferModalInstance.hide();
                     }
-                    // දත්ත යාවත්කාලීන කිරීම සඳහා Active Tab එක රෙෆ්‍රෙෂ් කිරීම
                     let activeTab = document.querySelector('.nav-link.active');
                     if(activeTab) activeTab.click();
                 } else {
-                    alert("❌ " + (res.message || "Transfer failed."));
+                    alert("❌ " + (res ? res.message : "Transfer failed."));
                 }
             })
             .catch(err => {
