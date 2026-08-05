@@ -404,6 +404,7 @@
             let newPo = prompt("Enter NEW PO Number for this transfer:");
             if(!newPo) return;
             let newCust = prompt("Enter NEW Customer Reference ID / Name:");
+            if(!newCust) return;
             let newCode = prompt("Enter NEW Product Match Code (Optional):") || "";
 
             if(confirm(`Are you sure you want to transfer this manufactured board to NEW PO: ${newPo}?`)) {
@@ -418,23 +419,38 @@
                         stage: currentStage
                     })
                 })
-                .then(r => {
+                .then(async r => {
+                    if (r.status === 404) {
+                        // Safe fallback if transfer_order_to_another isn't present
+                        return fetch('/api/transfer_plan', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({
+                                id: planId,
+                                status: currentStage,
+                                new_po_no: newPo,
+                                new_customer: newCust,
+                                new_product_code: newCode,
+                                is_transfer: true
+                            })
+                        }).then(res => res.json());
+                    }
                     if (!r.ok) {
                         throw new Error("HTTP Status " + r.status);
                     }
                     return r.json();
                 })
                 .then(res => {
-                    if(res.success) {
+                    if(res && res.success) {
                         alert("✅ Order successfully transferred and View Log updated!");
                         let activeTab = document.querySelector('.nav-link.active');
                         if (activeTab) activeTab.click();
                     } else {
-                        alert("❌ Transfer failed: " + res.message);
+                        alert("❌ Transfer failed: " + (res ? res.message : "Unknown Error"));
                     }
                 })
                 .catch(err => {
-                    alert("❌ Server Error during transfer. Backend feature might be temporarily unavailable.");
+                    alert("⚠️ Transfer Endpoint Notice: " + err.message + "\n(Please register '/api/transfer_order_to_another' in Python backend if required)");
                     console.error("Endpoint Error:", err);
                 });
             }
@@ -455,11 +471,11 @@
             if(!plan) return;
             
             let html = `
-                <div class="alert alert-info">
-                    <h5 class="fw-bold"><i class="bi bi-rulers"></i> Initial Reel Size: ${reelSize} cm</h5>
-                    <p class="mb-0 small">This size is derived directly from the Active Operation Size Band.</p>
+                <div class="alert alert-info border-0 shadow-sm">
+                    <h5 class="fw-bold mb-1"><i class="bi bi-rulers"></i> Initial Reel Size: ${reelSize} cm</h5>
+                    <p class="mb-0 small">PO Number: <strong>${plan.po_no || 'N/A'}</strong> | Customer: <strong>${plan.customer_name || 'N/A'}</strong></p>
                 </div>
-                <div id="dynamic-log-content">Fetching logs...</div>
+                <div id="dynamic-log-content" class="p-3 bg-white border rounded">Fetching logs...</div>
             `;
             
             document.getElementById('attachmentModalBody').innerHTML = html;
@@ -468,10 +484,10 @@
                 if(res.success && res.html) {
                     document.getElementById('dynamic-log-content').innerHTML = res.html;
                 } else {
-                    document.getElementById('dynamic-log-content').innerHTML = "<p class='text-muted'>Log details loaded.</p>";
+                    document.getElementById('dynamic-log-content').innerHTML = "<p class='text-muted mb-0'><i class='bi bi-info-circle me-1'></i> Log details loaded or no prior logs recorded.</p>";
                 }
             }).catch(e => {
-                document.getElementById('dynamic-log-content').innerHTML = "<p class='text-muted'>No additional logs found or backend not ready.</p>";
+                document.getElementById('dynamic-log-content').innerHTML = "<p class='text-muted mb-0'><i class='bi bi-info-circle me-1'></i> No additional logs found or backend log endpoint ready.</p>";
             });
 
             new bootstrap.Modal(document.getElementById('viewAttachmentModal')).show();
@@ -1097,10 +1113,12 @@
                         let actHtml = canAct('Live Planning') ? 
                             `<div class="d-flex align-items-center justify-content-center gap-1">
                                 <button class="btn btn-sm btn-primary px-2 py-0 fw-bold" onclick="validateAndTransferToBP(${p.id})">Transfer Board Plant</button>
+                                <button class="btn btn-sm btn-info text-white px-2 py-0 fw-bold" onclick="viewStageAttachment(${p.id})" title="View Stage Log"><i class="bi bi-eye"></i> Log</button>
                                 <button class="btn btn-sm btn-outline-danger px-2 py-0 fw-bold" onclick="closeFormRow('live_plan_row_${p.id}')" title="Close Row"><i class="bi bi-x-lg"></i></button>
                             </div>` : 
                             `<div class="d-flex align-items-center justify-content-center gap-1">
                                 <span class="badge bg-secondary px-3 py-2">View Only</span>
+                                <button class="btn btn-sm btn-info text-white px-2 py-0 fw-bold" onclick="viewStageAttachment(${p.id})" title="View Stage Log"><i class="bi bi-eye"></i> Log</button>
                                 <button class="btn btn-sm btn-outline-danger px-2 py-0 fw-bold" onclick="closeFormRow('live_plan_row_${p.id}')" title="Close Row"><i class="bi bi-x-lg"></i></button>
                             </div>`;
                             
@@ -1185,9 +1203,14 @@
                         let safeRowPri = (p.row_priority && !isNaN(p.row_priority)) ? p.row_priority : '';
                         let actHtml = canAct('Board Plant') ? `
                             <div class="d-flex flex-column gap-1 justify-content-center">
-                                <button class="btn btn-sm btn-success fw-bold px-3 py-1 shadow-sm" onclick="showBoardPlantForm(${p.id})"><i class="bi bi-card-checklist me-1"></i> Job Card</button>
-                                <button class="btn btn-sm btn-warning fw-bold px-3 py-1 shadow-sm text-dark" onclick="initiateOrderTransfer(${p.id}, 'Board Plant')"><i class="bi bi-arrow-left-right me-1"></i> Transfer</button>
-                            </div>` : `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
+                                <button class="btn btn-sm btn-success fw-bold px-2 py-1 shadow-sm" onclick="showBoardPlantForm(${p.id})"><i class="bi bi-card-checklist me-1"></i> Job Card</button>
+                                <button class="btn btn-sm btn-info text-white fw-bold px-2 py-1 shadow-sm" onclick="viewStageAttachment(${p.id})"><i class="bi bi-eye me-1"></i> View Log</button>
+                                <button class="btn btn-sm btn-warning fw-bold px-2 py-1 shadow-sm text-dark" onclick="initiateOrderTransfer(${p.id}, 'Board Plant')"><i class="bi bi-arrow-left-right me-1"></i> Transfer</button>
+                            </div>` : `
+                            <div class="d-flex flex-column gap-1 justify-content-center">
+                                <span class="badge bg-secondary px-3 py-2">View Only</span>
+                                <button class="btn btn-sm btn-info text-white fw-bold px-2 py-1 shadow-sm" onclick="viewStageAttachment(${p.id})"><i class="bi bi-eye me-1"></i> View Log</button>
+                            </div>`;
 
                         contentHtml += `
                         <tr>
@@ -1291,7 +1314,15 @@
                 for (const [size, plans] of Object.entries(data)) {
                     plans.filter(p => p.status === 'Printers').forEach(p => {
                         hasAnyRecords = true;
-                        let actHtml = canAct('Printers') ? `<button class="btn btn-sm btn-success fw-bold px-3 py-1 shadow-sm" onclick="showPrinterForm(${p.id})">Process Card</button>` : `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
+                        let actHtml = canAct('Printers') ? `
+                            <div class="d-flex gap-1 justify-content-center">
+                                <button class="btn btn-sm btn-success fw-bold px-3 py-1 shadow-sm" onclick="showPrinterForm(${p.id})">Process Card</button>
+                                <button class="btn btn-sm btn-info text-white fw-bold px-2 py-1 shadow-sm" onclick="viewStageAttachment(${p.id})"><i class="bi bi-eye"></i> Log</button>
+                            </div>` : `
+                            <div class="d-flex gap-1 justify-content-center">
+                                <span class="badge bg-secondary px-3 py-2">View Only</span>
+                                <button class="btn btn-sm btn-info text-white fw-bold px-2 py-1 shadow-sm" onclick="viewStageAttachment(${p.id})"><i class="bi bi-eye"></i> Log</button>
+                            </div>`;
                         html += `<tr>
                             <td class="fw-bold text-primary">${p.po_no}</td>
                             <td>${p.customer_name}</td>
@@ -1361,7 +1392,15 @@
                     plans.filter(p => p.status === 'Die Cut' || p.status === 'Semi Auto').forEach(p => {
                         hasAnyRecords = true;
                         let fnCall = p.status === 'Die Cut' ? `showDieCutForm(${p.id})` : `showSemiAutoForm(${p.id})`;
-                        let actHtml = canAct(p.status) ? `<button class="btn btn-sm btn-success fw-bold px-3 py-1 shadow-sm" onclick="${fnCall}">Process Card</button>` : `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
+                        let actHtml = canAct(p.status) ? `
+                            <div class="d-flex gap-1 justify-content-center">
+                                <button class="btn btn-sm btn-success fw-bold px-3 py-1 shadow-sm" onclick="${fnCall}">Process Card</button>
+                                <button class="btn btn-sm btn-info text-white fw-bold px-2 py-1 shadow-sm" onclick="viewStageAttachment(${p.id})"><i class="bi bi-eye"></i> Log</button>
+                            </div>` : `
+                            <div class="d-flex gap-1 justify-content-center">
+                                <span class="badge bg-secondary px-3 py-2">View Only</span>
+                                <button class="btn btn-sm btn-info text-white fw-bold px-2 py-1 shadow-sm" onclick="viewStageAttachment(${p.id})"><i class="bi bi-eye"></i> Log</button>
+                            </div>`;
                         html += `<tr>
                             <td class="fw-bold text-primary">${p.po_no}</td>
                             <td>${p.customer_name}</td>
@@ -1468,7 +1507,15 @@
                     plans.filter(p => p.status === 'Gluer' || p.status === 'Stitching').forEach(p => {
                         hasAnyRecords = true;
                         let fnCall = p.status === 'Gluer' ? `showGluerForm(${p.id})` : `showStitchingForm(${p.id})`;
-                        let actHtml = canAct(p.status) ? `<button class="btn btn-sm btn-success fw-bold px-3 py-1 shadow-sm" onclick="${fnCall}">Process Card</button>` : `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
+                        let actHtml = canAct(p.status) ? `
+                            <div class="d-flex gap-1 justify-content-center">
+                                <button class="btn btn-sm btn-success fw-bold px-3 py-1 shadow-sm" onclick="${fnCall}">Process Card</button>
+                                <button class="btn btn-sm btn-info text-white fw-bold px-2 py-1 shadow-sm" onclick="viewStageAttachment(${p.id})"><i class="bi bi-eye"></i> Log</button>
+                            </div>` : `
+                            <div class="d-flex gap-1 justify-content-center">
+                                <span class="badge bg-secondary px-3 py-2">View Only</span>
+                                <button class="btn btn-sm btn-info text-white fw-bold px-2 py-1 shadow-sm" onclick="viewStageAttachment(${p.id})"><i class="bi bi-eye"></i> Log</button>
+                            </div>`;
                         html += `<tr>
                             <td class="fw-bold text-primary">${p.po_no}</td>
                             <td>${p.customer_name}</td>
@@ -1582,7 +1629,10 @@
                         hasRecords = true;
                         html += `<tr>
                             <td class="fw-bold">${p.po_no}</td><td>${p.customer_name}</td><td>${size} cm</td><td><span class="badge bg-danger">${p.qty}</span></td>
-                            <td><button class="btn btn-sm btn-success fw-bold" onclick="transferPlan(${p.id}, 'Board Plant')">Re-enter Board Plant</button></td>
+                            <td>
+                                <button class="btn btn-sm btn-success fw-bold me-1" onclick="transferPlan(${p.id}, 'Board Plant')">Re-enter Board Plant</button>
+                                <button class="btn btn-sm btn-info text-white fw-bold" onclick="viewStageAttachment(${p.id})"><i class="bi bi-eye"></i> Log</button>
+                            </td>
                         </tr>`;
                     });
                 }
@@ -1602,7 +1652,15 @@
                 for (const [size, plans] of Object.entries(data)) {
                     plans.filter(p => p.status === 'Finished Goods').forEach(p => {
                         hasRecords = true;
-                        let actHtml = canAct('Finished Goods') ? `<button class="btn btn-sm btn-primary fw-bold px-3 py-1" onclick="transferPlan(${p.id}, 'Dispatched')">Mark Dispatched</button>` : `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
+                        let actHtml = canAct('Finished Goods') ? `
+                            <div class="d-flex gap-1 justify-content-center">
+                                <button class="btn btn-sm btn-primary fw-bold px-3 py-1" onclick="transferPlan(${p.id}, 'Dispatched')">Mark Dispatched</button>
+                                <button class="btn btn-sm btn-info text-white fw-bold px-2 py-1 shadow-sm" onclick="viewStageAttachment(${p.id})"><i class="bi bi-eye"></i> Log</button>
+                            </div>` : `
+                            <div class="d-flex gap-1 justify-content-center">
+                                <span class="badge bg-secondary px-3 py-2">View Only</span>
+                                <button class="btn btn-sm btn-info text-white fw-bold px-2 py-1 shadow-sm" onclick="viewStageAttachment(${p.id})"><i class="bi bi-eye"></i> Log</button>
+                            </div>`;
                         html += `<tr>
                             <td class="fw-bold text-success">${p.po_no}</td><td>${p.customer_name}</td><td>${size} cm</td><td><span class="badge bg-success">${p.qty}</span></td>
                             <td>${actHtml}</td>
