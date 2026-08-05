@@ -2081,55 +2081,369 @@
         function viewStageAttachment(id) {
             let plan = null;
             for (const key in globalAllPlans) {
-                let f = globalAllPlans[key].find(x => x.id === id);
-                if(f) { plan = f; break; }
+                let found = globalAllPlans[key].find(x => x.id === id);
+                if (found) { plan = found; break; }
             }
-            if(!plan) return;
+            
+            if (!plan) {
+                fetch(`/api/get_plan_details?id=${id}`)
+                    .then(r => r.json())
+                    .then(res => {
+                        if(res.success && res.plan) buildAndShowAttachmentModal(res.plan);
+                        else alert("Unable to load stage job details.");
+                    })
+                    .catch(() => alert("Error loading details."));
+                return;
+            }
+            
+            buildAndShowAttachmentModal(plan);
+        }
 
-            fetch(`/api/get_plan_details?id=${id}`).then(r=>r.json()).then(res => {
-                let p = res.success && res.plan ? res.plan : plan;
-                let logsHtml = '';
-                
-                if (p.transfer_history && p.transfer_history.length > 0) {
-                    logsHtml += `<div class="alert alert-warning mb-3 shadow-sm border-warning">
-                        <h6 class="fw-bold text-dark"><i class="bi bi-arrow-left-right text-warning"></i> Order Transfer History (Emergency Usage)</h6>
-                        <ul class="mb-0 small text-dark font-monospace">`;
-                    p.transfer_history.forEach(th => {
-                        logsHtml += `<li class="mt-1">Transferred from PO <strong class="text-danger">${th.old_po}</strong> to <strong class="text-success">${th.new_po}</strong><br>Reason: ${th.reason} | Date: ${th.date}</li>`;
-                    });
-                    logsHtml += `</ul></div>`;
+        function buildAndShowAttachmentModal(plan) {
+            currentAttachmentPlan = plan;
+            
+            let poNo = plan.po_no || 'N/A';
+            let custProd = `${plan.customer_name || 'N/A'} - ${plan.product_name || plan.product_code || ''}`;
+            let qty = plan.qty || 0;
+            let reelSize = plan.selected_reel_size || plan.Sheet_size || '-';
+            
+            // Required Header Title format: PO No , Customer Name & Product , Qty and Reel Size
+            let titleHtml = `<div class="d-flex flex-wrap gap-2 align-items-center font-monospace fs-6 text-white">
+                <span class="badge bg-warning text-dark"><i class="bi bi-hash"></i> PO: ${poNo}</span>
+                <span class="badge bg-primary"><i class="bi bi-person"></i> ${custProd}</span>
+                <span class="badge bg-success"><i class="bi bi-box-seam"></i> Qty: ${qty} Pcs</span>
+                <span class="badge bg-info text-dark"><i class="bi bi-disc"></i> Reel Size: ${plan.SheetSize} cm</span>
+            </div>`;
+            
+            document.getElementById('attachmentModalTitle').innerHTML = titleHtml;
+            
+            let actionBtnsHtml = `
+                <button class="btn btn-sm btn-outline-light fw-bold me-2" onclick="printAttachmentCard()">
+                    <i class="bi bi-printer me-1"></i> Print Job Card
+                </button>
+                <button class="btn btn-sm btn-warning text-dark fw-bold" onclick="downloadAttachmentCard()">
+                    <i class="bi bi-download me-1"></i> Download Job Card
+                </button>
+            `;
+            document.getElementById('modalActionButtons').innerHTML = actionBtnsHtml;
+            
+            let bodyHtml = `<div id="printableJobCard" class="bg-white p-4 rounded-3 shadow-sm border">`;
+            
+            bodyHtml += `
+            <div class="card border-primary mb-4">
+                <div class="card-header bg-primary text-white fw-bold d-flex justify-content-between align-items-center py-2">
+                    <span><i class="bi bi-card-heading me-2"></i> PROFESSIONAL JOB HISTORY CARD</span>
+                    <span class="badge bg-light text-primary font-monospace fs-6">Current Stage: ${plan.status || 'Active'}</span>
+                </div>
+                <div class="card-body bg-light-subtle">
+                    <div class="row g-3 text-start">
+                        <div class="col-md-3"><strong>PO Number:</strong> <span class="text-primary font-monospace fw-bold">${poNo}</span></div>
+                        <div class="col-md-5"><strong>Customer & Product:</strong> <span class="fw-semibold">${custProd}</span></div>
+                        <div class="col-md-2"><strong>Target Qty:</strong> <span class="badge bg-primary fs-6">${qty} Pcs</span></div>
+                        <div class="col-md-2"><strong>Reel Size:</strong> <span class="badge bg-dark fs-6">${reelSize} cm</span></div>
+                        <div class="col-md-3"><strong>Ply:</strong> ${plan.ply || 3} Ply</div>
+                        <div class="col-md-3"><strong>Flute:</strong> ${plan.flute || 'N/A'}</div>
+                        <div class="col-md-3"><strong>Cut Length:</strong> ${plan.cut_length || 'N/A'} cm</div>
+                        <div class="col-md-3"><strong>Ups Factor:</strong> ${plan.selected_ups || 1} Ups</div>
+                    </div>
+                </div>
+            </div>`;
+            
+            // Step 1: Programme Plan Initial Setup
+            bodyHtml += `
+            <div class="card border-secondary mb-3 shadow-sm">
+                <div class="card-header bg-dark text-white fw-bold py-2">
+                    <i class="bi bi-sliders me-2 text-warning"></i> STEP 1: PROGRAMME PLAN & REEL MATRIX SPECIFICATIONS
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered text-center align-middle mb-0">
+                            <thead class="table-light">
+                                <tr><th>Layer Target</th><th>GSM Spec</th><th>Paper Name / Type</th></tr>
+                            </thead>
+                            <tbody>`;
+            if (plan.materials && Array.isArray(plan.materials)) {
+                plan.materials.forEach((m, idx) => {
+                    bodyHtml += `<tr><td class="fw-bold">Layer ${idx+1}</td><td>${m.gsm || '-'} GSM</td><td class="text-primary fw-bold">${m.name || '-'}</td></tr>`;
+                });
+            } else {
+                bodyHtml += `<tr><td colspan="3" class="text-muted">No material combination data recorded</td></tr>`;
+            }
+            bodyHtml += `</tbody></table></div></div></div>`;
+            
+            // Step 2: Board Plant Stage Data
+            let bp = plan.board_plant_form || (plan.stage_data && plan.stage_data.board_plant);
+            if (bp) {
+                bodyHtml += `
+                <div class="card border-success mb-3 shadow-sm">
+                    <div class="card-header bg-success text-white fw-bold py-2">
+                        <i class="bi bi-tools me-2"></i> STEP 2: BOARD PLANT STAGE AUDIT
+                    </div>
+                    <div class="card-body bg-light-subtle">
+                        <div class="row g-2 mb-3 text-start small">
+                            <div class="col-md-3"><strong>Date:</strong> ${bp.bp_date || '-'}</div>
+                            <div class="col-md-3"><strong>Serial No:</strong> ${bp.serial_no || '-'}</div>
+                            <div class="col-md-3"><strong>Slit Size:</strong> ${bp.slit_size || '-'} cm</div>
+                            <div class="col-md-3"><strong>Cut Length:</strong> ${bp.cut_length || '-'} cm</div>
+                            <div class="col-md-3"><strong>Pass/Fail:</strong> <span class="badge ${bp.pass_fail==='Pass'?'bg-success':'bg-danger'}">${bp.pass_fail || '-'}</span></div>
+                            <div class="col-md-3"><strong>Counter Qty:</strong> ${bp.counter_qty || 0}</div>
+                            <div class="col-md-3"><strong>Add Qty Feed:</strong> ${bp.add_qty || 0}</div>
+                            <div class="col-md-3"><strong>Excess Qty:</strong> ${bp.excess || 0}</div>
+                            <div class="col-md-3"><strong>Damaged Qty:</strong> ${bp.damaged || 0}</div>
+                            <div class="col-md-3"><strong>EPF No:</strong> ${bp['EPF No'] || bp.epf_no || '-'}</div>
+                        </div>
+                        
+                        <h6 class="fw-bold text-success border-bottom pb-1 small"><i class="bi bi-card-list me-1"></i> Paper Reel Allocation Audit</h6>
+                        <div class="table-responsive mb-2">
+                            <table class="table table-sm table-bordered text-center align-middle mb-0 font-monospace small">
+                                <thead class="table-secondary"><tr><th>Layer</th><th>Reel No</th><th>Reel Name</th></tr></thead>
+                                <tbody>`;
+                for (let i = 1; i <= 5; i++) {
+                    if (bp[`reel_no_${i}`] || bp[`reel_name_${i}`]) {
+                        bodyHtml += `<tr><td>Layer ${i}</td><td>${bp[`reel_no_${i}`] || '-'}</td><td class="text-primary">${bp[`reel_name_${i}`] || '-'}</td></tr>`;
+                    }
                 }
+                bodyHtml += `</tbody></table></div>
 
-                if(p.logs && p.logs.length > 0) {
-                    logsHtml += `<ul class="list-group list-group-flush shadow-sm border rounded">`;
-                    p.logs.forEach(l => {
-                        logsHtml += `<li class="list-group-item">
-                            <div class="d-flex w-100 justify-content-between">
-                                <strong class="text-primary">${l.stage}</strong>
-                                <small class="text-muted">${l.timestamp}</small>
-                            </div>
-                            <p class="mb-1 small">${l.details}</p>
-                        </li>`;
-                    });
-                    logsHtml += `</ul>`;
-                } else {
-                    logsHtml += `<p class="text-muted text-center p-3 border rounded bg-white">No detailed audit logs available yet.</p>`;
-                }
-                
-                document.getElementById('attachmentModalTitle').innerHTML = `<i class="bi bi-journal-text text-warning me-2"></i> Log Audit View - ${p.po_no}`;
-                document.getElementById('attachmentModalBody').innerHTML = logsHtml;
-                
-                let modalEl = document.getElementById('viewAttachmentModal');
-                let modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
-                modal.show();
-            }).catch(e => {
-                console.error("Error fetching logs, using local fallback", e);
-                let fallbackHtml = `<p class="text-muted text-center p-3 border rounded bg-white">Log fetch failed, check connection.</p>`;
-                document.getElementById('attachmentModalBody').innerHTML = fallbackHtml;
-                let modalEl = document.getElementById('viewAttachmentModal');
-                let modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
-                modal.show();
-            });
+                        <h6 class="fw-bold text-success border-bottom pb-1 small mt-3"><i class="bi bi-shield-check me-1"></i> Quality Check & Specification Approval</h6>
+                        <div class="row g-2 text-start small">
+                            <div class="col-md-3"><strong>Measurement:</strong> ${bp.qc_measurement || '-'}</div>
+                            <div class="col-md-3"><strong>Caliper:</strong> ${bp.qc_caliper || '-'}</div>
+                            <div class="col-md-3"><strong>Combination:</strong> ${bp.qc_combination || '-'}</div>
+                            <div class="col-md-3"><strong>Flute:</strong> ${bp.qc_flute || '-'}</div>
+                            <div class="col-md-3"><strong>Creasing:</strong> ${bp.qc_creasing || '-'}</div>
+                            <div class="col-md-3"><strong>Visual Defects:</strong> ${bp.qc_visual || '-'}</div>
+                            <div class="col-md-3"><strong>QC Overall Approval:</strong> <span class="badge ${bp.qc_app==='Approved'?'bg-success':'bg-danger'}">${bp.qc_app || '-'}</span></div>
+                        </div>
+                    </div>
+                </div>`;
+            }
+            
+            // Step 3: Printers Stage Data
+            let pr = plan.printer_form || (plan.stage_data && plan.stage_data.printer);
+            if (pr) {
+                bodyHtml += `
+                <div class="card border-info mb-3 shadow-sm">
+                    <div class="card-header bg-info text-white fw-bold py-2">
+                        <i class="bi bi-printer me-2"></i> STEP 3: PRINTERS STAGE AUDIT
+                    </div>
+                    <div class="card-body bg-light-subtle">
+                        <div class="row g-2 mb-3 text-start small">
+                            <div class="col-md-3"><strong>Date:</strong> ${pr.pr_date || '-'}</div>
+                            <div class="col-md-3"><strong>Printer Machines:</strong> ${pr.printer_select || '-'}</div>
+                            <div class="col-md-3"><strong>Pass/Fail:</strong> <span class="badge ${pr.pr_pass==='Pass'?'bg-success':'bg-danger'}">${pr.pr_pass || '-'}</span></div>
+                            <div class="col-md-3"><strong>Finished Qty:</strong> ${pr.finished_qty || 0}</div>
+                            <div class="col-md-3"><strong>Balance Qty:</strong> <span class="text-danger fw-bold">${pr.balance_qty || 0}</span></div>
+                            <div class="col-md-3"><strong>Plant BD Counter:</strong> ${pr.pr_plant || '-'}</div>
+                            <div class="col-md-3"><strong>Slot BDs Counter:</strong> ${pr.pr_slot || '-'}</div>
+                            <div class="col-md-3"><strong>Batch No:</strong> ${pr.pr_Batch || '-'}</div>
+                        </div>
+                        
+                        <h6 class="fw-bold text-info border-bottom pb-1 small"><i class="bi bi-shield-check me-1"></i> Quality Check & Artwork Audit</h6>
+                        <div class="row g-2 text-start small">
+                            <div class="col-md-3"><strong>Measurement:</strong> ${pr.qc_measurement || '-'}</div>
+                            <div class="col-md-3"><strong>Caliper:</strong> ${pr.qc_caliper || '-'}</div>
+                            <div class="col-md-3"><strong>Combination:</strong> ${pr.qc_combination || '-'}</div>
+                            <div class="col-md-3"><strong>QC Approval:</strong> <span class="badge ${pr.qc_app==='Approved'?'bg-success':'bg-danger'}">${pr.qc_app || '-'}</span></div>
+                        </div>
+                    </div>
+                </div>`;
+            }
+            
+            // Step 4: Die Cut Stage Data
+            let dc = plan.diecut_form || (plan.stage_data && plan.stage_data.diecut);
+            if (dc) {
+                bodyHtml += `
+                <div class="card border-warning mb-3 shadow-sm">
+                    <div class="card-header bg-warning text-dark fw-bold py-2">
+                        <i class="bi bi-scissors me-2"></i> STEP 4: DIECUT STAGE AUDIT
+                    </div>
+                    <div class="card-body bg-light-subtle">
+                        <div class="row g-2 text-start small">
+                            <div class="col-md-3"><strong>Date:</strong> ${dc.stage_date || '-'}</div>
+                            <div class="col-md-3"><strong>Counter Qty:</strong> ${dc.dc_counter_qty || 0}</div>
+                            <div class="col-md-3"><strong>Damaged Qty:</strong> ${dc.dc_damaged_qty || 0}</div>
+                            <div class="col-md-3"><strong>Excess Qty:</strong> ${dc.dc_excess_qty || 0}</div>
+                            <div class="col-md-3"><strong>Finished Qty:</strong> ${dc.finished_qty || 0}</div>
+                            <div class="col-md-3"><strong>Balance Qty:</strong> <span class="text-danger fw-bold">${dc.balance_qty || 0}</span></div>
+                            <div class="col-md-3"><strong>EPF No:</strong> ${dc.dc_epf_no || '-'}</div>
+                            <div class="col-md-3"><strong>Flute:</strong> ${dc.qc_flute || '-'}</div>
+                            <div class="col-md-3"><strong>Measurement:</strong> ${dc.qc_measurement || '-'}</div>
+                            <div class="col-md-3"><strong>Waste Sample:</strong> ${dc.qc_waste_sample || '-'}</div>
+                            <div class="col-md-3"><strong>Quality Approval:</strong> <span class="badge ${dc.qc_approval==='Approved'?'bg-success':'bg-danger'}">${dc.qc_approval || '-'}</span></div>
+                        </div>
+                    </div>
+                </div>`;
+            }
+            
+            // Step 5: Semi Auto Stage Data
+            let sa = plan.semiauto_form || (plan.stage_data && plan.stage_data.semiauto);
+            if (sa) {
+                bodyHtml += `
+                <div class="card border-secondary mb-3 shadow-sm">
+                    <div class="card-header bg-secondary text-white fw-bold py-2">
+                        <i class="bi bi-gear me-2"></i> STEP 5: SEMI AUTO STAGE AUDIT
+                    </div>
+                    <div class="card-body bg-light-subtle">
+                        <div class="row g-2 text-start small">
+                            <div class="col-md-3"><strong>Date:</strong> ${sa.stage_date || '-'}</div>
+                            <div class="col-md-3"><strong>Excess Qty:</strong> ${sa.sa_excess_qty || 0}</div>
+                            <div class="col-md-3"><strong>Finished Qty:</strong> ${sa.finished_qty || 0}</div>
+                            <div class="col-md-3"><strong>Balance Qty:</strong> <span class="text-danger fw-bold">${sa.balance_qty || 0}</span></div>
+                            <div class="col-md-3"><strong>EPF No:</strong> ${sa.sa_epf_no || '-'}</div>
+                            <div class="col-md-3"><strong>Flute:</strong> ${sa.qc_flute || '-'}</div>
+                            <div class="col-md-3"><strong>Measurement:</strong> ${sa.qc_measurement || '-'}</div>
+                            <div class="col-md-3"><strong>Sample Matched:</strong> ${sa.qc_sample || '-'}</div>
+                            <div class="col-md-3"><strong>Quality Approval:</strong> <span class="badge ${sa.qc_approval==='Approved'?'bg-success':'bg-danger'}">${sa.qc_approval || '-'}</span></div>
+                        </div>
+                    </div>
+                </div>`;
+            }
+            
+            // Step 6: Gluer Stage Data
+            let gluer = plan.gluer_form || (plan.stage_data && plan.stage_data.gluer);
+            if (gluer) {
+                bodyHtml += `
+                <div class="card border-success mb-3 shadow-sm">
+                    <div class="card-header bg-success text-white fw-bold py-2">
+                        <i class="bi bi-box me-2"></i> STEP 6: GLUER STAGE AUDIT
+                    </div>
+                    <div class="card-body bg-light-subtle">
+                        <div class="row g-2 text-start small">
+                            <div class="col-md-3"><strong>Date:</strong> ${gluer.stage_date || '-'}</div>
+                            <div class="col-md-3"><strong>Finished Qty:</strong> ${gluer.finished_qty || 0}</div>
+                            <div class="col-md-3"><strong>Balance Qty:</strong> <span class="text-danger fw-bold">${gluer.balance_qty || 0}</span></div>
+                            <div class="col-md-3"><strong>EPF No:</strong> ${gluer.epf_no || '-'}</div>
+                            <div class="col-md-3"><strong>Glue Quality:</strong> ${gluer.glue_quality || '-'}</div>
+                            <div class="col-md-3"><strong>QC Approval:</strong> <span class="badge ${gluer.qc_approval==='Approved'?'bg-success':'bg-danger'}">${gluer.qc_approval || '-'}</span></div>
+                        </div>
+                    </div>
+                </div>`;
+            }
+            
+            // Step 7: Stitching Stage Data
+            let st = plan.stitching_form || (plan.stage_data && plan.stage_data.stitching);
+            if (st) {
+                bodyHtml += `
+                <div class="card border-primary mb-3 shadow-sm">
+                    <div class="card-header bg-primary text-white fw-bold py-2">
+                        <i class="bi bi-pin-angle me-2"></i> STEP 7: STITCHING STAGE AUDIT
+                    </div>
+                    <div class="card-body bg-light-subtle">
+                        <div class="row g-2 text-start small">
+                            <div class="col-md-3"><strong>Date:</strong> ${st.stage_date || '-'}</div>
+                            <div class="col-md-3"><strong>Finished Qty:</strong> ${st.finished_qty || 0}</div>
+                            <div class="col-md-3"><strong>Balance Qty:</strong> <span class="text-danger fw-bold">${st.balance_qty || 0}</span></div>
+                            <div class="col-md-3"><strong>EPF No:</strong> ${st.epf_no || '-'}</div>
+                            <div class="col-md-3"><strong>Stitch Pitch Quality:</strong> ${st.stitch_quality || '-'}</div>
+                            <div class="col-md-3"><strong>QC Approval:</strong> <span class="badge ${st.qc_approval==='Approved'?'bg-success':'bg-danger'}">${st.qc_approval || '-'}</span></div>
+                        </div>
+                    </div>
+                </div>`;
+            }
+            
+            // Step 8: Finished Goods & AD Details
+            if (plan.ad_number || plan.status === 'Dispatched' || plan.status === 'Finished Goods') {
+                bodyHtml += `
+                <div class="card border-dark mb-3 shadow-sm">
+                    <div class="card-header bg-dark text-white fw-bold py-2">
+                        <i class="bi bi-check2-circle me-2 text-warning"></i> STEP 8: FINISHED GOODS & DISPATCH LOG
+                    </div>
+                    <div class="card-body bg-light-subtle">
+                        <div class="row g-2 text-start small">
+                            <div class="col-md-4"><strong>Status:</strong> <span class="badge bg-success">${plan.status}</span></div>
+                            <div class="col-md-4"><strong>Manual AD Number:</strong> <span class="fw-bold font-monospace text-primary fs-6">${plan.ad_number || 'Pending Input'}</span></div>
+                            <div class="col-md-4"><strong>Updated Timestamp:</strong> ${plan.updated_at || 'Recorded'}</div>
+                        </div>
+                    </div>
+                </div>`;
+            }
+            
+            bodyHtml += `</div>`; 
+            
+            document.getElementById('attachmentModalBody').innerHTML = bodyHtml;
+            
+            let modalEl = document.getElementById('viewAttachmentModal');
+            let modalInstance = bootstrap.Modal.getInstance(modalEl);
+            if (!modalInstance) {
+                modalInstance = new bootstrap.Modal(modalEl);
+            }
+            modalInstance.show();
+        }
+
+        function printAttachmentCard() {
+            let content = document.getElementById('printableJobCard').outerHTML;
+            let plan = currentAttachmentPlan || {};
+            let poNo = plan.po_no || 'N/A';
+            let custProd = `${plan.customer_name || 'N/A'} - ${plan.product_name || plan.product_code || ''}`;
+            let qty = plan.qty || 0;
+            let reelSize = plan.selected_reel_size || plan.reel_size || '-';
+            
+            let printWindow = window.open('', '_blank', 'width=950,height=700');
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Job History Card - ${poNo}</title>
+                    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+                    <style>
+                        body { padding: 25px; background: #fff !important; font-family: 'Segoe UI', sans-serif; }
+                        .card { border: 1px solid #111 !important; margin-bottom: 15px !important; box-shadow: none !important; }
+                        .card-header { background: #333 !important; color: #fff !important; font-weight: bold !important; padding: 6px 12px !important; }
+                        table, th, td { border: 1px solid #000 !important; }
+                        .badge { border: 1px solid #000 !important; color: #000 !important; background: none !important; }
+                    </style>
+                </head>
+                <body>
+                    <div class="text-center mb-3 pb-2 border-bottom">
+                        <h3 class="fw-bold text-uppercase m-0">VISCOR & PACKWELL - JOB HISTORY AUDIT CARD</h3>
+                        <p class="text-muted small m-0">PO No: ${poNo} | Customer & Product: ${custProd} | Qty: ${qty} Pcs | Reel Size: ${reelSize} cm</p>
+                    </div>
+                    ${content}
+                    <script>setTimeout(() => { window.print(); window.close(); }, 500);<\/script>
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+        }
+
+        function downloadAttachmentCard() {
+            let plan = currentAttachmentPlan || {};
+            let poNo = plan.po_no || 'JobCard';
+            let content = document.getElementById('printableJobCard').outerHTML;
+            let custProd = `${plan.customer_name || 'N/A'} - ${plan.product_name || plan.product_code || ''}`;
+            let qty = plan.qty || 0;
+            let reelSize = plan.selected_reel_size || plan.reel_size || '-';
+
+            let fullHtml = `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Job History Card - ${poNo}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { padding: 30px; background: #f8f9fa; font-family: 'Segoe UI', sans-serif; }
+        .card { margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="text-center mb-4 pb-2 border-bottom">
+            <h2 class="fw-bold text-dark">VISCOR & PACKWELL MANUFACTURING JOB CARD</h2>
+            <p class="fs-5 text-secondary"><strong>PO No:</strong> ${poNo} | <strong>Customer & Product:</strong> ${custProd} | <strong>Qty:</strong> ${qty} Pcs | <strong>Reel Size:</strong> ${reelSize} cm</p>
+        </div>
+        ${content}
+    </div>
+</body>
+</html>`;
+
+            let blob = new Blob([fullHtml], { type: 'text/html' });
+            let a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `Job_History_Card_${poNo}.html`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
         }
     </script>
 </body>
