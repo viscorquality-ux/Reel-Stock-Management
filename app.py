@@ -1231,7 +1231,7 @@ def transfer_order():
         
         new_po = data.get('new_po') or data.get('new_po_no')
         new_customer = data.get('new_customer') or data.get('new_customer_id') or data.get('customer_name')
-        new_product = data.get('new_product_code') or data.get('product_code')
+        new_product = data.get('new_product_code') or data.get('')
         transfer_qty = safe_int(data.get('transfer_qty', 0))
         reason = data.get('reason', '')
         
