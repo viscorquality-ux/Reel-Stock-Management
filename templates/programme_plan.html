@@ -999,31 +999,24 @@
                 return;
             }
 
-            fetch('/api/transfer_order_identity', {
+            ffetch('/api/transfer_order_identity', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    plan_id: id,
-                    old_po: currentPo,
-                    new_po: newPo,
-                    new_customer: newCust,
-                    reason: reason
-                })
-            }).then(r => r.json()).then(res => {
-                if(res.success) {
-                    alert(`✅ Order successfully transferred to new PO: ${newPo}`);
-                    transferModalInstance.hide();
-                    
-                    let activeTab = document.querySelector('.nav-link.active');
-                    if (activeTab) activeTab.click(); 
-                } else {
-                    alert("❌ Error: " + res.message);
+                body: JSON.stringify(payload)
+            })
+            .then(async response => {
+                if (!response.ok) {
+                    throw new Error(`Server returned status ${response.status} (Route missing or server error)`);
                 }
-            }).catch(err => {
-                console.error(err);
-                alert("❌ Connection error while trying to transfer order.");
-            });
-        }
+                return response.json();
+            })
+            .then(res => {
+                if(res.success) {
+                    alert("✅ Order Transferred Successfully!");
+                }
+            })
+            .catch(err => console.error("API Error:", err));
+           }
 
         function printSelectedBand(bandId) {
             document.getElementById(bandId).querySelectorAll('input[type="number"]').forEach(el => { 
@@ -2319,118 +2312,171 @@
         }
 
         function loadHistoryLogs(reset = false) {
-            // Reset බොත්තම එබූ විට දත්ත පෙරහන් (Filters) මකා දැමීම[cite: 2]
-        if (reset) {
-            document.getElementById('historyStartDate').value = '';
-            document.getElementById('historyEndDate').value = '';
-            document.getElementById('historySearchPO').value = '';
-            document.getElementById('historySearchCustomer').value = '';
-        }
-
-        const startDate = document.getElementById('historyStartDate').value;
-        const endDate = document.getElementById('historyEndDate').value;
-        const tableBody = document.getElementById('historyLogsTableBody');
-    
-        // දත්ත පැටවෙන බව පෙන්වීම[cite: 2]
-        tableBody.innerHTML = '<tr><td colspan="9" class="text-muted py-4">Loading history audit logs...</td></tr>';
-    
-        // API URL එක සැකසීම (Date Filter අගයන් සහිතව)
-        let fetchUrl = '/api/get_history_logs'; // මින් පෙර සකසා ඇති History endpoint එකක් යැයි උපකල්පනය කර ඇත
-        const params = new URLSearchParams();
-        if (startDate) params.append('start', startDate);
-        if (endDate) params.append('end', endDate);
-        if (params.toString()) fetchUrl += `?${params.toString()}`;
-
-        fetch(fetchUrl)
-            .then(response => response.json())
-            .then(data => {
-                let html = '';
-                
-                // දත්ත array එකක් ලෙස සකසා ගැනීම
-                let logsArray = Array.isArray(data) ? data : [];
-                if (!Array.isArray(data)) {
-                    for (const key in data) {
-                        logsArray = logsArray.concat(data[key]);
-                    }
-                }
-    
-                if (logsArray.length === 0) {
-                    tableBody.innerHTML = '<tr><td colspan="9" class="text-muted py-4">No plan history audit logs found for the selected criteria.</td></tr>';
-                    return;
-                }
-    
-                // අලුත්ම දත්ත (Date) අනුව පෙළගැස්වීම (Sorting by timestamp descending)
-                logsArray.sort((a, b) => new Date(b.updated_at || b.created_at || 0) - new Date(a.updated_at || a.created_at || 0));
-    
-                logsArray.forEach(log => {
-                    
-                    // ඔබගේ අවශ්‍යතාවය පරිදි Current Data Stage එක සැකසීම 
-                    let displayStage = 'Planning'; // පෙරනිමි අගය (Live Planning & Matrix සඳහා)
-                    let rawStatus = log.status ? log.status.toLowerCase() : '';
-    
-                    if (rawStatus === 'board plant') {
-                        displayStage = 'Board Plant';
-                    } else if (rawStatus === 'printers') {
-                        displayStage = 'Printer Stage';
-                    } else if (rawStatus === 'die cut') {
-                        displayStage = 'Die Cut Stage';
-                    } else if (rawStatus === 'semi auto') {
-                        displayStage = 'Semi Auto Stage';
-                    } else if (rawStatus === 'gluer') {
-                        displayStage = 'Gluer Stage';
-                    } else if (rawStatus === 'stitching') {
-                        displayStage = 'Stitching Stage';
-                    } else if (rawStatus === 'finished goods') {
-                        displayStage = 'Finished Goods Stage';
-                    } else if (rawStatus === 'dispatched') {
-                        displayStage = 'Dispatched Stage';
-                    } else if (rawStatus === 'balance po') {
-                        displayStage = 'Balance PO Stage';
-                    }
-    
-                    // අදාළ පියවර සිදුවූ දිනය (Timestamp) නිවැරදිව ලබා ගැනීම
-                    let timestamp = log.updated_at || log.created_at || new Date().toISOString();
-                    let formattedDate = new Date(timestamp).toLocaleString('en-US', { 
-                        year: 'numeric', month: 'short', day: 'numeric', 
-                        hour: '2-digit', minute: '2-digit' 
-                    });
-    
-                    // අමුද්‍රව්‍ය (Materials) දත්ත නිවැරදිව පෙන්වීම[cite: 2]
-                    let combinationSpecsString = log.materials && Array.isArray(log.materials) 
-                        ? log.materials.map((m, i) => `L${i+1}: ${m.name}`).join('<br>') 
-                        : '-';
-                    
-                    let configSize = log.cut_length ? `${log.cut_length} cm` : '-';
-    
-                    // වගුව සඳහා HTML පේළිය (Row) නිර්මාණය කිරීම[cite: 2]
-                    html += `
-                        <tr>
-                            <td class="fw-semibold text-nowrap">${formattedDate}</td>
-                            <td class="fw-bold text-primary">${log.po_no || '-'}</td>
-                            <td>${log.customer_name || '-'}</td>
-                            <td class="font-monospace">${configSize}</td>
-                            <td><span class="badge bg-secondary">${log.ply || '-'} Ply</span></td>
-                            <td><span class="badge bg-primary px-2">${log.qty || '0'}</span></td>
-                            <td class="small text-start font-monospace">${combinationSpecsString}</td>
-                            <td><span class="badge bg-dark">${displayStage}</span></td>
-                            <td>${log.ad_number || '-'}</td>
-                        </tr>
-                    `;
-                });
-                
-                // නිර්මාණය කළ පේළි සියල්ල වගුවට ඇතුලත් කිරීම[cite: 2]
-                tableBody.innerHTML = html;
-                
-                // Search field එකෙහි යම් අගයක් ඇත්නම් එයට අනුව වගුව Filter කිරීම[cite: 2]
-                if (typeof filterHistoryTable === 'function') {
-                    filterHistoryTable();
-                }
-            })
-            .catch(error => {
-                console.error("Error loading history logs:", error);
-                tableBody.innerHTML = '<tr><td colspan="9" class="text-danger py-4">Error loading history logs from the server.</td></tr>';
-            });
+    // Reset බටන් එක එබූ විට ෆිල්ටර් සූන්‍ය (Reset) කිරීම
+    if (reset) {
+        if (document.getElementById('historyStartDate')) document.getElementById('historyStartDate').value = '';
+        if (document.getElementById('historyEndDate')) document.getElementById('historyEndDate').value = '';
+        if (document.getElementById('historySearchPO')) document.getElementById('historySearchPO').value = '';
+        if (document.getElementById('historySearchCustomer')) document.getElementById('historySearchCustomer').value = '';
     }
+
+    const startDate = document.getElementById('historyStartDate') ? document.getElementById('historyStartDate').value : '';
+    const endDate = document.getElementById('historyEndDate') ? document.getElementById('historyEndDate').value : '';
+    const tableBody = document.getElementById('historyLogsTableBody');
+
+    if (!tableBody) return;
+
+    // Loading indicator පෙන්වීම
+    tableBody.innerHTML = '<tr><td colspan="9" class="text-muted py-4"><div class="spinner-border spinner-border-sm text-primary me-2"></div>Plan History Audit Logs පූරණය වෙමින් පවතී...</td></tr>';
+
+    // API URL එක සැකසීම
+    let fetchUrl = '/api/get_history_logs';
+    const params = new URLSearchParams();
+    if (startDate) params.append('start', startDate);
+    if (endDate) params.append('end', endDate);
+    if (params.toString()) fetchUrl += `?${params.toString()}`;
+
+    fetch(fetchUrl)
+        .then(async response => {
+            if (!response.ok) {
+                throw new Error(`HTTP Error ${response.status}: API Endpoint එක සම්බන්ධ කරගත නොහැකි විය.`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            let logsArray = [];
+
+            // Array එකක් නොමැති විට දත්ත සකසා ගැනීම
+            if (Array.isArray(data)) {
+                logsArray = data;
+            } else if (typeof data === 'object' && data !== null) {
+                if (data.logs && Array.isArray(data.logs)) {
+                    logsArray = data.logs;
+                } else if (data.success && Array.isArray(data.data)) {
+                    logsArray = data.data;
+                } else {
+                    for (const key in data) {
+                        if (Array.isArray(data[key])) {
+                            logsArray = logsArray.concat(data[key]);
+                        }
+                    }
+                }
+            }
+
+            if (logsArray.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="9" class="text-muted py-4">තෝරාගත් කාලසීමාවට අදාළ Audit Logs හමු නොවීය.</td></tr>';
+                return;
+            }
+
+            // අලුත්ම දත්ත (Date) අනුව පෙළගැස්වීම (Sorting by timestamp descending)
+            logsArray.sort((a, b) => new Date(b.updated_at || b.created_at || b.bp_date || 0) - new Date(a.updated_at || a.created_at || a.bp_date || 0));
+
+            let html = '';
+            logsArray.forEach(log => {
+                
+                // Current Data Stage සකස් කිරීම
+                let displayStage = 'Planning'; // Live Planning & Matrix සඳහා පෙරනිමි අගය
+                let badgeClass = 'bg-primary';
+                let rawStatus = (log.status || log.current_stage || '').toString().trim().toLowerCase();
+
+                if (rawStatus === 'board plant') {
+                    displayStage = 'Board Plant';
+                    badgeClass = 'bg-info text-dark';
+                } else if (rawStatus === 'printers' || rawStatus === 'printer' || rawStatus === 'printer stage') {
+                    displayStage = 'Printer Stage';
+                    badgeClass = 'bg-warning text-dark';
+                } else if (rawStatus === 'die cut' || rawStatus === 'diecut') {
+                    displayStage = 'Die Cut Stage';
+                    badgeClass = 'bg-secondary';
+                } else if (rawStatus === 'semi auto' || rawStatus === 'semiauto') {
+                    displayStage = 'Semi Auto Stage';
+                    badgeClass = 'bg-secondary';
+                } else if (rawStatus === 'gluer') {
+                    displayStage = 'Gluer Stage';
+                    badgeClass = 'bg-success';
+                } else if (rawStatus === 'stitching') {
+                    displayStage = 'Stitching Stage';
+                    badgeClass = 'bg-primary';
+                } else if (rawStatus === 'finished goods') {
+                    displayStage = 'Finished Goods Stage';
+                    badgeClass = 'bg-success';
+                } else if (rawStatus === 'dispatched') {
+                    displayStage = 'Dispatched Stage';
+                    badgeClass = 'bg-dark';
+                } else if (rawStatus === 'balance po') {
+                    displayStage = 'Balance PO Stage';
+                    badgeClass = 'bg-danger';
+                } else if (rawStatus === 'live planning' || rawStatus === 'draft' || rawStatus === 'planning') {
+                    displayStage = 'Planning';
+                    badgeClass = 'bg-primary';
+                }
+
+                // අදාළ පියවර සිදුවූ දිනය (Timestamp / Date) නිවැරදිව ලබා ගැනීම
+                let rawDate = log.updated_at || log.created_at || log.bp_date || log.pr_date || log.stage_date;
+                let formattedDate = '-';
+                if (rawDate) {
+                    let parsedDate = new Date(rawDate);
+                    if (!isNaN(parsedDate.getTime())) {
+                        formattedDate = parsedDate.toLocaleString('en-US', { 
+                            year: 'numeric', 
+                            month: 'short', 
+                            day: '2-digit', 
+                            hour: '2-digit', 
+                            minute: '2-digit' 
+                        });
+                    } else {
+                        formattedDate = rawDate;
+                    }
+                }
+
+                // Config Size Info (Reel Size / Cut Length / Dimensions)
+                let configSize = '-';
+                if (log.selected_reel_size && log.cut_length) {
+                    configSize = `${log.selected_reel_size} cm × ${log.cut_length} cm`;
+                } else if (log.cut_length) {
+                    configSize = `${log.cut_length} cm`;
+                } else if (log.carton_size || log.cartoon_size) {
+                    configSize = log.carton_size || log.cartoon_size;
+                }
+
+                // Materials Build Structure
+                let combinationSpecsString = '-';
+                if (log.materials && Array.isArray(log.materials)) {
+                    combinationSpecsString = log.materials.map((m, i) => 
+                        `L${i+1}: ${(m.gsm && !isNaN(m.gsm)) ? m.gsm + ' GSM - ' : ''}${m.name || '-'}`
+                    ).join('<br>');
+                } else if (typeof log.materials === 'string') {
+                    combinationSpecsString = log.materials;
+                }
+
+                // Table HTML Row එක නිර්මාණය කිරීම
+                html += `
+                    <tr>
+                        <td class="fw-semibold text-nowrap">${formattedDate}</td>
+                        <td class="fw-bold text-primary font-monospace">${log.po_no || '-'}</td>
+                        <td class="text-start">${log.customer_name || log.customer_id || '-'}</td>
+                        <td class="font-monospace bg-light">${configSize}</td>
+                        <td><span class="badge bg-dark">${log.ply || '-'} Ply</span></td>
+                        <td><span class="badge bg-primary px-2 fs-6">${log.qty || '0'}</span></td>
+                        <td class="small text-start font-monospace">${combinationSpecsString}</td>
+                        <td><span class="badge ${badgeClass}">${displayStage}</span></td>
+                        <td class="font-monospace fw-bold text-danger">${log.ad_number || '-'}</td>
+                    </tr>
+                `;
+            });
+
+            tableBody.innerHTML = html;
+
+            // සෙවුම් පරාමිතීන් (Search Filters) ක්‍රියාත්මක කිරීම
+            if (typeof filterHistoryTable === 'function') {
+                filterHistoryTable();
+            }
+        })
+        .catch(error => {
+            console.error("Error loading history logs:", error);
+            tableBody.innerHTML = `<tr><td colspan="9" class="text-danger py-4"><i class="bi bi-exclamation-octagon me-1"></i> ${error.message}</td></tr>`;
+        });
+        }
     </script>
 </body>
 </html>
