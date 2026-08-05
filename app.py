@@ -120,6 +120,7 @@ class ProgrammePlan(db.Model):
     balance_status = db.Column(db.String(100), default='')
     finished_at = db.Column(db.DateTime, nullable=True)
     ad_number = db.Column(db.String(100), default='') 
+    transfer_info = db.Column(db.String(255), default='')
 
 with app.app_context():
     db.create_all()
@@ -154,6 +155,7 @@ with app.app_context():
     add_column_if_not_exists("programme_plan", "balance_status", "VARCHAR(100) DEFAULT ''")
     add_column_if_not_exists("programme_plan", "finished_at", "DATETIME")
     add_column_if_not_exists("programme_plan", "ad_number", "VARCHAR(100) DEFAULT ''")
+    add_column_if_not_exists("programme_plan", "transfer_info", "VARCHAR(255) DEFAULT ''")
     
     upgrade_column_to_longtext("programme_plan", "materials_json")
     upgrade_column_to_longtext("programme_plan", "board_plant_form")
@@ -1072,7 +1074,6 @@ def get_product_info():
         return jsonify({"success": True, "customer_name": product.customer_name, "product_name": product.product_name, "cartoon_size": product.cartoon_size, "ply": product.ply, "flute": product.flute, "position": product.position, "options": options})
     return jsonify({"success": False, "message": "Product not found"})
 
-# --- SAMPLE PLANNING API ENDPOINTS ---
 @app.route('/api/calculate_sample_options', methods=['POST'])
 def calculate_sample_options():
     data = request.json
@@ -1145,7 +1146,6 @@ def save_sample_memo():
     db.session.add(new_plan)
     db.session.commit()
     return jsonify({'success': True, 'po_no': sample_po})
-# ------------------------------------
 
 @app.route('/api/check_stock_detailed', methods=['POST'])
 def check_stock_detailed():
@@ -1213,6 +1213,28 @@ def update_plan_qty():
         return jsonify({'success': True})
     return jsonify({'success': False})
 
+@app.route('/api/transfer_order', methods=['POST'])
+def transfer_order():
+    # Order Transfer in Board Plant Logic (Requirement 3)
+    data = request.json
+    plan = ProgrammePlan.query.get(data.get('id'))
+    
+    if plan:
+        old_po = plan.po_no
+        plan.po_no = data.get('new_po_no')
+        plan.customer_id = data.get('new_customer_id')
+        plan.product_code = data.get('new_product_code')
+        
+        transfer_msg = f"Transferred from PO: {old_po} to {plan.po_no} on {datetime.now(colombo_tz).strftime('%Y-%m-%d %H:%M')}"
+        if plan.transfer_info:
+            plan.transfer_info += f" | {transfer_msg}"
+        else:
+            plan.transfer_info = transfer_msg
+            
+        db.session.commit()
+        return jsonify({'success': True})
+    return jsonify({'success': False})
+
 @app.route('/api/transfer_plan', methods=['POST'])
 def transfer_plan():
     data = request.json
@@ -1222,11 +1244,39 @@ def transfer_plan():
         new_status = data.get('status')
         form_type = data.get('form_type')
         
+        # Finished goods partial dispatch logic (Requirement 2)
         if new_status == 'Dispatched':
-            plan.ad_number = data.get('ad_number', '')
-            plan.status = 'Dispatched'
-            db.session.commit()
-            return jsonify({'success': True})
+            dispatch_qty = safe_int(data.get('dispatch_qty', plan.finished_qty))
+            actual_qty = plan.finished_qty if plan.finished_qty > 0 else plan.qty
+            
+            if 0 < dispatch_qty < actual_qty:
+                # Create a cloned row for the dispatched quantity
+                new_plan = ProgrammePlan(
+                    po_no=plan.po_no, customer_id=plan.customer_id, product_code=plan.product_code,
+                    selected_reel_size=plan.selected_reel_size, selected_ups=plan.selected_ups,
+                    qty=dispatch_qty, finished_qty=dispatch_qty, balance_qty=0, materials_json=plan.materials_json,
+                    status='Dispatched', balance_status=plan.balance_status, created_by=plan.created_by,
+                    created_at=plan.created_at, finished_at=plan.finished_at, ad_number=data.get('ad_number', ''),
+                    board_plant_form=plan.board_plant_form, printer_form=plan.printer_form,
+                    diecut_form=plan.diecut_form, semiauto_form=plan.semiauto_form,
+                    gluer_form=plan.gluer_form, stitching_form=plan.stitching_form,
+                    transfer_info=plan.transfer_info
+                )
+                db.session.add(new_plan)
+                
+                # Deduct from current record to keep balance in Finished Goods
+                if plan.finished_qty > 0:
+                    plan.finished_qty -= dispatch_qty
+                plan.qty -= dispatch_qty
+                
+                db.session.commit()
+                return jsonify({'success': True})
+            else:
+                # Full dispatch
+                plan.ad_number = data.get('ad_number', '')
+                plan.status = 'Dispatched'
+                db.session.commit()
+                return jsonify({'success': True})
         
         form_data = None
         if form_type == 'board_plant' and 'board_plant_form' in data:
@@ -1264,7 +1314,7 @@ def transfer_plan():
                     selected_reel_size=plan.selected_reel_size, selected_ups=plan.selected_ups,
                     qty=b_qty, materials_json=plan.materials_json, status='Balance PO',
                     balance_status=balance_target, created_by=plan.created_by,
-                    created_at=datetime.now(colombo_tz)
+                    created_at=datetime.now(colombo_tz), transfer_info=plan.transfer_info
                 )
                 db.session.add(new_plan)
                 
@@ -1401,6 +1451,8 @@ def get_saved_plans():
             'status': p.status if p.status else 'Live Planning', 'qty': p.qty,
             'finished_qty': p.finished_qty, 'balance_qty': p.balance_qty,
             'row_priority': p.row_priority, 'balance_status': p.balance_status,
+            'transfer_info': p.transfer_info,
+            'selected_reel_size': p.selected_reel_size,
             'board_plant_form': json.loads(p.board_plant_form) if p.board_plant_form else None,
             'printer_form': json.loads(p.printer_form) if p.printer_form else None,
             'diecut_form': json.loads(p.diecut_form) if p.diecut_form else None,
@@ -1456,6 +1508,7 @@ def get_historical_planning_records():
             'materials': json.loads(p.materials_json) if p.materials_json else [],
             'status': p.status,
             'ad_number': p.ad_number,
+            'transfer_info': p.transfer_info,
             'created_at': p.created_at.strftime('%Y-%m-%d %I:%M %p') if p.created_at else ""
         })
     return jsonify(result)
