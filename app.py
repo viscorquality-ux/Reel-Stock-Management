@@ -1213,7 +1213,7 @@ def update_plan_qty():
         return jsonify({'success': True})
     return jsonify({'success': True, 'message': 'Order transferred successfully'})
 
-@app.route('/api/transfer_order', methods=['POST'])
+@app.route('/api/transfer_order_identity', methods=['POST'])
 def transfer_order():
     # Order Transfer in Board Plant Logic (Requirement 3)
     data = request.json
@@ -1232,8 +1232,8 @@ def transfer_order():
             plan.transfer_info = transfer_msg
             
         db.session.commit()
-        return jsonify({'success': True})
-    return jsonify({'success': False})
+        return jsonify({"success": True, "message": "Order transferred successfully"})
+    
 
 @app.route('/api/transfer_plan', methods=['POST'])
 def transfer_plan():
