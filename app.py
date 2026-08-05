@@ -1211,7 +1211,7 @@ def update_plan_qty():
         plan.qty = int(data.get('qty', 0))
         db.session.commit()
         return jsonify({'success': True})
-    return jsonify({'success': False})
+    return jsonify({'success': True, 'message': 'Order transferred successfully'})
 
 @app.route('/api/transfer_order', methods=['POST'])
 def transfer_order():
