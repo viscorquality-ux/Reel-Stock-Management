@@ -2079,7 +2079,6 @@
                 document.getElementById('historyLogsTableBody').innerHTML = `<tr><td colspan="9" class="text-danger py-4">Error loading history.</td></tr>`;
             });
         }
-
         function viewStageAttachment(id) {
             let plan = null;
             for (const key in globalAllPlans) {
@@ -2100,7 +2099,6 @@
             
             buildAndShowAttachmentModal(plan);
         }
-
         function buildAndShowAttachmentModal(plan) {
             currentAttachmentPlan = plan;
             
@@ -2301,7 +2299,6 @@
                     </div>
                 </div>`;
             }
-            
             // Step 6: Gluer Stage Data
             let gluer = plan.gluer_form || (plan.stage_data && plan.stage_data.gluer);
             if (gluer) {
@@ -2321,8 +2318,7 @@
                         </div>
                     </div>
                 </div>`;
-            }
-            
+            } 
             // Step 7: Stitching Stage Data
             let st = plan.stitching_form || (plan.stage_data && plan.stage_data.stitching);
             if (st) {
@@ -2342,8 +2338,7 @@
                         </div>
                     </div>
                 </div>`;
-            }
-            
+            } 
             // Step 8: Finished Goods & AD Details
             if (plan.ad_number || plan.status === 'Dispatched' || plan.status === 'Finished Goods') {
                 bodyHtml += `
@@ -2360,7 +2355,6 @@
                     </div>
                 </div>`;
             }
-            
             bodyHtml += `</div>`; 
             
             document.getElementById('attachmentModalBody').innerHTML = bodyHtml;
@@ -2372,15 +2366,13 @@
             }
             modalInstance.show();
         }
-
         function printAttachmentCard() {
             let content = document.getElementById('printableJobCard').outerHTML;
             let plan = currentAttachmentPlan || {};
             let poNo = plan.po_no || 'N/A';
             let custProd = `${plan.customer_name || 'N/A'} - ${plan.product_name || plan.product_code || ''}`;
             let qty = plan.qty || 0;
-            let reelSize = plan.selected_reel_size || plan.reel_size || '-';
-            
+            let reelSize = plan.selected_reel_size || plan.reel_size || '-'; 
             let printWindow = window.open('', '_blank', 'width=950,height=700');
             printWindow.document.write(`
                 <!DOCTYPE html>
@@ -2408,7 +2400,6 @@
             `);
             printWindow.document.close();
         }
-
         function downloadAttachmentCard() {
             let plan = currentAttachmentPlan || {};
             let poNo = plan.po_no || 'JobCard';
@@ -2438,7 +2429,6 @@
     </div>
 </body>
 </html>`;
-
             let blob = new Blob([fullHtml], { type: 'text/html' });
             let a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
