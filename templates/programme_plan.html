@@ -27,6 +27,19 @@
         .bp-form-card { background: #ffffff; border: 1px solid #e0e6ed; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.06); }
         .bp-section-title { font-size: 0.85rem; letter-spacing: 1px; text-transform: uppercase; color: #495057; font-weight: 700; }
 
+        /* Styling for Professional View Log Attachment Modal */
+        .stage-badge { font-size: 0.75rem; padding: 0.35em 0.65em; font-weight: 700; border-radius: 6px; }
+        .audit-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); margin-bottom: 1rem; }
+        .audit-card-header { background: #f1f5f9; padding: 0.75rem 1.25rem; font-weight: 700; border-bottom: 1px solid #e2e8f0; font-size: 0.9rem; }
+        .audit-field-label { font-size: 0.75rem; text-uppercase: true; color: #64748b; font-weight: 600; margin-bottom: 2px; }
+        .audit-field-value { font-size: 0.9rem; font-weight: 700; color: #1e293b; }
+        
+        .stage-stepper { display: flex; justify-content: space-between; position: relative; margin-bottom: 1.5rem; padding: 10px 0; }
+        .stage-stepper::before { content: ''; position: absolute; top: 50%; left: 0; right: 0; height: 3px; background: #e2e8f0; z-index: 1; transform: translateY(-50%); }
+        .step-item { position: relative; z-index: 2; background: #fff; padding: 4px 12px; border-radius: 20px; border: 2px solid #cbd5e1; font-size: 0.78rem; font-weight: 700; color: #64748b; }
+        .step-item.completed { border-color: #10b981; background: #ecfdf5; color: #059669; }
+        .step-item.active { border-color: #3b82f6; background: #eff6ff; color: #2563eb; }
+
         @media print { 
             body { background: #fff !important; color: #000 !important; }
             .no-print { display: none !important; }
@@ -305,7 +318,7 @@
                             <table class="table table-striped table-hover align-middle mb-0 text-center" id="historyLogsTable">
                                 <thead class="table-secondary font-monospace text-uppercase small">
                                     <tr>
-                                        <th>Timestamp</th><th>PO Number</th><th>Customer</th><th>Config Size Info</th><th>Ply</th><th>Qty</th><th>Materials Build</th><th>Status</th><th>AD Number</th>
+                                        <th>Timestamp</th><th>PO Number</th><th>Customer</th><th>Config Size Info</th><th>Ply</th><th>Qty</th><th>Materials Build</th><th>Current Data Stage</th><th>AD Number</th>
                                     </tr>
                                 </thead>
                                 <tbody id="historyLogsTableBody" class="small">
@@ -366,12 +379,12 @@
         <div class="modal-content border-0 shadow-lg rounded-3">
           <div class="modal-header bg-dark text-white border-bottom border-warning border-3 d-flex flex-column align-items-start">
             <div class="w-100 d-flex justify-content-between align-items-center mb-2">
-               <h5 class="modal-title fw-bold" id="attachmentModalTitle">
+               <h5 class="modal-title fw-bold text-uppercase font-monospace" id="attachmentModalTitle">
                    <i class="bi bi-journal-text text-warning me-2"></i> Log Audit View
                </h5>
                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="w-100 d-flex justify-content-end" id="modalActionButtons"></div>
+            <div class="w-100 d-flex justify-content-end gap-2" id="modalActionButtons"></div>
           </div>
           <div class="modal-body bg-light p-4" id="attachmentModalBody">
           </div>
@@ -440,6 +453,11 @@
             if ((currentRole === 'viscor04' || currentRole === 'packwell04') && (stage === 'Gluer' || stage === 'Stitching')) return true;
             if ((currentRole === 'viscor05' || currentRole === 'packwell05') && (stage === 'Finished Goods' || stage === 'History')) return true;
             return false;
+        }
+
+        // Emergency Order Transfer permission check (only Admin, Programme 01 & Programme 02)
+        function canTransferEmergencyOrder() {
+            return ['admin', 'programmer1', 'programmer2'].includes(currentRole);
         }
 
         function reqPackwellTransfer(size, name) {
@@ -942,6 +960,11 @@
         }
 
         function openTransferOrderModal(id, currentPo) {
+            if(!canTransferEmergencyOrder()) {
+                alert("⚠️ ඔබට මෙම විශේෂාංගය (Emergency Transfer) භාවිතා කිරීමට අවසර නොමැත. මෙම පහසුකම Admin, Programme 01 සහ 02 සදහා පමණක් සීමා කර ඇත.");
+                return;
+            }
+
             document.getElementById('transfer_plan_id').value = id;
             document.getElementById('transfer_current_po').value = currentPo;
             document.getElementById('transfer_new_po').value = '';
@@ -1336,10 +1359,15 @@
                     plans.filter(p => p.status === 'Printers').forEach(p => {
                         hasRecords = true;
                         let rowPriority = uiPriorities.printerRows[p.id] || '';
+                        
+                        // Restrict Transfer Order button to Admin, Programme 01 & 02
+                        let transferBtn = canTransferEmergencyOrder() ? 
+                            `<button class="btn btn-sm btn-warning fw-bold w-100 shadow-sm" onclick="openTransferOrderModal(${p.id}, '${p.po_no}')"><i class="bi bi-arrow-left-right"></i> Transfer Order</button>` : '';
+
                         let actHtml = canAct('Printers') ? 
                         `<div class="d-flex flex-column gap-1 align-items-center">
                             <button class="btn btn-sm btn-success fw-bold w-100 shadow-sm" onclick="showPrinterForm(${p.id})">Proceed Stage</button>
-                            <button class="btn btn-sm btn-warning fw-bold w-100 shadow-sm" onclick="openTransferOrderModal(${p.id}, '${p.po_no}')"><i class="bi bi-arrow-left-right"></i> Transfer Order</button>
+                            ${transferBtn}
                         </div>` : `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
                         
                         html += `
@@ -1544,10 +1572,14 @@
                     else if (formPrefix === 'stitching') actionMethod = `showStitchingForm(${p.id})`;
                     else actionMethod = `showDieCutForm(${p.id})`;
 
+                    // Restrict Transfer Order button to Admin, Programme 01 & 02
+                    let transferBtn = canTransferEmergencyOrder() ? 
+                        `<button class="btn btn-sm btn-warning fw-bold w-100 shadow-sm" onclick="openTransferOrderModal(${p.id}, '${p.po_no}')"><i class="bi bi-arrow-left-right"></i> Transfer Order</button>` : '';
+
                     let actHtml = canAct(statusVal) ? 
                     `<div class="d-flex flex-column gap-1 align-items-center">
                         <button class="btn btn-sm btn-primary fw-bold w-100 shadow-sm" onclick="${actionMethod}">Proceed</button>
-                        <button class="btn btn-sm btn-warning fw-bold w-100 shadow-sm" onclick="openTransferOrderModal(${p.id}, '${p.po_no}')"><i class="bi bi-arrow-left-right"></i> Transfer Order</button>
+                        ${transferBtn}
                     </div>` : `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
 
                     rows += `
@@ -1738,192 +1770,205 @@
 
         function showGluerForm(id) {
             let row = document.getElementById(`gluer_row_${id}`);
-            if (row) row.style.display = 'table-row';
+            if(row) row.style.display = 'table-row';
             let plan;
-            for (const key in globalAllPlans) { let f = globalAllPlans[key].find(x => x.id === id); if (f) plan = f; }
-            if (!plan) return;
+            for (const key in globalAllPlans) { let f = globalAllPlans[key].find(x => x.id === id); if(f) plan = f; }
+            if(!plan) return;
 
             let formHtml = `
-            <div class="card card-body bg-light m-3 border-warning text-start shadow-sm position-relative">
+            <div class="card card-body bg-light m-3 border-success text-start shadow-sm position-relative">
                 <button type="button" class="btn btn-danger btn-sm position-absolute top-0 end-0 m-2 px-3 shadow-sm fw-bold" onclick="closeFormRow('gluer_row_${id}')"><i class="bi bi-x-lg me-1"></i> Close</button>
-                <h6 class="border-bottom pb-2 text-warning fw-bold mt-2 text-uppercase">GLUER STAGE FORM</h6>
+                <h6 class="border-bottom pb-2 text-success fw-bold mt-2 text-uppercase">GLUER STAGE CONTROL FORM</h6>
                 <form id="form_gluer_${id}" onsubmit="submitMiniForm(event, ${id}, 'gluer', 'gluer')">
                     <div class="row g-2 mb-3 mt-3">
-                        <div class="col-md-4"><label class="small fw-bold text-primary">Date</label><input type="date" class="form-control border-primary" required name="stage_date" value="${currentIsoDate}"></div>
-                        <div class="col-md-4"><label class="small fw-bold">Damaged Qty</label><input type="number" class="form-control" required name="gluer_damaged_qty"></div>
-                        <div class="col-md-4"><label class="small fw-bold">Operator EPF No</label><input type="text" class="form-control" required name="gluer_epf_no"></div>
+                        <div class="col-md-3"><label class="small fw-bold text-primary">Date</label><input type="date" class="form-control border-primary" required name="stage_date" value="${currentIsoDate}"></div>
+                        <div class="col-md-3"><label class="small fw-bold">Counter Qty</label><input type="number" class="form-control" required name="counter_qty"></div>
+                        <div class="col-md-3"><label class="small fw-bold">Damaged Qty</label><input type="number" class="form-control" required name="damaged_qty"></div>
+                        <div class="col-md-3"><label class="small fw-bold">C: Hand EPF No</label><input type="text" class="form-control" required name="epf_no"></div>
                     </div>
-                    <div class="row g-2 mb-3 p-3 bg-white border border-secondary-subtle rounded mt-2">
+                    <div class="row g-2 mb-3 p-3 bg-white border border-secondary-subtle rounded">
                         <div class="col-md-4"><label class="small fw-bold">Target Qty</label><input type="number" class="form-control bg-light fw-bold text-dark" id="gluer_target_qty_${id}" value="${plan.qty}" readonly></div>
                         <div class="col-md-4"><label class="small fw-bold">Finished Qty</label><input type="number" class="form-control border-primary fw-bold" required name="finished_qty" id="gluer_finished_qty_${id}" oninput="calcBalanceTriggerBox(${id}, 'gluer')"></div>
                         <div class="col-md-4"><label class="small fw-bold">Balance Qty</label><input type="number" class="form-control bg-light fw-bold text-danger" required name="balance_qty" id="gluer_balance_qty_${id}" readonly></div>
                     </div>
                     <div id="gluer_command_box_${id}" style="display:none;" class="alert alert-warning border-warning shadow-sm mt-3">
                         <h6 class="fw-bold text-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>Balance එකක් පවතී!</h6>
-                        <label class="small fw-bold mt-1">මෙම ඉතිරි ප්‍රමාණය නැවත කිරීමට (Balance PO) අවශ්‍යද?</label>
                         <select class="form-select border-warning mt-2" name="process_balance" id="gluer_balance_option_${id}">
                             <option value="">-- තීරණය තෝරන්න (Required) --</option>
-                            <option value="yes">ඔව්, Balance PO එකක් ලෙස නව Tab එකට මාරු කරන්න</option>
+                            <option value="yes">ඔව්, Balance PO එකක් ලෙස නව Tab එකට මාරු කරන්න (To Board Plant)</option>
                             <option value="no">නැත, ඉතිරි ප්‍රමාණය අවශ්‍ය නැත</option>
                         </select>
                     </div>
-                    <input type="hidden" name="target_tab" id="gluer_target_tab_${id}">
-                    <div class="d-flex justify-content-end gap-2 mt-3 flex-wrap">
-                        <button type="button" class="btn btn-dark fw-bold px-4" onclick="document.getElementById('gluer_target_tab_${id}').value='Finished Goods'; document.getElementById('form_gluer_${id}').requestSubmit();">Save & Transfer to Finished Goods</button>
+                    <input type="hidden" name="target_tab" value="Finished Goods">
+                    <div class="d-flex justify-content-end gap-2 mt-3">
+                        <button type="submit" class="btn btn-success fw-bold px-4"><i class="bi bi-check-circle me-1"></i> Save & Transfer to Finished Goods</button>
                     </div>
                 </form>
             </div>`;
             let container = document.getElementById(`gluer_container_${id}`);
-            if (container) container.innerHTML = formHtml;
+            if(container) container.innerHTML = formHtml;
         }
 
         function showStitchingForm(id) {
             let row = document.getElementById(`stitching_row_${id}`);
-            if (row) row.style.display = 'table-row';
+            if(row) row.style.display = 'table-row';
             let plan;
-            for (const key in globalAllPlans) { let f = globalAllPlans[key].find(x => x.id === id); if (f) plan = f; }
-            if (!plan) return;
+            for (const key in globalAllPlans) { let f = globalAllPlans[key].find(x => x.id === id); if(f) plan = f; }
+            if(!plan) return;
 
             let formHtml = `
             <div class="card card-body bg-light m-3 border-info text-start shadow-sm position-relative">
                 <button type="button" class="btn btn-danger btn-sm position-absolute top-0 end-0 m-2 px-3 shadow-sm fw-bold" onclick="closeFormRow('stitching_row_${id}')"><i class="bi bi-x-lg me-1"></i> Close</button>
-                <h6 class="border-bottom pb-2 text-info fw-bold mt-2 text-uppercase">STITCHING STAGE FORM</h6>
+                <h6 class="border-bottom pb-2 text-info fw-bold mt-2 text-uppercase">STITCHING STAGE CONTROL FORM</h6>
                 <form id="form_stitching_${id}" onsubmit="submitMiniForm(event, ${id}, 'stitching', 'stitching')">
                     <div class="row g-2 mb-3 mt-3">
-                        <div class="col-md-4"><label class="small fw-bold text-primary">Date</label><input type="date" class="form-control border-primary" required name="stage_date" value="${currentIsoDate}"></div>
-                        <div class="col-md-4"><label class="small fw-bold">Damaged Qty</label><input type="number" class="form-control" required name="stitching_damaged_qty"></div>
-                        <div class="col-md-4"><label class="small fw-bold">Operator EPF No</label><input type="text" class="form-control" required name="stitching_epf_no"></div>
+                        <div class="col-md-3"><label class="small fw-bold text-primary">Date</label><input type="date" class="form-control border-primary" required name="stage_date" value="${currentIsoDate}"></div>
+                        <div class="col-md-3"><label class="small fw-bold">Counter Qty</label><input type="number" class="form-control" required name="counter_qty"></div>
+                        <div class="col-md-3"><label class="small fw-bold">Damaged Qty</label><input type="number" class="form-control" required name="damaged_qty"></div>
+                        <div class="col-md-3"><label class="small fw-bold">C: Hand EPF No</label><input type="text" class="form-control" required name="epf_no"></div>
                     </div>
-                    <div class="row g-2 mb-3 p-3 bg-white border border-secondary-subtle rounded mt-2">
+                    <div class="row g-2 mb-3 p-3 bg-white border border-secondary-subtle rounded">
                         <div class="col-md-4"><label class="small fw-bold">Target Qty</label><input type="number" class="form-control bg-light fw-bold text-dark" id="stitching_target_qty_${id}" value="${plan.qty}" readonly></div>
                         <div class="col-md-4"><label class="small fw-bold">Finished Qty</label><input type="number" class="form-control border-primary fw-bold" required name="finished_qty" id="stitching_finished_qty_${id}" oninput="calcBalanceTriggerBox(${id}, 'stitching')"></div>
                         <div class="col-md-4"><label class="small fw-bold">Balance Qty</label><input type="number" class="form-control bg-light fw-bold text-danger" required name="balance_qty" id="stitching_balance_qty_${id}" readonly></div>
                     </div>
                     <div id="stitching_command_box_${id}" style="display:none;" class="alert alert-warning border-warning shadow-sm mt-3">
                         <h6 class="fw-bold text-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>Balance එකක් පවතී!</h6>
-                        <label class="small fw-bold mt-1">මෙම ඉතිරි ප්‍රමාණය නැවත කිරීමට (Balance PO) අවශ්‍යද?</label>
                         <select class="form-select border-warning mt-2" name="process_balance" id="stitching_balance_option_${id}">
                             <option value="">-- තීරණය තෝරන්න (Required) --</option>
-                            <option value="yes">ඔව්, Balance PO එකක් ලෙස නව Tab එකට මාරු කරන්න</option>
+                            <option value="yes">ඔව්, Balance PO එකක් ලෙස නව Tab එකට මාරු කරන්න (To Board Plant)</option>
                             <option value="no">නැත, ඉතිරි ප්‍රමාණය අවශ්‍ය නැත</option>
                         </select>
                     </div>
-                    <input type="hidden" name="target_tab" id="stitching_target_tab_${id}">
-                    <div class="d-flex justify-content-end gap-2 mt-3 flex-wrap">
-                        <button type="button" class="btn btn-dark fw-bold px-4" onclick="document.getElementById('stitching_target_tab_${id}').value='Finished Goods'; document.getElementById('form_stitching_${id}').requestSubmit();">Save & Transfer to Finished Goods</button>
+                    <input type="hidden" name="target_tab" value="Finished Goods">
+                    <div class="d-flex justify-content-end gap-2 mt-3">
+                        <button type="submit" class="btn btn-info fw-bold px-4 text-white"><i class="bi bi-check-circle me-1"></i> Save & Transfer to Finished Goods</button>
                     </div>
                 </form>
             </div>`;
             let container = document.getElementById(`stitching_container_${id}`);
-            if (container) container.innerHTML = formHtml;
+            if(container) container.innerHTML = formHtml;
         }
 
         function renderBalancePOTable() {
             let titleEl = document.getElementById('generic-tab-title');
-            if (titleEl) titleEl.innerHTML = "<i class='bi bi-exclamation-triangle-fill text-warning me-2'></i> Balance PO Queue";
-
-            fetch('/api/get_saved_plans').then(r => r.json()).then(data => {
+            if(titleEl) titleEl.innerHTML = "<i class='bi bi-exclamation-triangle-fill text-warning me-2'></i> Balance PO Operations Queue";
+            
+            fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
                 globalAllPlans = data;
                 let html = `
-                <div class="mb-3 d-flex justify-content-between align-items-center">
-                    <span class="text-secondary fw-bold"><i class="bi bi-funnel"></i> Balance Orders</span>
-                    <input type="text" id="balanceSearch" class="form-control w-25 border-warning" placeholder="Search PO..." onkeyup="filterByPONo('balanceTable', 'balanceSearch', 0)">
-                </div>
-                <table id="balanceTable" class="table table-bordered table-striped align-middle text-center mb-0">
-                    <thead class="table-dark small">
-                        <tr><th>PO No</th><th>Customer</th><th>Reel Size</th><th>Balance Qty</th><th>Status</th><th>Action</th></tr>
-                    </thead>
-                    <tbody>`;
-
-                let hasRecords = false;
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover align-middle text-center mb-0">
+                        <thead class="table-dark small">
+                            <tr><th>PO No</th><th>Customer Name</th><th>Reel Size</th><th>Ply</th><th>Balance Qty</th><th>Log Audit</th><th>Action</th></tr>
+                        </thead>
+                        <tbody class="small">`;
+                
+                let count = 0;
                 for (const [size, plans] of Object.entries(data)) {
-                    plans.filter(p => p.status === 'Balance PO' || p.is_balance_po).forEach(p => {
-                        hasRecords = true;
-                        let actHtml = canAct('Balance PO') ? `<button class="btn btn-sm btn-primary fw-bold" onclick="transferPlan(${p.id}, 'Board Plant')">Re-transfer to Board Plant</button>` : `<span class="badge bg-secondary">View Only</span>`;
+                    plans.filter(p => p.status === 'Balance PO').forEach(p => {
+                        count++;
                         html += `
                         <tr>
                             <td class="fw-bold text-primary">${p.po_no}</td>
                             <td>${p.customer_name}</td>
                             <td>${size} cm</td>
-                            <td><span class="badge bg-danger fs-6">${p.qty}</span></td>
-                            <td><span class="badge bg-warning text-dark">${p.status}</span></td>
-                            <td>${actHtml}</td>
+                            <td><span class="badge bg-secondary">${p.ply} Ply</span></td>
+                            <td><span class="badge bg-danger fs-6">${p.qty} Pcs</span></td>
+                            <td><button class="btn btn-sm btn-outline-info fw-bold" onclick="viewStageAttachment(${p.id})"><i class="bi bi-journal-text"></i> View Log</button></td>
+                            <td><button class="btn btn-sm btn-primary fw-bold" onclick="transferPlan(${p.id}, 'Board Plant')"><i class="bi bi-arrow-return-left me-1"></i> Re-enter Board Plant</button></td>
                         </tr>`;
                     });
                 }
-                html += `</tbody></table>`;
+                html += `</tbody></table></div>`;
                 let container = document.getElementById('generic-stage-container');
-                if (container) container.innerHTML = hasRecords ? html : "<p class='text-muted p-4 text-center border rounded bg-white'>No active Balance PO orders found.</p>";
+                if(container) container.innerHTML = count > 0 ? html : "<p class='text-muted p-4 text-center border rounded bg-white'>No Balance POs currently logged.</p>";
             });
         }
 
         function renderFinishedGoodsTable() {
             let titleEl = document.getElementById('generic-tab-title');
-            if (titleEl) titleEl.innerHTML = "<i class='bi bi-check2-circle text-success me-2'></i> Stage 5: Finished Goods Inventory & Dispatch";
+            if(titleEl) titleEl.innerHTML = "<i class='bi bi-check2-circle text-success me-2'></i> Finished Goods & Dispatch Stage";
 
-            fetch('/api/get_saved_plans').then(r => r.json()).then(data => {
+            fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
                 globalAllPlans = data;
                 let html = `
-                <div class="mb-3 d-flex justify-content-between align-items-center">
-                    <span class="text-secondary fw-bold"><i class="bi bi-box-seam"></i> Finished Goods Stock</span>
-                    <input type="text" id="fgSearch" class="form-control w-25 border-success" placeholder="Search PO..." onkeyup="filterByPONo('fgTable', 'fgSearch', 0)">
-                </div>
-                <table id="fgTable" class="table table-bordered table-striped align-middle text-center mb-0">
-                    <thead class="table-dark small">
-                        <tr><th>PO No</th><th>Customer & Product</th><th>Reel Size</th><th>Qty</th><th>Attachment</th><th>Action</th></tr>
-                    </thead>
-                    <tbody>`;
+                <div class="table-responsive">
+                    <table class="table table-bordered table-striped align-middle text-center mb-0">
+                        <thead class="table-dark small">
+                            <tr><th>PO No</th><th>Customer Name</th><th>Reel Size</th><th>Ply</th><th>Target Qty</th><th>Log Audit</th><th>Dispatch Action</th></tr>
+                        </thead>
+                        <tbody class="small">`;
 
-                let hasRecords = false;
+                let count = 0;
                 for (const [size, plans] of Object.entries(data)) {
                     plans.filter(p => p.status === 'Finished Goods').forEach(p => {
-                        hasRecords = true;
-                        let actHtml = canAct('Finished Goods') ? `<button class="btn btn-sm btn-success fw-bold" onclick="showFinishedGoodsForm(${p.id})">Dispatch / Finalize</button>` : `<span class="badge bg-secondary">View Only</span>`;
+                        count++;
+                        let actHtml = canAct('Finished Goods') ? 
+                            `<button class="btn btn-sm btn-success fw-bold px-3 shadow-sm" onclick="showDispatchForm(${p.id})"><i class="bi bi-truck me-1"></i> Dispatch Order</button>` : 
+                            `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
+
                         html += `
                         <tr>
-                            <td class="fw-bold text-primary">${p.po_no}</td>
-                            <td>${p.customer_name} - ${p.product_name||''}</td>
-                            <td>${size} cm</td>
-                            <td><span class="badge bg-success fs-6">${p.qty}</span></td>
-                            <td><button class="btn btn-sm btn-outline-dark fw-bold" onclick="viewStageAttachment(${p.id})"><i class="bi bi-journal-text me-1"></i> View Log</button></td>
+                            <td class="fw-bold text-primary font-monospace fs-6">${p.po_no}</td>
+                            <td class="fw-semibold text-start">${p.customer_name}</td>
+                            <td class="fw-bold font-monospace">${size} cm</td>
+                            <td><span class="badge bg-dark">${p.ply} Ply</span></td>
+                            <td><span class="badge bg-primary fs-6">${p.qty} Pcs</span></td>
+                            <td><button class="btn btn-sm btn-outline-info fw-bold" onclick="viewStageAttachment(${p.id})"><i class="bi bi-journal-text me-1"></i> View Log</button></td>
                             <td>${actHtml}</td>
                         </tr>
-                        <tr id="fg_row_${p.id}" style="display:none;"><td colspan="6" class="p-0 border-0 position-relative" id="fg_container_${p.id}"></td></tr>`;
+                        <tr id="fg_row_${p.id}" style="display:none;">
+                            <td colspan="7" class="p-0 border-0 position-relative" id="fg_container_${p.id}"></td>
+                        </tr>`;
                     });
                 }
-                html += `</tbody></table>`;
+                html += `</tbody></table></div>`;
                 let container = document.getElementById('generic-stage-container');
-                if (container) container.innerHTML = hasRecords ? html : "<p class='text-muted p-4 text-center border rounded bg-white'>No items currently in Finished Goods inventory.</p>";
+                if(container) container.innerHTML = count > 0 ? html : "<p class='text-muted p-4 text-center border rounded bg-white'>No completed orders currently in Finished Goods.</p>";
             });
         }
 
-        function showFinishedGoodsForm(id) {
+        function showDispatchForm(id) {
             let row = document.getElementById(`fg_row_${id}`);
-            if (row) row.style.display = 'table-row';
+            if(row) row.style.display = 'table-row';
             let plan;
-            for (const key in globalAllPlans) { let f = globalAllPlans[key].find(x => x.id === id); if (f) plan = f; }
-            if (!plan) return;
+            for (const key in globalAllPlans) { let f = globalAllPlans[key].find(x => x.id === id); if(f) plan = f; }
+            if(!plan) return;
 
             let formHtml = `
             <div class="card card-body bg-light m-3 border-success text-start shadow-sm position-relative">
                 <button type="button" class="btn btn-danger btn-sm position-absolute top-0 end-0 m-2 px-3 shadow-sm fw-bold" onclick="closeFormRow('fg_row_${id}')"><i class="bi bi-x-lg me-1"></i> Close</button>
-                <h6 class="border-bottom pb-2 text-success fw-bold mt-2 text-uppercase">DISPATCH / FINALIZE ORDER</h6>
-                <form id="form_fg_${id}" onsubmit="submitFinishedGoods(event, ${id})">
-                    <div class="row g-2 mb-3 mt-3">
-                        <div class="col-md-4"><label class="small fw-bold text-primary">Dispatch Date</label><input type="date" class="form-control border-primary" required name="dispatch_date" value="${currentIsoDate}"></div>
-                        <div class="col-md-4"><label class="small fw-bold">Dispatched Qty</label><input type="number" class="form-control fw-bold" required name="dispatch_qty" value="${plan.qty}"></div>
-                        <div class="col-md-4"><label class="small fw-bold">AD / Invoice Number</label><input type="text" class="form-control" required name="ad_number" placeholder="Enter AD No"></div>
+                <h6 class="border-bottom pb-2 text-success fw-bold mt-2 text-uppercase"><i class="bi bi-truck me-1"></i> DISPATCH & AD NUMBER ASSIGNMENT FORM</h6>
+                <form id="form_fg_${id}" onsubmit="submitDispatch(event, ${id})">
+                    <div class="row g-3 mb-3 mt-1">
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold text-primary">Dispatch Date</label>
+                            <input type="date" class="form-control border-primary fw-bold" required name="dispatch_date" value="${currentIsoDate}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold text-danger">AD Number / Invoice No</label>
+                            <input type="text" class="form-control border-danger fw-bold" required name="ad_no" placeholder="e.g. AD-99412">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Dispatched Quantity</label>
+                            <input type="number" class="form-control fw-bold" required name="dispatch_qty" value="${plan.qty}">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Delivery Remarks / Driver Note</label>
+                        <input type="text" class="form-control" name="dispatch_remarks" placeholder="Optional delivery details...">
                     </div>
                     <div class="d-flex justify-content-end gap-2 mt-3">
-                        <button type="submit" class="btn btn-success fw-bold px-4"><i class="bi bi-check-circle me-1"></i> Mark Dispatched & Archive</button>
+                        <button type="submit" class="btn btn-success fw-bold px-4 shadow-sm"><i class="bi bi-check2-all me-1"></i> Confirm Dispatch & Archive</button>
                     </div>
                 </form>
             </div>`;
             let container = document.getElementById(`fg_container_${id}`);
-            if (container) container.innerHTML = formHtml;
+            if(container) container.innerHTML = formHtml;
         }
 
-        function submitFinishedGoods(e, id) {
+        function submitDispatch(e, id) {
             e.preventDefault();
             const form = e.target;
             const formData = new FormData(form);
@@ -1932,161 +1977,295 @@
             transferPlan(id, 'Dispatched', dataObj, 'finished_goods');
         }
 
-        function loadHistoryLogs(reset = false) {
-            if (reset) {
-                if (document.getElementById('historyStartDate')) document.getElementById('historyStartDate').value = '';
-                if (document.getElementById('historyEndDate')) document.getElementById('historyEndDate').value = '';
-                if (document.getElementById('historySearchPO')) document.getElementById('historySearchPO').value = '';
-                if (document.getElementById('historySearchCustomer')) document.getElementById('historySearchCustomer').value = '';
+        // DYNAMIC STATUS COLOR MAPPING FOR HISTORY AUDIT LOGS TABLE
+        function getStageBadgeHTML(status) {
+            let st = status ? status.trim() : 'Live Planning';
+            let badgeClass = 'bg-secondary';
+            let iconClass = 'bi-sliders2-vertical';
+
+            switch(st) {
+                case 'Live Planning':
+                case 'Draft':
+                    badgeClass = 'bg-secondary';
+                    iconClass = 'bi-sliders2-vertical';
+                    break;
+                case 'Board Plant':
+                    badgeClass = 'bg-primary';
+                    iconClass = 'bi-tools';
+                    break;
+                case 'Printers':
+                    badgeClass = 'bg-info text-dark';
+                    iconClass = 'bi-printer';
+                    break;
+                case 'Die Cut':
+                case 'Semi Auto':
+                    badgeClass = 'bg-warning text-dark';
+                    iconClass = 'bi-scissors';
+                    break;
+                case 'Gluer':
+                case 'Stitching':
+                    badgeClass = 'bg-dark';
+                    iconClass = 'bi-box-seam';
+                    break;
+                case 'Finished Goods':
+                    badgeClass = 'bg-success';
+                    iconClass = 'bi-check-circle';
+                    break;
+                case 'Dispatched':
+                    badgeClass = 'bg-gradient bg-success text-white border border-light';
+                    iconClass = 'bi-truck';
+                    break;
+                case 'Balance PO':
+                    badgeClass = 'bg-danger';
+                    iconClass = 'bi-exclamation-triangle-fill';
+                    break;
+                default:
+                    badgeClass = 'bg-secondary';
+                    iconClass = 'bi-tag';
             }
 
-            let startDate = document.getElementById('historyStartDate') ? document.getElementById('historyStartDate').value : '';
-            let endDate = document.getElementById('historyEndDate') ? document.getElementById('historyEndDate').value : '';
+            return `<span class="badge ${badgeClass} px-3 py-1 font-monospace fs-6 shadow-sm"><i class="bi ${iconClass} me-1"></i> ${st}</span>`;
+        }
 
-            fetch(`/api/get_plan_history?start_date=${startDate}&end_date=${endDate}`)
-            .then(r => {
-                if (!r.ok) throw new Error("HTTP error " + r.status);
-                return r.json();
-            })
+        function loadHistoryLogs(reset = false) {
+            if(reset) {
+                if(document.getElementById('historyStartDate')) document.getElementById('historyStartDate').value = '';
+                if(document.getElementById('historyEndDate')) document.getElementById('historyEndDate').value = '';
+                if(document.getElementById('historySearchPO')) document.getElementById('historySearchPO').value = '';
+                if(document.getElementById('historySearchCustomer')) document.getElementById('historySearchCustomer').value = '';
+            }
+
+            let sDate = document.getElementById('historyStartDate') ? document.getElementById('historyStartDate').value : '';
+            let eDate = document.getElementById('historyEndDate') ? document.getElementById('historyEndDate').value : '';
+
+            fetch(`/api/get_history_logs?start_date=${encodeURIComponent(sDate)}&end_date=${encodeURIComponent(eDate)}`)
+            .then(r => r.json())
             .then(data => {
-                let logs = Array.isArray(data) ? data : (data.logs || data.history || data.plans || data.data || []);
                 let tbody = document.getElementById('historyLogsTableBody');
                 if (!tbody) return;
-
-                if (!Array.isArray(logs) || logs.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="9" class="text-muted py-4">No plan history audit logs found.</td></tr>`;
+                
+                if (!data || data.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="9" class="text-muted py-4">No audit log records found for selected period.</td></tr>`;
                     return;
                 }
 
                 let html = '';
-                logs.forEach(log => {
-                    let mats = log.materials ? (Array.isArray(log.materials) ? log.materials.map(m => `${m.gsm||''}-${m.name||''}`).join(', ') : log.materials) : '-';
-                    let dateStr = log.timestamp || log.created_at || log.saved_at || log.date || 'N/A';
-                    if (typeof dateStr === 'number') dateStr = new Date(dateStr).toLocaleString();
+                data.forEach(p => {
+                    let ts = p.created_at || p.timestamp || '-';
+                    let sheetDim = `${p.selected_reel_size || p.reel_size || '-'} cm &times; ${p.sheet_length || p.cut_length || '-'} cm`;
+                    let comboStr = (p.materials && Array.isArray(p.materials)) ? 
+                        p.materials.map((m,i)=> `L${i+1}:${m.gsm||''}-${m.name}`).join(' | ') : '-';
+                    let adNo = (p.dispatch_form && p.dispatch_form.ad_no) ? p.dispatch_form.ad_no : (p.ad_no || '-');
+                    
+                    // Dynamic Status badge rendering for order location tracking
+                    let statusBadge = getStageBadgeHTML(p.status);
 
                     html += `
                     <tr>
-                        <td>${dateStr}</td>
-                        <td class="fw-bold text-primary font-monospace">${log.po_no || '-'}</td>
-                        <td class="text-start">${log.customer_name || log.customer_id || '-'}</td>
-                        <td>${log.selected_reel_size || log.size || '-'} cm (${log.cut_length || '-'} cm)</td>
-                        <td><span class="badge bg-secondary">${log.ply || 3} Ply</span></td>
-                        <td><span class="badge bg-primary">${log.qty || 0}</span></td>
-                        <td class="small text-start font-monospace">${mats}</td>
-                        <td><span class="badge ${log.status === 'Dispatched' ? 'bg-success' : 'bg-info'}">${log.status || 'Active'}</span></td>
-                        <td>${log.ad_number || log.id || '-'}</td>
+                        <td class="font-monospace text-muted small">${ts}</td>
+                        <td class="fw-bold text-primary font-monospace fs-6">${p.po_no}</td>
+                        <td class="fw-semibold text-start">${p.customer_name}</td>
+                        <td class="font-monospace bg-light">${sheetDim}</td>
+                        <td><span class="badge bg-secondary">${p.ply} Ply</span></td>
+                        <td><span class="badge bg-primary px-2 py-1 fs-6">${p.qty}</span></td>
+                        <td class="text-start font-monospace small" style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${comboStr}">${comboStr}</td>
+                        <td>${statusBadge}</td>
+                        <td class="fw-bold text-danger font-monospace">${adNo}</td>
                     </tr>`;
                 });
                 tbody.innerHTML = html;
-                filterHistoryTable();
             })
             .catch(err => {
                 console.error("Error loading history logs:", err);
                 let tbody = document.getElementById('historyLogsTableBody');
-                if (tbody) tbody.innerHTML = `<tr><td colspan="9" class="text-danger py-4">Failed to load history audit logs. ${err.message}</td></tr>`;
+                if(tbody) tbody.innerHTML = `<tr><td colspan="9" class="text-danger py-4">Error loading history logs from server.</td></tr>`;
             });
         }
 
+        // PROFESSIONAL VIEW LOG ATTACHMENT MODAL IMPLEMENTATION
         function viewStageAttachment(id) {
-            currentAttachmentPlan = null;
-            let plan = null;
-            for (const key in globalAllPlans) {
-                let found = globalAllPlans[key].find(x => x.id === id);
-                if (found) { plan = found; break; }
-            }
-
-            fetch(`/api/get_plan_details/${id}`)
-            .then(r => {
-                if (!r.ok) throw new Error("HTTP " + r.status);
-                const contentType = r.headers.get('content-type');
-                if (contentType && contentType.includes('application/json')) {
-                    return r.json();
-                } else {
-                    throw new Error("Response is not JSON");
+            fetch(`/api/get_plan_audit_logs?id=${id}`)
+            .then(r => r.json())
+            .then(res => {
+                if(!res.success) {
+                    alert("⚠️ Unable to retrieve audit logs for this order.");
+                    return;
                 }
-            })
-            .then(data => {
-                let details = (data && data.success && data.plan) ? data.plan : (data.plan || data || plan);
-                renderAttachmentModal(details || plan, id);
+
+                const plan = res.plan;
+                currentAttachmentPlan = plan;
+
+                document.getElementById('attachmentModalTitle').innerHTML = `
+                    <i class="bi bi-journal-check text-warning me-2"></i> Audit View & Execution Trail: <span class="text-warning">${plan.po_no}</span>
+                `;
+
+                document.getElementById('modalActionButtons').innerHTML = `
+                    <button class="btn btn-sm btn-outline-light fw-bold" onclick="printSelectedBand('attachmentModalBody')">
+                        <i class="bi bi-printer me-1"></i> Print Audit Log
+                    </button>
+                `;
+
+                // Build Stage Progress Pipeline Stepper
+                const stagesList = ['Live Planning', 'Board Plant', 'Printers', 'Die Cut', 'Finishing Stage', 'Finished Goods', 'Dispatched'];
+                let currentStatus = plan.status || 'Live Planning';
+
+                let stepperHtml = `<div class="stage-stepper no-print">`;
+                stagesList.forEach(st => {
+                    let isCurrent = (currentStatus === st);
+                    let isDone = (stagesList.indexOf(currentStatus) > stagesList.indexOf(st)) || currentStatus === 'Dispatched';
+                    let cls = isCurrent ? 'active' : (isDone ? 'completed' : '');
+                    stepperHtml += `<div class="step-item ${cls}">${st}</div>`;
+                });
+                stepperHtml += `</div>`;
+
+                // Order Header Overview Summary Card
+                let overviewHtml = `
+                <div class="card border-0 shadow-sm mb-4 bg-dark text-white">
+                    <div class="card-body p-3">
+                        <div class="row align-items-center">
+                            <div class="col-md-3 border-end border-secondary">
+                                <span class="audit-field-label text-warning d-block">PO Identification</span>
+                                <span class="fs-5 font-monospace fw-bold">${plan.po_no}</span>
+                            </div>
+                            <div class="col-md-3 border-end border-secondary">
+                                <span class="audit-field-label text-warning d-block">Customer & Product</span>
+                                <span class="fw-bold text-light">${plan.customer_name || 'N/A'}</span>
+                            </div>
+                            <div class="col-md-2 border-end border-secondary text-center">
+                                <span class="audit-field-label text-warning d-block">Reel Size / Ply</span>
+                                <span class="badge bg-light text-dark font-monospace">${plan.selected_reel_size || plan.reel_size || '-'} cm | ${plan.ply} Ply</span>
+                            </div>
+                            <div class="col-md-2 border-end border-secondary text-center">
+                                <span class="audit-field-label text-warning d-block">Target Qty</span>
+                                <span class="badge bg-primary fs-6">${plan.qty} Pcs</span>
+                            </div>
+                            <div class="col-md-2 text-center">
+                                <span class="audit-field-label text-warning d-block">Current Data Stage</span>
+                                ${getStageBadgeHTML(plan.status)}
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+
+                let auditLogsHtml = '';
+
+                // 1. Board Plant Execution Card
+                if (plan.board_plant_form) {
+                    let bp = plan.board_plant_form;
+                    auditLogsHtml += `
+                    <div class="audit-card">
+                        <div class="audit-card-header text-primary d-flex justify-content-between align-items-center">
+                            <span><i class="bi bi-tools me-2"></i> 1. Board Plant Quality & Reel Allocation Audit</span>
+                            <span class="badge bg-primary">${bp.bp_date || 'N/A'}</span>
+                        </div>
+                        <div class="card-body p-3">
+                            <div class="row g-3 mb-3">
+                                <div class="col-md-3"><div class="audit-field-label">Serial Number</div><div class="audit-field-value font-monospace">${bp.serial_no || '-'}</div></div>
+                                <div class="col-md-3"><div class="audit-field-label">Slit Size & Cut Length</div><div class="audit-field-value font-monospace">${bp.slit_size || '-'} cm &times; ${bp.cut_length || '-'} cm</div></div>
+                                <div class="col-md-3"><div class="audit-field-label">Operator EPF</div><div class="audit-field-value">${bp['EPF No'] || bp.epf_no || '-'}</div></div>
+                                <div class="col-md-3"><div class="audit-field-label">QC Pass/Fail Status</div><div class="audit-field-value text-success">${bp.pass_fail || 'Pass'}</div></div>
+                            </div>
+                            <div class="row g-3">
+                                <div class="col-md-3"><div class="audit-field-label">Counter Qty</div><div class="audit-field-value">${bp.counter_qty || 0}</div></div>
+                                <div class="col-md-3"><div class="audit-field-label">Add Feed Qty</div><div class="audit-field-value">${bp.add_qty || 0}</div></div>
+                                <div class="col-md-3"><div class="audit-field-label">Excess Qty</div><div class="audit-field-value">${bp.excess || 0}</div></div>
+                                <div class="col-md-3"><div class="audit-field-label">Damaged Sheets</div><div class="audit-field-value text-danger">${bp.damaged || 0}</div></div>
+                            </div>
+                        </div>
+                    </div>`;
+                }
+
+                // 2. Printers Execution Card
+                if (plan.printer_form) {
+                    let pr = plan.printer_form;
+                    auditLogsHtml += `
+                    <div class="audit-card">
+                        <div class="audit-card-header text-info d-flex justify-content-between align-items-center">
+                            <span><i class="bi bi-printer me-2"></i> 2. Printers Stage Audit Log</span>
+                            <span class="badge bg-info text-dark">${pr.pr_date || 'N/A'}</span>
+                        </div>
+                        <div class="card-body p-3">
+                            <div class="row g-3 mb-3">
+                                <div class="col-md-3"><div class="audit-field-label">Machine Selected</div><div class="audit-field-value text-primary">${pr.printer_select || '-'}</div></div>
+                                <div class="col-md-3"><div class="audit-field-label">Finished Output Qty</div><div class="audit-field-value text-success">${pr.finished_qty || 0} Pcs</div></div>
+                                <div class="col-md-3"><div class="audit-field-label">Balance Quantity</div><div class="audit-field-value text-danger">${pr.balance_qty || 0} Pcs</div></div>
+                                <div class="col-md-3"><div class="audit-field-label">Batch Code</div><div class="audit-field-value font-monospace">${pr.pr_Batch || '-'}</div></div>
+                            </div>
+                        </div>
+                    </div>`;
+                }
+
+                // 3. Die Cut & Semi Auto Cards
+                if (plan.diecut_form) {
+                    let dc = plan.diecut_form;
+                    auditLogsHtml += `
+                    <div class="audit-card">
+                        <div class="audit-card-header text-warning d-flex justify-content-between align-items-center">
+                            <span><i class="bi bi-scissors me-2"></i> 3. Die Cut Stage Audit Log</span>
+                            <span class="badge bg-warning text-dark">${dc.stage_date || 'N/A'}</span>
+                        </div>
+                        <div class="card-body p-3">
+                            <div class="row g-3">
+                                <div class="col-md-3"><div class="audit-field-label">Finished Qty</div><div class="audit-field-value text-success">${dc.finished_qty || 0}</div></div>
+                                <div class="col-md-3"><div class="audit-field-label">Balance Qty</div><div class="audit-field-value text-danger">${dc.balance_qty || 0}</div></div>
+                                <div class="col-md-3"><div class="audit-field-label">Operator EPF</div><div class="audit-field-value">${dc.dc_epf_no || '-'}</div></div>
+                                <div class="col-md-3"><div class="audit-field-label">QC Approval</div><div class="audit-field-value text-primary">${dc.qc_approval || 'Approved'}</div></div>
+                            </div>
+                        </div>
+                    </div>`;
+                }
+
+                // 4. Finishing Stage (Gluer/Stitching)
+                if (plan.gluer_form || plan.stitching_form) {
+                    let fn = plan.gluer_form || plan.stitching_form;
+                    auditLogsHtml += `
+                    <div class="audit-card">
+                        <div class="audit-card-header text-dark d-flex justify-content-between align-items-center">
+                            <span><i class="bi bi-box-seam me-2"></i> 4. Finishing Stage Audit Log</span>
+                            <span class="badge bg-dark">${fn.stage_date || 'N/A'}</span>
+                        </div>
+                        <div class="card-body p-3">
+                            <div class="row g-3">
+                                <div class="col-md-4"><div class="audit-field-label">Finished Qty</div><div class="audit-field-value text-success">${fn.finished_qty || 0} Pcs</div></div>
+                                <div class="col-md-4"><div class="audit-field-label">Operator EPF</div><div class="audit-field-value">${fn.epf_no || '-'}</div></div>
+                                <div class="col-md-4"><div class="audit-field-label">Damaged Count</div><div class="audit-field-value text-danger">${fn.damaged_qty || 0}</div></div>
+                            </div>
+                        </div>
+                    </div>`;
+                }
+
+                // 5. Dispatch Entry Log
+                if (plan.dispatch_form) {
+                    let dp = plan.dispatch_form;
+                    auditLogsHtml += `
+                    <div class="audit-card border-success">
+                        <div class="audit-card-header bg-success text-white d-flex justify-content-between align-items-center">
+                            <span><i class="bi bi-truck me-2"></i> 5. Dispatched & AD Audit Record</span>
+                            <span class="badge bg-light text-dark">${dp.dispatch_date || 'N/A'}</span>
+                        </div>
+                        <div class="card-body p-3">
+                            <div class="row g-3">
+                                <div class="col-md-4"><div class="audit-field-label">AD Number / Invoice</div><div class="audit-field-value text-danger font-monospace fs-5">${dp.ad_no || '-'}</div></div>
+                                <div class="col-md-4"><div class="audit-field-label">Dispatched Qty</div><div class="audit-field-value text-success fs-5">${dp.dispatch_qty || 0} Pcs</div></div>
+                                <div class="col-md-4"><div class="audit-field-label">Dispatch Remarks</div><div class="audit-field-value">${dp.dispatch_remarks || 'None'}</div></div>
+                            </div>
+                        </div>
+                    </div>`;
+                }
+
+                if (!auditLogsHtml) {
+                    auditLogsHtml = `<div class="alert alert-info text-center py-4 fs-6"><i class="bi bi-info-circle me-2"></i> Standard order created in Live Planning. No stage forms executed yet.</div>`;
+                }
+
+                document.getElementById('attachmentModalBody').innerHTML = stepperHtml + overviewHtml + auditLogsHtml;
+
+                let modalInstance = new bootstrap.Modal(document.getElementById('viewAttachmentModal'));
+                modalInstance.show();
             })
             .catch(err => {
-                console.warn("API fetch error, falling back to local cached plan data:", err);
-                if (plan) {
-                    renderAttachmentModal(plan, id);
-                } else {
-                    alert("⚠️ Could not load log audit view for Job Card #" + id);
-                }
+                console.error("Error viewing stage attachment:", err);
+                alert("❌ Error rendering stage attachment log audit view.");
             });
-        }
-
-        function renderAttachmentModal(plan, id) {
-            if (!plan) return;
-            currentAttachmentPlan = plan;
-
-            let titleEl = document.getElementById('attachmentModalTitle');
-            if (titleEl) titleEl.innerHTML = `<i class="bi bi-journal-text text-warning me-2"></i> Log Audit View - PO: ${plan.po_no || 'N/A'}`;
-
-            let bodyEl = document.getElementById('attachmentModalBody');
-            if (!bodyEl) return;
-
-            let mats = plan.materials ? (Array.isArray(plan.materials) ? plan.materials.map((m, i) => `L${i+1}: ${m.gsm||'-'} GSM (${m.name||'-'})`).join('<br>') : JSON.stringify(plan.materials)) : 'N/A';
-
-            let bpFormHtml = plan.board_plant_form ? `<pre class="bg-white p-2 rounded border font-monospace small">${JSON.stringify(plan.board_plant_form, null, 2)}</pre>` : '<span class="text-muted">No Board Plant log recorded.</span>';
-            let prFormHtml = plan.printer_form ? `<pre class="bg-white p-2 rounded border font-monospace small">${JSON.stringify(plan.printer_form, null, 2)}</pre>` : '<span class="text-muted">No Printer log recorded.</span>';
-
-            bodyEl.innerHTML = `
-            <div class="row g-3 mb-3">
-                <div class="col-md-4">
-                    <div class="p-3 bg-white rounded border shadow-sm">
-                        <span class="text-muted small fw-bold d-block">PO Number</span>
-                        <span class="fw-bold text-primary fs-5">${plan.po_no || 'N/A'}</span>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="p-3 bg-white rounded border shadow-sm">
-                        <span class="text-muted small fw-bold d-block">Customer</span>
-                        <span class="fw-bold text-dark fs-6">${plan.customer_name || plan.customer_id || 'N/A'}</span>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="p-3 bg-white rounded border shadow-sm">
-                        <span class="text-muted small fw-bold d-block">Current Stage & Status</span>
-                        <span class="badge bg-warning text-dark fs-6">${plan.status || 'Active'}</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card mb-3 border-0 shadow-sm">
-                <div class="card-header bg-dark text-white fw-bold">Specification Matrix</div>
-                <div class="card-body bg-white">
-                    <p class="mb-1"><strong>Reel Size:</strong> ${plan.selected_reel_size || 'N/A'} cm</p>
-                    <p class="mb-1"><strong>Cut Length:</strong> ${plan.cut_length || 'N/A'} cm</p>
-                    <p class="mb-1"><strong>Ply Count:</strong> ${plan.ply || 3} Ply</p>
-                    <p class="mb-1"><strong>Target Qty:</strong> ${plan.qty || 0} Pcs</p>
-                    <div class="mt-2"><strong>Materials Combination:</strong><br>${mats}</div>
-                </div>
-            </div>
-
-            <div class="card mb-3 border-0 shadow-sm">
-                <div class="card-header bg-secondary text-white fw-bold">Stage Execution History Logs</div>
-                <div class="card-body bg-light">
-                    <h6>Board Plant Stage Log:</h6>
-                    ${bpFormHtml}
-                    <h6 class="mt-3">Printers Stage Log:</h6>
-                    ${prFormHtml}
-                </div>
-            </div>`;
-
-            let actionBtns = document.getElementById('modalActionButtons');
-            if (actionBtns) {
-                actionBtns.innerHTML = `
-                <button class="btn btn-sm btn-warning fw-bold text-dark me-2" onclick="openTransferOrderModal(${plan.id}, '${plan.po_no}')"><i class="bi bi-arrow-left-right"></i> Emergency Order Transfer</button>
-                `;
-            }
-
-            let modalEl = document.getElementById('viewAttachmentModal');
-            let modalObj = bootstrap.Modal.getOrCreateInstance(modalEl);
-            modalObj.show();
         }
     </script>
 </body>
