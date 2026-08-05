@@ -2037,19 +2037,23 @@
         }
 
         function loadHistoryLogs(reset = false) {
-            let url = '/api/get_history_logs';
-            if(!reset) {
-                let start = document.getElementById('historyStartDate').value;
-                let end = document.getElementById('historyEndDate').value;
-                if(start && end) {
-                    url += `?start=${start}&end=${end}`;
-                }
-            } else {
+            if (reset) {
                 document.getElementById('historyStartDate').value = '';
                 document.getElementById('historyEndDate').value = '';
                 document.getElementById('historySearchPO').value = '';
                 document.getElementById('historySearchCustomer').value = '';
             }
+
+            fetch('/api/get_saved_plans').then(r => r.json()).then(data => {
+                let html = '';
+                let allDispatched = [];
+                
+                for (const [size, plans] of Object.entries(data)) {
+                    plans.filter(p => p.status === 'Dispatched').forEach(p => {
+                        p.size_band = size;
+                        allDispatched.push(p);
+                    });
+                }
 
             fetch(url).then(r=>r.json()).then(data => {
                 let html = '';
