@@ -912,10 +912,16 @@
         }
 
         function editQty(id) {
-            document.getElementById(`qty_input_${id}`).style.display = 'inline-block';
+            // Text display එක සඟවා Input field එක පෙන්වීම
             document.getElementById(`qty_display_${id}`).style.display = 'none';
-            document.getElementById(`btn_save_qty_${id}`).style.display = 'inline-block';
+            
+            let inputField = document.getElementById(`qty_input_${id}`);
+            inputField.style.display = 'inline-block';
+            inputField.focus();
+
+            // Edit බොත්තම සඟවා Save බොත්තම පෙන්වීම
             document.getElementById(`btn_edit_qty_${id}`).style.display = 'none';
+            document.getElementById(`btn_save_qty_${id}`).style.display = 'inline-block';
         }
 
         function validateAndTransferToBP(id) {
