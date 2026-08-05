@@ -988,50 +988,67 @@
         }
 
         function submitTransferOrder() {
-    let id = document.getElementById('transfer_plan_id').value;
-    let currentPo = document.getElementById('transfer_current_po').value;
-    let newPo = document.getElementById('transfer_new_po').value.trim();
-    let newCust = document.getElementById('transfer_new_customer').value.trim();
-    let reason = document.getElementById('transfer_reason').value.trim();
+            let id = document.getElementById('transfer_plan_id').value;
+            let currentPo = document.getElementById('transfer_current_po').value;
+            let newPo = document.getElementById('transfer_new_po').value.trim();
+            let newCust = document.getElementById('transfer_new_customer').value.trim();
+            let reason = document.getElementById('transfer_reason').value.trim();
 
-    if(!newPo || !reason) {
-        alert("New PO Number and Reason are required fields!");
-        return;
-    }
-
-    // අලුතින් එකතු කළ කොටස: Backend එකට යවන Data (Payload) එක මෙලෙස සැකසිය යුතුයි
-    let payload = {
-        id: id,
-        current_po: currentPo,
-        new_po: newPo,
-        new_customer: newCust,
-        transfer_reason: reason
-    };
-
-    // ffetch යන්න fetch ලෙස නිවැරදි කර ඇත
-    fetch('/api/transfer_order_identity', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(payload)
-    })
-    .then(async response => {
-        if (!response.ok) {
-            throw new Error(`Server returned status ${response.status}`);
-        }
-        return response.json();
-    })
-    .then(res => {
-        if(res.success) {
-            alert("✅ Order Transferred Successfully!");
-            // අවශ්‍ය නම් මෙතනින් Modal එක Close කරලා Data ටික Refresh කරන්න පුළුවන්
-            if(transferModalInstance) {
-                transferModalInstance.hide();
+            if(!newPo || !reason) {
+                alert("New PO Number and Reason are required fields!");
+                return;
             }
-        }
-    })
-    .catch(err => console.error("API Error:", err));
-}
 
+            // Backend එක බලාපොරොත්තු වන විවිධ Key නාමයන් (Aliases) මඟින් 500 Error එක වැළැක්වීම
+            let payload = {
+                id: id,
+                plan_id: id,
+                current_po: currentPo,
+                current_po_no: currentPo,
+                new_po: newPo,
+                new_po_no: newPo,
+                new_customer: newCust,
+                customer_name: newCust,
+                transfer_reason: reason,
+                reason: reason
+            };
+
+            fetch('/api/transfer_order_identity', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            })
+            .then(async response => {
+                const text = await response.text();
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch (e) {
+                    throw new Error(`Server Error (500 Internal Error): ${text.substring(0, 100)}...`);
+                }
+                if (!response.ok) {
+                    throw new Error(data.message || `Server returned status ${response.status}`);
+                }
+                return data;
+            })
+            .then(res => {
+                if(res.success) {
+                    alert("✅ Order Transferred Successfully!");
+                    if(transferModalInstance) {
+                        transferModalInstance.hide();
+                    }
+                    // දත්ත යාවත්කාලීන කිරීම සඳහා Active Tab එක රෙෆ්‍රෙෂ් කිරීම
+                    let activeTab = document.querySelector('.nav-link.active');
+                    if(activeTab) activeTab.click();
+                } else {
+                    alert("❌ " + (res.message || "Transfer failed."));
+                }
+            })
+            .catch(err => {
+                console.error("API Error:", err);
+                alert("❌ API Error: " + err.message);
+            });
+        }
         function printSelectedBand(bandId) {
             document.getElementById(bandId).querySelectorAll('input[type="number"]').forEach(el => { 
                 el.setAttribute('value', el.value || ''); 
