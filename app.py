@@ -1215,16 +1215,31 @@ def update_plan_qty():
 
 @app.route('/api/transfer_order_identity', methods=['POST'])
 def transfer_order():
-    # Order Transfer in Board Plant Logic (Requirement 3)
-    data = request.json
-    plan = ProgrammePlan.query.get(data.get('id'))
-    
-    if plan:
-        old_po = plan.po_no
-        plan.po_no = data.get('new_po_no')
-        plan.customer_id = data.get('new_customer_id')
-        plan.product_code = data.get('new_product_code')
+    try:
+        data = request.json
+        if not data:
+            return jsonify({"success": False, "message": "No JSON data received"}), 400
+            
+        plan_id = data.get('id') or data.get('plan_id')
+        plan = ProgrammePlan.query.get(plan_id)
         
+        if not plan:
+            return jsonify({"success": False, "message": "Programme Plan not found"}), 404
+            
+        old_po = plan.po_no
+        
+        # විවිධ Key නාමයන් පරීක්ෂා කර නිවැරදි අගය ලබා ගැනීම (Aliases support)
+        new_po = data.get('new_po') or data.get('new_po_no')
+        new_customer = data.get('new_customer') or data.get('new_customer_id') or data.get('customer_name')
+        new_product = data.get('new_product_code') or data.get('product_code')
+        
+        if new_po:
+            plan.po_no = new_po
+        if new_customer:
+            plan.customer_id = new_customer
+        if new_product:
+            plan.product_code = new_product
+            
         transfer_msg = f"Transferred from PO: {old_po} to {plan.po_no} on {datetime.now(colombo_tz).strftime('%Y-%m-%d %H:%M')}"
         if plan.transfer_info:
             plan.transfer_info += f" | {transfer_msg}"
@@ -1233,8 +1248,12 @@ def transfer_order():
             
         db.session.commit()
         return jsonify({"success": True, "message": "Order transferred successfully"})
+        
+    except Exception as e:
+        db.session.rollback()
+        # 500 HTML පිටුවක් වෙනුවට සැබෑ දෝෂ පණිවිඩය JSON ලෙස ලබා දීම
+        return jsonify({"success": False, "message": str(e)}), 500
     
-
 @app.route('/api/transfer_plan', methods=['POST'])
 def transfer_plan():
     data = request.json
