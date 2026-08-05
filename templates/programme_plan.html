@@ -988,35 +988,49 @@
         }
 
         function submitTransferOrder() {
-            let id = document.getElementById('transfer_plan_id').value;
-            let currentPo = document.getElementById('transfer_current_po').value;
-            let newPo = document.getElementById('transfer_new_po').value.trim();
-            let newCust = document.getElementById('transfer_new_customer').value.trim();
-            let reason = document.getElementById('transfer_reason').value.trim();
+    let id = document.getElementById('transfer_plan_id').value;
+    let currentPo = document.getElementById('transfer_current_po').value;
+    let newPo = document.getElementById('transfer_new_po').value.trim();
+    let newCust = document.getElementById('transfer_new_customer').value.trim();
+    let reason = document.getElementById('transfer_reason').value.trim();
 
-            if(!newPo || !reason) {
-                alert("New PO Number and Reason are required fields!");
-                return;
+    if(!newPo || !reason) {
+        alert("New PO Number and Reason are required fields!");
+        return;
+    }
+
+    // අලුතින් එකතු කළ කොටස: Backend එකට යවන Data (Payload) එක මෙලෙස සැකසිය යුතුයි
+    let payload = {
+        id: id,
+        current_po: currentPo,
+        new_po: newPo,
+        new_customer: newCust,
+        transfer_reason: reason
+    };
+
+    // ffetch යන්න fetch ලෙස නිවැරදි කර ඇත
+    fetch('/api/transfer_order_identity', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+    })
+    .then(async response => {
+        if (!response.ok) {
+            throw new Error(`Server returned status ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(res => {
+        if(res.success) {
+            alert("✅ Order Transferred Successfully!");
+            // අවශ්‍ය නම් මෙතනින් Modal එක Close කරලා Data ටික Refresh කරන්න පුළුවන්
+            if(transferModalInstance) {
+                transferModalInstance.hide();
             }
-
-            ffetch('/api/transfer_order_identity', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(payload)
-            })
-            .then(async response => {
-                if (!response.ok) {
-                    throw new Error(`Server returned status ${response.status} (Route missing or server error)`);
-                }
-                return response.json();
-            })
-            .then(res => {
-                if(res.success) {
-                    alert("✅ Order Transferred Successfully!");
-                }
-            })
-            .catch(err => console.error("API Error:", err));
-           }
+        }
+    })
+    .catch(err => console.error("API Error:", err));
+}
 
         function printSelectedBand(bandId) {
             document.getElementById(bandId).querySelectorAll('input[type="number"]').forEach(el => { 
