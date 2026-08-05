@@ -364,6 +364,10 @@
                     <label class="form-label fw-bold small">New Customer Name <span class="text-muted">(Optional)</span></label>
                     <input type="text" class="form-control" id="transfer_new_customer" placeholder="Enter new Customer Name...">
                 </div>
+                 <div class="mb-3">
+                <label class="form-label">Transfer Qty (කොටසක් පමණක් නම්)</label>
+                <input type="number" id="transfer_qty" class="form-control" placeholder="සම්පූර්ණ order එකම නම් හිස්ව තබන්න">
+                </div>
                 <div class="mb-3">
                     <label class="form-label fw-bold small">Reason for Transfer</label>
                     <textarea class="form-control" id="transfer_reason" required rows="2" placeholder="උදා: Emergency production priority change..."></textarea>
@@ -993,7 +997,7 @@
             let newPo = document.getElementById('transfer_new_po').value.trim();
             let newCust = document.getElementById('transfer_new_customer').value.trim();
             let reason = document.getElementById('transfer_reason').value.trim();
-
+            let transferQty = document.getElementById('transfer_qty').value;
             // Plan ID එක හිස් දැයි පරීක්ෂා කිරීම
             if(!id) {
                 alert("⚠️ දෝෂයකි: Plan ID එක හමුවී නැත. කරුණාකර නැවත උත්සාහ කරන්න.");
@@ -1014,8 +1018,8 @@
                 new_po_no: newPo,
                 new_customer: newCust,
                 customer_name: newCust,
-                transfer_reason: reason,
-                reason: reason
+                transfer_qty: transferQty ? parseInt(transferQty) : 0, 
+                reason: document.getElementById('transfer_reason') ? document.getElementById('transfer_reason').value : ''
             };
 
             // දත්ත නිවැරදිව යොමු වේදැයි බැලීමට Console එකට දමයි
@@ -2052,7 +2056,28 @@
                     </div>
                 </div>
             </div>`;
-            
+            let transferInfoHTML = "";
+                if (plan.transfer_info) {
+                try {
+                    let tData = JSON.parse(plan.transfer_info);
+                    if (tData.is_transfer && tData.prev_po) {
+                        transferInfoHTML = `
+                            <div class="alert alert-info mt-2 small shadow-sm">
+                                <strong><i class="bi bi-arrow-left-right"></i> Order Transfer Information:</strong><br>
+                                <span class="text-danger fw-bold">Previous PO:</span> ${tData.prev_po} | <span class="text-danger fw-bold">Previous Customer:</span> ${tData.prev_cust} <br>
+                                <span class="text-success fw-bold">New PO:</span> ${tData.new_po} | <span class="text-success fw-bold">New Customer:</span> ${tData.new_cust} <br>
+                                <strong>Reason:</strong> ${tData.reason || 'N/A'} <br>
+                                <strong>Transferred Qty:</strong> ${tData.qty > 0 ? tData.qty : '<span class="badge bg-secondary">Full Order</span>'}
+                            </div>
+                        `;
+                    } else if (tData.is_transfer && tData.msg) {
+                        transferInfoHTML = `<div class="alert alert-info mt-2 small">${tData.msg}</div>`;
+                    }
+                } catch(e) {
+                    // පරණ Transfer Data (JSON නොවන Plain Text Data) සඳහා
+                    transferInfoHTML = `<div class="alert alert-info mt-2 small">${plan.transfer_info}</div>`;
+                }
+            }
             // Step 1: Programme Plan Initial Setup
             bodyHtml += `
             <div class="card border-secondary mb-3 shadow-sm">
