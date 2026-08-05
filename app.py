@@ -1227,31 +1227,87 @@ def transfer_order():
             return jsonify({"success": False, "message": "Programme Plan not found"}), 404
             
         old_po = plan.po_no
+        old_customer = plan.customer_id
         
-        # විවිධ Key නාමයන් පරීක්ෂා කර නිවැරදි අගය ලබා ගැනීම (Aliases support)
         new_po = data.get('new_po') or data.get('new_po_no')
         new_customer = data.get('new_customer') or data.get('new_customer_id') or data.get('customer_name')
         new_product = data.get('new_product_code') or data.get('product_code')
+        transfer_qty = safe_int(data.get('transfer_qty', 0))
+        reason = data.get('reason', '')
         
-        if new_po:
-            plan.po_no = new_po
-        if new_customer:
-            plan.customer_id = new_customer
-        if new_product:
-            plan.product_code = new_product
+        # View log සඳහා transfer details සුරක්ෂිතව JSON ලෙස සකසා ගැනීම
+        transfer_data = {
+            "is_transfer": True,
+            "prev_po": old_po,
+            "prev_cust": old_customer,
+            "new_po": new_po or old_po,
+            "new_cust": new_customer or old_customer,
+            "reason": reason,
+            "date": datetime.now(colombo_tz).strftime('%Y-%m-%d %H:%M'),
+            "qty": transfer_qty
+        }
+        transfer_json_str = json.dumps(transfer_data)
+        
+        # දැනට අදාළ stage එකේ තිබෙන balance qty එක හඳුනාගැනීම
+        current_qty = plan.balance_qty if plan.balance_qty > 0 else plan.qty
+        
+        if 0 < transfer_qty < current_qty:
+            # Partial Transfer (කොටසක් පමණක් transfer කිරීම)
+            new_plan = ProgrammePlan(
+                po_no=new_po if new_po else plan.po_no,
+                customer_id=new_customer if new_customer else plan.customer_id,
+                product_code=new_product if new_product else plan.product_code,
+                selected_reel_size=plan.selected_reel_size,
+                selected_ups=plan.selected_ups,
+                qty=transfer_qty,
+                finished_qty=transfer_qty if plan.finished_qty > 0 else 0,
+                balance_qty=transfer_qty if plan.balance_qty > 0 else 0,
+                materials_json=plan.materials_json,
+                status=plan.status,
+                balance_status=plan.balance_status,
+                created_by=session.get('username', 'System'),
+                created_at=plan.created_at,
+                board_plant_form=plan.board_plant_form,
+                printer_form=plan.printer_form,
+                diecut_form=plan.diecut_form,
+                semiauto_form=plan.semiauto_form,
+                gluer_form=plan.gluer_form,
+                stitching_form=plan.stitching_form,
+                transfer_info=transfer_json_str
+            )
+            db.session.add(new_plan)
             
-        transfer_msg = f"Transferred from PO: {old_po} to {plan.po_no} on {datetime.now(colombo_tz).strftime('%Y-%m-%d %H:%M')}"
-        if plan.transfer_info:
-            plan.transfer_info += f" | {transfer_msg}"
+            # පරණ Order එකෙන් transfer කල qty එක අඩු කිරීම
+            if plan.balance_qty > 0:
+                plan.balance_qty -= transfer_qty
+            else:
+                plan.qty -= transfer_qty
+                if plan.finished_qty > 0:
+                    plan.finished_qty -= transfer_qty
+                    
+            original_transfer_msg = json.dumps({
+                "is_transfer": True,
+                "msg": f"Partially transferred {transfer_qty} qty to PO: {new_po or old_po} | Date: {datetime.now(colombo_tz).strftime('%Y-%m-%d %H:%M')}",
+                "date": datetime.now(colombo_tz).strftime('%Y-%m-%d %H:%M')
+            })
+            plan.transfer_info = original_transfer_msg
+            
         else:
-            plan.transfer_info = transfer_msg
+            # Full Transfer (සම්පූර්ණ Order එකම transfer කිරීම)
+            if new_po:
+                plan.po_no = new_po
+            if new_customer:
+                plan.customer_id = new_customer
+            if new_product:
+                plan.product_code = new_product
+                
+            plan.transfer_info = transfer_json_str
             
         db.session.commit()
         return jsonify({"success": True, "message": "Order transferred successfully"})
         
     except Exception as e:
         db.session.rollback()
-        # 500 HTML පිටුවක් වෙනුවට සැබෑ දෝෂ පණිවිඩය JSON ලෙස ලබා දීම
         return jsonify({"success": False, "message": str(e)}), 500
     
 @app.route('/api/transfer_plan', methods=['POST'])
@@ -1451,8 +1507,9 @@ def get_saved_plans():
             flute = "Sample"
         else:
             prod = CustomerProduct.query.filter_by(customer_id=p.customer_id, product_code=p.product_code).first()
-            c_name = prod.customer_name if prod else "Unknown"
-            p_name = prod.product_name if prod else "Unknown"
+            # මෙහිදී Unknown වැටීම වළක්වා, තිබෙන අගයන් Fallback ලෙස ලබා දී ඇත
+            c_name = prod.customer_name if prod else p.customer_id
+            p_name = prod.product_name if prod else p.product_code
             ply_val = prod.ply if prod else 3
             cut_length = get_cut_length(prod.cartoon_size, ply_val) if prod else 0
             flute = prod.flute if prod else ""
@@ -1516,9 +1573,7 @@ def get_historical_planning_records():
             cut_length = 60.0
         else:
             prod = CustomerProduct.query.filter_by(customer_id=p.customer_id, product_code=p.product_code).first()
-            c_name = prod.customer_name if prod else "Unknown"
-            ply_val = prod.ply if prod else 3
-            cut_length = get_cut_length(prod.cartoon_size, ply_val) if prod else 0
+            c_name = prod.customer_name if prod else p.customer_id
 
         result.append({
             'id': p.id, 'po_no': p.po_no, 'customer_name': c_name,
@@ -1587,13 +1642,18 @@ def api_get_all_history_logs():
 @app.route('/api/get_plan_history', methods=['GET'])
 def api_get_plan_history():
     try:
-        plans = ProgrammePlan.query.order_by(ProgrammePlan.created_at.desc()).limit(100).all()
+        # Limit එක ඉවත් කර ඇත, එවිට සියලුම data Load වේ.
+        plans = ProgrammePlan.query.order_by(ProgrammePlan.created_at.desc()).all()
         result = []
         for p in plans:
+            prod = CustomerProduct.query.filter_by(customer_id=p.customer_id, product_code=p.product_code).first()
+            c_name = prod.customer_name if prod else p.customer_id
+            
             result.append({
                 'id': p.id,
                 'po_no': p.po_no,
                 'customer_id': p.customer_id,
+                'customer_name': c_name,
                 'product_code': p.product_code,
                 'status': p.status,
                 'created_by': p.created_by,
