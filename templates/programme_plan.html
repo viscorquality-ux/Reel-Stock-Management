@@ -1384,20 +1384,18 @@
 
                         let priorityHTML = `<input type="text" class="form-control form-control-sm mx-auto text-center fw-bold border-secondary" style="width: 55px; font-size: 0.85rem;" placeholder="#" onchange="saveRowPriority(${p.id}, this.value)" value="${rowPriorityDisplay}" title="Row Priority (1, 2, 3...)">`;
                         
-                        // Edit කිරීම සඳහා සකසන ලද QTY Display/Edit UI
+                        // Board Plant Target Qty Snippet (applied here)
                         let qtyHTML = `
-                            <div class="d-flex align-items-center justify-content-center" id="bp_qty_display_container_${p.id}">
-                                <span class="badge bg-primary fs-6 px-3 py-1 me-2" id="bp_qty_badge_${p.id}">${p.qty} Pcs</span>
-                                <button type="button" class="btn btn-sm btn-outline-warning no-print" onclick="enableBpQtyEdit(${p.id})" title="Edit Target Qty">
-                                    <i class="bi bi-pencil-square"></i> Edit
+                        <div class="d-flex align-items-center justify-content-center gap-1">
+                            <span class="fw-bold fs-6">${p.qty}</span>
+                            ${['programmer1', 'programmer2'].includes(userRole) ? `
+                                <button class="btn btn-sm btn-outline-primary p-1 ms-2" 
+                                    onclick="editQtyPrompt(${p.id}, ${p.qty})" 
+                                    title="Edit Target Qty">
+                                    <i class="bi bi-pencil-square"></i>
                                 </button>
-                            </div>
-                            <div class="input-group input-group-sm mx-auto" id="bp_qty_edit_container_${p.id}" style="width: 140px; display: none;">
-                                <input type="number" class="form-control text-center fw-bold" value="${p.qty}" id="edit_qty_${p.id}">
-                                <button type="button" class="btn btn-success" onclick="updateTargetQty(${p.id})">
-                                    <i class="bi bi-check2-circle"></i> Ok
-                                </button>
-                            </div>
+                            ` : ''}
+                        </div>
                         `;
 
                         contentHtml += `
