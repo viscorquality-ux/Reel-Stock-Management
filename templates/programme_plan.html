@@ -895,29 +895,39 @@
             });
         }
         function saveSizeBandPriority(size, val) {
-            // UI එකෙහි අගය update කිරීම
-            uiPriorities.bpTabs[size] = val; 
+            window.saveSizeBandPriority = function(safeSize, value) {
+            if (!window.uiPriorities) window.uiPriorities = { bpTabs: {} };
+            if (!uiPriorities.bpTabs) uiPriorities.bpTabs = {};
             
-            // Backend API එකට අලුත් priority අගය යැවීම
-            fetch('/api/update_size_priority', {
-                method: 'POST', 
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ size_band: size, priority: val })
-            })
-            .then(r => r.json())
-            .then(res => {
-                if(res.success) {
-                    console.log(`Size ${size} priority successfully updated to ${val}`);
-                    // සාර්ථකව save වූ බව පෙන්වීමට අවශ්‍ය නම් alert එකක් දැමිය හැක
-                } else {
-                    alert("❌ Failed to update Size Tab Priority.");
-                }
-            })
-            .catch(err => {
-                console.error("Error saving priority:", err);
-                alert("❌ Error connecting to server while saving priority.");
-            });
-        }
+            let trimmedVal = value.toString().trim();
+            uiPriorities.bpTabs[safeSize] = trimmedVal;
+        
+            // --- FIX 1: Refresh කරද්දී නැති නොවීමට LocalStorage එකේ Save කිරීම ---
+            try {
+                localStorage.setItem('bp_size_band_priorities', JSON.stringify(uiPriorities.bpTabs));
+            } catch(e) {
+                console.error("LocalStorage Save Error:", e);
+            }
+        
+            const inputElem = document.getElementById(`sb-priority-input-${safeSize}`);
+            const editBtn = document.getElementById(`sb-priority-btn-${safeSize}`);
+        
+            // Auto-Lock Logic
+            if (trimmedVal !== "") {
+                if (inputElem) inputElem.disabled = true;
+                if (editBtn) editBtn.style.display = "inline-block";
+            } else {
+                if (inputElem) inputElem.disabled = false;
+                if (editBtn) editBtn.style.display = "none";
+            }
+        
+            // Backend එකට Save කිරීම
+            fetch('/api/save_size_band_priority', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ size_band: safeSize, priority: trimmedVal, stage: 'Board Plant' })
+            }).catch(err => console.error("Error saving tab priority:", err));
+        };
         function enablePriorityEdit(planId) {
             const selectElement = document.getElementById(`priority-select-${planId}`);
             const editButton = document.getElementById(`priority-edit-btn-${planId}`);
@@ -1350,19 +1360,28 @@ function renderBoardPlantTable() {
     if (typeof uiPriorities === 'undefined') window.uiPriorities = { bpTabs: {} };
     if (!uiPriorities.bpTabs) uiPriorities.bpTabs = {};
 
+    // --- FIX 2: Refresh කළ සැනින් LocalStorage එකෙන් Saved Priorities Load කරගැනීම ---
+    try {
+        const savedLocalTabs = localStorage.getItem('bp_size_band_priorities');
+        if (savedLocalTabs) {
+            window.uiPriorities.bpTabs = Object.assign({}, JSON.parse(savedLocalTabs), window.uiPriorities.bpTabs);
+        }
+    } catch(e) {
+        console.error("LocalStorage Read Error:", e);
+    }
+
     fetch('/api/get_saved_plans').then(r => r.json()).then(data => {
         globalAllPlans = data;
         let hasAnyRecords = false;
 
-        // Backend එකෙන් Size Band Priorities පැමිණේ නම් persistence තහවුරු කිරීමට:
+        // Backend එකෙන් Size Band Priorities පැමිණෙන්නේ නම් ඒවාද Merge කිරීම
         if (data.uiPriorities && data.uiPriorities.bpTabs) {
             window.uiPriorities.bpTabs = Object.assign({}, window.uiPriorities.bpTabs, data.uiPriorities.bpTabs);
+            localStorage.setItem('bp_size_band_priorities', JSON.stringify(window.uiPriorities.bpTabs));
         }
-        
+
         let navHtml = '<ul class="nav nav-pills mb-3" id="bp-size-tabs" role="tablist">';
         let contentHtml = '<div class="tab-content" id="bp-size-tabsContent">';
-        
-        // Programmer 1 සහ Programmer 2 ට පමණක් Edit permission හිමි වේ
         let canEditPriority = ['programmer1', 'programmer2'].includes(currentRole);
         let first = true;
 
@@ -1372,6 +1391,8 @@ function renderBoardPlantTable() {
             
             hasAnyRecords = true;
             let safeSize = size.toString().replace('.', '_');
+            
+            // දැන් මෙහි Refresh කළද priorityVal එක ආරක්ෂිතව පවතී
             let priorityVal = uiPriorities.bpTabs[safeSize] || '';
             
             let printBtnHtml = (canEditPriority || currentRole === 'admin') ? 
@@ -1379,12 +1400,11 @@ function renderBoardPlantTable() {
                     <i class="bi bi-printer me-1"></i> Print Size Band
                 </button>` : '';
 
-            // --- SIZE BAND PRIORITY HTML (Programmer vs Viscor01) ---
+            // Size Band Priority HTML Logic
             let tabPriorityHtml = "";
             let isTabLocked = (priorityVal !== "");
 
             if (canEditPriority) {
-                // Programmers: Input box + Edit Button (Auto-Lock logic)
                 tabPriorityHtml = `
                 <div class="d-flex align-items-center ms-2" onclick="event.stopPropagation()">
                     <input type="number" 
@@ -1405,9 +1425,9 @@ function renderBoardPlantTable() {
                     </button>
                 </div>`;
             } else {
-                // viscor01: අංකය පමණක් පෙන්වයි (Pri: 1)
+                // viscor01 ට පෙනෙන Badge එක (Pri: 1, Pri: 2, etc.)
                 if (priorityVal !== "") {
-                    tabPriorityHtml = `<span class="badge bg-warning text-dark ms-2 fw-bold border border-dark" style="font-size: 0.85rem;" title="Size Band Priority">Pri: ${priorityVal}</span>`;
+                    tabPriorityHtml = `<span class="badge bg-warning text-dark ms-2 fw-bold border border-dark" style="font-size: 0.85rem;">Pri: ${priorityVal}</span>`;
                 }
             }
 
