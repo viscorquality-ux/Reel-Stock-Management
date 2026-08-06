@@ -2014,6 +2014,8 @@
             let custProd = `${plan.customer_name || 'N/A'} - ${plan.product_name || plan.product_code || ''}`;
             let qty = plan.qty || 0;
             let reelSize = plan.selected_reel_size || plan.reel_size || '-';
+            let flute  = plan.flute || 'N/A';
+            let cutlength   = plan.cut_length  || 'N/A';
             
             // Required Header Title format: PO No , Customer Name & Product , Qty and Reel Size
             let titleHtml = `<div class="d-flex flex-wrap gap-2 align-items-center font-monospace fs-6 text-white">
