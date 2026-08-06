@@ -952,7 +952,7 @@
         // Board Plant Target Qty Editing Logic
         // ==========================================
         function editQtyPrompt(planId, currentQty) {
-            if (!['programmer1', 'programmer2'].includes(userRole)) {
+           if (!['programmer1', 'programmer2'].includes(currentRole)) {
                 alert("Unauthorized Action. Only Programmers can edit Target Qty.");
                 return;
             }
