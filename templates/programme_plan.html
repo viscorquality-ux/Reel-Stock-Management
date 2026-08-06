@@ -1360,7 +1360,7 @@ function renderBoardPlantTable() {
     if (typeof uiPriorities === 'undefined') window.uiPriorities = { bpTabs: {} };
     if (!uiPriorities.bpTabs) uiPriorities.bpTabs = {};
 
-    // LocalStorage Read (Refresh කළත් Data නොමැකීමට)
+    // Refresh කළ පසු LocalStorage එකෙන් Saved Size Band Priorities කියවා ගැනීම
     try {
         const savedLocalTabs = localStorage.getItem('bp_size_band_priorities');
         if (savedLocalTabs) {
@@ -1370,174 +1370,188 @@ function renderBoardPlantTable() {
         console.error("LocalStorage Read Error:", e);
     }
 
-    fetch('/api/get_saved_plans').then(r => r.json()).then(data => {
-        globalAllPlans = data;
-        let hasAnyRecords = false;
+    fetch('/api/get_saved_plans')
+        .then(r => r.json())
+        .then(data => {
+            globalAllPlans = data;
+            let hasAnyRecords = false;
 
-        if (data.uiPriorities && data.uiPriorities.bpTabs) {
-            window.uiPriorities.bpTabs = Object.assign({}, window.uiPriorities.bpTabs, data.uiPriorities.bpTabs);
-            localStorage.setItem('bp_size_band_priorities', JSON.stringify(window.uiPriorities.bpTabs));
-        }
-
-        let navHtml = '<ul class="nav nav-pills mb-3" id="bp-size-tabs" role="tablist">';
-        let contentHtml = '<div class="tab-content" id="bp-size-tabsContent">';
-        let canEditPriority = ['programmer1', 'programmer2'].includes(currentRole);
-        let first = true;
-
-        for (const [size, plans] of Object.entries(data)) {
-            let bpPlans = plans.filter(p => p.status === 'Board Plant');
-            if (bpPlans.length === 0) continue;
-            
-            hasAnyRecords = true;
-            let safeSize = size.toString().replace('.', '_');
-            let priorityVal = uiPriorities.bpTabs[safeSize] || '';
-            
-            let printBtnHtml = (canEditPriority || currentRole === 'admin') ? 
-                `<button class="btn btn-sm btn-outline-light no-print py-1" onclick="printSelectedBand('bp_print_band_${safeSize}')">
-                    <i class="bi bi-printer me-1"></i> Print Size Band
-                </button>` : '';
-
-            // Size Band Priority HTML
-            let tabPriorityHtml = "";
-            let isTabLocked = (priorityVal !== "");
-
-            if (canEditPriority) {
-                tabPriorityHtml = `
-                <div class="d-flex align-items-center ms-2" onclick="event.stopPropagation()">
-                    <input type="number" 
-                           id="sb-priority-input-${safeSize}" 
-                           class="form-control form-control-sm text-center fw-bold border-primary" 
-                           style="width: 55px; height: 26px; font-size: 0.85rem; padding: 0.1rem;" 
-                           placeholder="Pri" 
-                           min="1" max="1500"
-                           value="${priorityVal}" 
-                           onchange="saveSizeBandPriority('${safeSize}', this.value)" 
-                           ${isTabLocked ? 'disabled' : ''}>
-                    <button id="sb-priority-btn-${safeSize}" 
-                            class="btn btn-sm btn-outline-danger p-0 ms-1" 
-                            style="width: 24px; height: 24px; display: ${isTabLocked ? 'inline-block' : 'none'}; line-height: 1;" 
-                            onclick="enableSizeBandEdit('${safeSize}'); event.stopPropagation();" 
-                            title="Edit Size Band Priority">
-                        <i class="bi bi-pencil-square" style="font-size: 0.75rem;"></i>
-                    </button>
-                </div>`;
-            } else {
-                if (priorityVal !== "") {
-                    tabPriorityHtml = `<span class="badge bg-warning text-dark ms-2 fw-bold border border-dark" style="font-size: 0.85rem;">Pri: ${priorityVal}</span>`;
-                }
+            // Backend එකෙන් uiPriorities පැමිණේ නම් LocalStorage update කිරීම
+            if (data.uiPriorities && data.uiPriorities.bpTabs) {
+                window.uiPriorities.bpTabs = Object.assign({}, window.uiPriorities.bpTabs, data.uiPriorities.bpTabs);
+                try {
+                    localStorage.setItem('bp_size_band_priorities', JSON.stringify(window.uiPriorities.bpTabs));
+                } catch(e) {}
             }
 
-            navHtml += `
-            <li class="nav-item" role="presentation">
-                <button class="nav-link ${first?'active':''} fw-bold border mb-2 me-2 d-flex align-items-center shadow-sm rounded-3" id="bp-tab-${safeSize}" data-bs-toggle="pill" data-bs-target="#bp-content-${safeSize}" type="button" role="tab">
-                    <i class="bi bi-disc me-1 text-primary"></i> Size: ${size} cm
-                    ${tabPriorityHtml}
-                </button>
-            </li>`;
+            let navHtml = '<ul class="nav nav-pills mb-3" id="bp-size-tabs" role="tablist">';
+            let contentHtml = '<div class="tab-content" id="bp-size-tabsContent">';
+            let canEditPriority = ['programmer1', 'programmer2'].includes(typeof currentRole !== 'undefined' ? currentRole : '');
+            let first = true;
 
-            contentHtml += `
-            <div class="tab-pane fade ${first?'show active':''}" id="bp-content-${safeSize}" role="tabpanel">
-                <div class="card mb-4 border-0 shadow-sm" id="bp_print_band_${safeSize}">
-                    <div class="card-header bg-dark text-white fw-bold py-2.5 d-flex justify-content-between align-items-center">
-                        <span><i class="bi bi-layers-fill text-warning me-2"></i> Reel Size Band Platform: <strong>${size} cm</strong></span>
-                        ${printBtnHtml}
-                    </div>
-                    <div class="card-body p-0 table-responsive">
-                        <table class="table table-hover table-bordered align-middle text-center mb-0">
-                            <thead class="table-secondary text-uppercase small font-monospace">
-                                <tr>
-                                    <th class="no-print" style="width: 95px;">Pri</th>
-                                    <th>PO Number</th>
-                                    <th>Customer Name</th>
-                                    <th>Full Sheet Dimension</th>
-                                    <th>Flute</th>
-                                    <th>Ply</th>
-                                    <th>Combination Build</th>
-                                    <th>Target Qty</th>
-                                    <th class="no-print">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody class="small">`;
-
-            bpPlans.forEach(p => {
-                let sheetSizeCalculated = `${size} cm &times; ${p.cut_length || 'N/A'} cm`;
-                let combinationSpecsString = (p.materials && Array.isArray(p.materials)) ? p.materials.map((m,i)=> `<span class="badge bg-light text-dark border me-1">L${i+1}: ${(m.gsm && !isNaN(m.gsm)) ? m.gsm : '-'} - ${m.name}</span>`).join('<br>') : '-';
-                let actHtml = canAct('Board Plant') ? `<button class="btn btn-sm btn-success fw-bold px-3 py-1 shadow-sm" onclick="showBoardPlantForm(${p.id})"><i class="bi bi-card-checklist me-1"></i> Create Job Card</button>` : `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
+            for (const [size, plans] of Object.entries(data)) {
+                if (!Array.isArray(plans)) continue;
+                let bpPlans = plans.filter(p => p && p.status === 'Board Plant');
+                if (bpPlans.length === 0) continue;
                 
-                let currentPri = (p.row_priority !== null && p.row_priority !== undefined && p.row_priority !== "" && !isNaN(p.row_priority)) ? p.row_priority.toString() : "";
-                let priorityHTML = "";
+                hasAnyRecords = true;
+                let safeSize = size.toString().replace('.', '_');
+                let priorityVal = uiPriorities.bpTabs[safeSize] || '';
+                
+                let printBtnHtml = (canEditPriority || (typeof currentRole !== 'undefined' && currentRole === 'admin')) ? 
+                    `<button class="btn btn-sm btn-outline-light no-print py-1" onclick="printSelectedBand('bp_print_band_${safeSize}')">
+                        <i class="bi bi-printer me-1"></i> Print Size Band
+                    </button>` : '';
+
+                // --- SIZE BAND PRIORITY RENDER LOGIC ---
+                let tabPriorityHtml = "";
+                let isTabLocked = (priorityVal !== "");
 
                 if (canEditPriority) {
-                    let isRowLocked = (currentPri !== "");
-                    priorityHTML = `
-                    <div class="d-flex align-items-center justify-content-center" onclick="event.stopPropagation()">
+                    // Programmer: Input Box + Edit Button
+                    tabPriorityHtml = `
+                    <div class="d-flex align-items-center ms-2" onclick="event.stopPropagation()">
                         <input type="number" 
-                               id="priority-input-${p.id}" 
-                               class="form-control form-control-sm text-center fw-bold border-secondary" 
-                               style="width: 50px; font-size: 0.85rem; padding: 0.25rem;" 
-                               value="${currentPri}" 
-                               placeholder="#"
-                               min="1"
-                               onchange="updatePriority(${p.id}, this.value)" 
-                               ${isRowLocked ? 'disabled' : ''}>
-                        <button id="priority-edit-btn-${p.id}" 
-                                class="btn btn-sm btn-outline-danger ms-1 p-1" 
-                                style="display: ${isRowLocked ? 'inline-block' : 'none'}; line-height: 1;" 
-                                onclick="enablePriorityEdit(${p.id}); event.stopPropagation();" 
-                                title="Edit Priority">
-                            <i class="bi bi-pencil-square"></i>
+                               id="sb-priority-input-${safeSize}" 
+                               class="form-control form-control-sm text-center fw-bold border-primary" 
+                               style="width: 55px; height: 26px; font-size: 0.85rem; padding: 0.1rem;" 
+                               placeholder="Pri" 
+                               min="1" max="1500"
+                               value="${priorityVal}" 
+                               onchange="saveSizeBandPriority('${safeSize}', this.value)" 
+                               ${isTabLocked ? 'disabled' : ''}>
+                        <button id="sb-priority-btn-${safeSize}" 
+                                class="btn btn-sm btn-outline-danger p-0 ms-1" 
+                                style="width: 24px; height: 24px; display: ${isTabLocked ? 'inline-block' : 'none'}; line-height: 1;" 
+                                onclick="enableSizeBandEdit('${safeSize}'); event.stopPropagation();" 
+                                title="Edit Size Band Priority">
+                            <i class="bi bi-pencil-square" style="font-size: 0.75rem;"></i>
                         </button>
                     </div>`;
                 } else {
-                    priorityHTML = (currentPri !== "") 
-                        ? `<span class="badge bg-primary fs-6 px-2 py-1">${currentPri}</span>` 
-                        : `<span class="text-muted fw-bold">-</span>`;
+                    // Viscor01: Plain View-Only Badge
+                    if (priorityVal !== "") {
+                        tabPriorityHtml = `<span class="badge bg-warning text-dark ms-2 fw-bold border border-dark" style="font-size: 0.85rem;">Pri: ${priorityVal}</span>`;
+                    }
                 }
 
-                let qtyHTML = `
-                <div class="d-flex align-items-center justify-content-center gap-1">
-                    <span class="fw-bold fs-6">${p.qty}</span>
-                    ${canEditPriority ? `
-                        <button class="btn btn-sm btn-outline-primary p-1 ms-2" 
-                            onclick="editQtyPrompt(${p.id}, ${p.qty})" 
-                            title="Edit Target Qty">
-                            <i class="bi bi-pencil-square"></i>
-                        </button>
-                    ` : ''}
-                </div>`;
+                navHtml += `
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link ${first?'active':''} fw-bold border mb-2 me-2 d-flex align-items-center shadow-sm rounded-3" id="bp-tab-${safeSize}" data-bs-toggle="pill" data-bs-target="#bp-content-${safeSize}" type="button" role="tab">
+                        <i class="bi bi-disc me-1 text-primary"></i> Size: ${size} cm
+                        ${tabPriorityHtml}
+                    </button>
+                </li>`;
 
                 contentHtml += `
-                <tr>
-                    <td class="no-print" onclick="event.stopPropagation()">
-                        ${priorityHTML}
-                    </td>
-                    <td class="fw-bold text-primary font-monospace fs-6">${p.po_no}</td>
-                    <td class="fw-semibold text-start">${p.customer_name}</td>
-                    <td class="fw-bold text-danger font-monospace bg-light">${sheetSizeCalculated}</td>
-                    <td><span class="badge bg-info text-dark font-monospace">${p.flute || '-'}</span></td>
-                    <td><span class="badge bg-dark">${p.ply} Ply</span></td>
-                    <td class="text-start font-monospace">${combinationSpecsString}</td>
-                    <td>${qtyHTML}</td>
-                    <td class="no-print">${actHtml}</td>
-                </tr>
-                <tr id="job_card_row_${p.id}" style="display:none;" class="no-print">
-                    <td colspan="9" class="p-0 border-0 position-relative" id="job_card_container_${p.id}"></td>
-                </tr>`;
-            });
+                <div class="tab-pane fade ${first?'show active':''}" id="bp-content-${safeSize}" role="tabpanel">
+                    <div class="card mb-4 border-0 shadow-sm" id="bp_print_band_${safeSize}">
+                        <div class="card-header bg-dark text-white fw-bold py-2.5 d-flex justify-content-between align-items-center">
+                            <span><i class="bi bi-layers-fill text-warning me-2"></i> Reel Size Band Platform: <strong>${size} cm</strong></span>
+                            ${printBtnHtml}
+                        </div>
+                        <div class="card-body p-0 table-responsive">
+                            <table class="table table-hover table-bordered align-middle text-center mb-0">
+                                <thead class="table-secondary text-uppercase small font-monospace">
+                                    <tr>
+                                        <th class="no-print" style="width: 95px;">Pri</th>
+                                        <th>PO Number</th>
+                                        <th>Customer Name</th>
+                                        <th>Full Sheet Dimension</th>
+                                        <th>Flute</th>
+                                        <th>Ply</th>
+                                        <th>Combination Build</th>
+                                        <th>Target Qty</th>
+                                        <th class="no-print">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="small">`;
 
-            contentHtml += `</tbody></table></div></div></div>`;
-            first = false;
-        }
-        
-        navHtml += '</ul>';
-        contentHtml += '</div>';
+                bpPlans.forEach(p => {
+                    let sheetSizeCalculated = `${size} cm &times; ${p.cut_length || 'N/A'} cm`;
+                    let combinationSpecsString = (p.materials && Array.isArray(p.materials)) ? p.materials.map((m,i)=> `<span class="badge bg-light text-dark border me-1">L${i+1}: ${(m.gsm && !isNaN(m.gsm)) ? m.gsm : '-'} - ${m.name}</span>`).join('<br>') : '-';
+                    let actHtml = (typeof canAct === 'function' && canAct('Board Plant')) ? `<button class="btn btn-sm btn-success fw-bold px-3 py-1 shadow-sm" onclick="showBoardPlantForm(${p.id})"><i class="bi bi-card-checklist me-1"></i> Create Job Card</button>` : `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
+                    
+                    let currentPri = (p.row_priority !== null && p.row_priority !== undefined && p.row_priority !== "" && !isNaN(p.row_priority)) ? p.row_priority.toString() : "";
+                    let priorityHTML = "";
 
-        let container = document.getElementById('generic-stage-container');
-        if(container) container.innerHTML = hasAnyRecords ? (navHtml + contentHtml) : "<p class='text-muted p-4 text-center border rounded bg-white'>No active jobs currently in Board Plant stage.</p>";
-    }).catch(err => console.error("API Fetch Error:", err));
-};
+                    if (canEditPriority) {
+                        // Programmer: Row Input + Edit Button
+                        let isRowLocked = (currentPri !== "");
+                        priorityHTML = `
+                        <div class="d-flex align-items-center justify-content-center" onclick="event.stopPropagation()">
+                            <input type="number" 
+                                   id="priority-input-${p.id}" 
+                                   class="form-control form-control-sm text-center fw-bold border-secondary" 
+                                   style="width: 50px; font-size: 0.85rem; padding: 0.25rem;" 
+                                   value="${currentPri}" 
+                                   placeholder="#"
+                                   min="1"
+                                   onchange="updatePriority(${p.id}, this.value)" 
+                                   ${isRowLocked ? 'disabled' : ''}>
+                            <button id="priority-edit-btn-${p.id}" 
+                                    class="btn btn-sm btn-outline-danger ms-1 p-1" 
+                                    style="display: ${isRowLocked ? 'inline-block' : 'none'}; line-height: 1;" 
+                                    onclick="enablePriorityEdit(${p.id}); event.stopPropagation();" 
+                                    title="Edit Priority">
+                                <i class="bi bi-pencil-square"></i>
+                            </button>
+                        </div>`;
+                    } else {
+                        // Viscor01: Plain Number Badge
+                        priorityHTML = (currentPri !== "") 
+                            ? `<span class="badge bg-primary fs-6 px-2 py-1">${currentPri}</span>` 
+                            : `<span class="text-muted fw-bold">-</span>`;
+                    }
 
-// 2. HELPER FUNCTIONS
+                    let qtyHTML = `
+                    <div class="d-flex align-items-center justify-content-center gap-1">
+                        <span class="fw-bold fs-6">${p.qty}</span>
+                        ${canEditPriority ? `
+                            <button class="btn btn-sm btn-outline-primary p-1 ms-2" 
+                                onclick="editQtyPrompt(${p.id}, ${p.qty})" 
+                                title="Edit Target Qty">
+                                <i class="bi bi-pencil-square"></i>
+                            </button>
+                        ` : ''}
+                    </div>`;
+
+                    contentHtml += `
+                    <tr>
+                        <td class="no-print" onclick="event.stopPropagation()">
+                            ${priorityHTML}
+                        </td>
+                        <td class="fw-bold text-primary font-monospace fs-6">${p.po_no}</td>
+                        <td class="fw-semibold text-start">${p.customer_name}</td>
+                        <td class="fw-bold text-danger font-monospace bg-light">${sheetSizeCalculated}</td>
+                        <td><span class="badge bg-info text-dark font-monospace">${p.flute || '-'}</span></td>
+                        <td><span class="badge bg-dark">${p.ply} Ply</span></td>
+                        <td class="text-start font-monospace">${combinationSpecsString}</td>
+                        <td>${qtyHTML}</td>
+                        <td class="no-print">${actHtml}</td>
+                    </tr>
+                    <tr id="job_card_row_${p.id}" style="display:none;" class="no-print">
+                        <td colspan="9" class="p-0 border-0 position-relative" id="job_card_container_${p.id}"></td>
+                    </tr>`;
+                });
+
+                contentHtml += `</tbody></table></div></div></div>`;
+                first = false;
+            }
+            
+            navHtml += '</ul>';
+            contentHtml += '</div>';
+
+            let container = document.getElementById('generic-stage-container');
+            if(container) container.innerHTML = hasAnyRecords ? (navHtml + contentHtml) : "<p class='text-muted p-4 text-center border rounded bg-white'>No active jobs currently in Board Plant stage.</p>";
+        })
+        .catch(err => console.error("API Fetch Error:", err));
+}
+
+// ---------------------------------------------------------
+// PRIORITY EVENT HANDLERS & PERSISTENCE FUNCTIONS
+// ---------------------------------------------------------
+
 window.enableSizeBandEdit = function(safeSize) {
     const inputElem = document.getElementById(`sb-priority-input-${safeSize}`);
     if (inputElem) {
