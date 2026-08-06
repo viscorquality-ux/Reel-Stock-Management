@@ -930,7 +930,7 @@ def reset_db_now():
 
 @app.route('/api/update_row_priority', methods=['POST'])
 def update_row_priority():
-    # --- PROGAMMER 01 හා 02 ට පමණක් Priority වෙනස් කිරීමට අවසරය ---
+    # --- PROGRAMMER 01 හා 02 ට පමණක් Priority වෙනස් කිරීමට අවසරය ---
     if session.get('role') not in ['programmer1', 'programmer2']:
         return jsonify({'success': False, 'message': 'Unauthorized action'})
         
@@ -1209,7 +1209,7 @@ def check_stock_detailed():
 
 @app.route('/api/update_plan_qty', methods=['POST'])
 def update_plan_qty():
-    # --- PROGAMMER 01 හා 02 ට පමණක් Board Plant හිදී Target Qty වෙනස් කිරීමට අවසරය ---
+    # --- PROGRAMMER 01 හා 02 ට පමණක් Board Plant හිදී Target Qty වෙනස් කිරීමට අවසරය ---
     if session.get('role') not in ['programmer1', 'programmer2']:
         return jsonify({'success': False, 'message': 'Unauthorized action'})
         
@@ -1219,11 +1219,9 @@ def update_plan_qty():
         old_qty = plan.qty
         new_qty = int(data.get('qty', 0))
         
-        # --- Qty එක වෙනස් වූ විට අනුපාතිකව (proportionally) SR Weight එක adjust කිරීම ---
         if new_qty > 0 and old_qty != new_qty:
             plan.qty = new_qty
             
-            # FIX: Pending සහ Approved අවස්ථා දෙකේදීම Update වීමට සහ old_qty 0 වන අවස්ථාව හැසිරවීම.
             srs = SRRequest.query.filter(
                 SRRequest.po_number == plan.po_no,
                 SRRequest.status.in_(['Pending', 'Approved'])
@@ -1601,7 +1599,6 @@ def get_historical_planning_records():
     result = []
     
     for p in plans:
-        # --- (N/A) වැටීමේ ගැටළුව සඳහා නියමිත දත්ත CustomerProduct table එක හරහාම ලබා ගැනීම ---
         if p.status == 'Sample Memo':
             c_name = p.customer_id
             ply_val = 5 if '5PLY' in p.product_code else 3
@@ -1623,7 +1620,7 @@ def get_historical_planning_records():
             'qty': p.qty,
             'ply': ply_val, 
             'cut_length': cut_length,
-            'flute': flute,  # මෙය අලුතින් View Log එකට යවනු ලබයි
+            'flute': flute,
             'materials': json.loads(p.materials_json) if p.materials_json else [],
             'status': p.status,
             'ad_number': p.ad_number,
