@@ -1710,4 +1710,3 @@ def api_get_plan_history():
 
 if __name__ == '__main__':
     socketio.run(app, debug=True, host='0.0.0.0', port=5000)
-```[cite: 3, 4]
