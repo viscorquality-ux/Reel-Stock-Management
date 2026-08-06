@@ -901,23 +901,14 @@
     let trimmedVal = val.toString().trim();
     uiPriorities.bpTabs[size] = trimmedVal;
 
+    // LocalStorage වෙත සුරැකීම (Refresh කළ විට නැතිවී යාම වළක්වයි)
     try {
         localStorage.setItem('bp_size_band_priorities', JSON.stringify(uiPriorities.bpTabs));
     } catch(e) {
         console.error("LocalStorage Save Error:", e);
     }
 
-    const inputElem = document.getElementById(`sb-priority-input-${size}`);
-    const editBtn = document.getElementById(`sb-priority-btn-${size}`);
-
-    if (trimmedVal !== "") {
-        if (inputElem) inputElem.disabled = true;
-        if (editBtn) editBtn.style.display = "inline-block";
-    } else {
-        if (inputElem) inputElem.disabled = false;
-        if (editBtn) editBtn.style.display = "none";
-    }
-
+    // Backend API වෙත යැවීම
     fetch('/api/save_size_band_priority', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1401,36 +1392,32 @@ function renderBoardPlantTable() {
 
                 // --- SIZE BAND PRIORITY RENDER LOGIC ---
                 let tabPriorityHtml = "";
-                let isTabLocked = (priorityVal !== "");
+let isTabLocked = (priorityVal !== "");
 
-                if (canEditPriority) {
-                    // Programmer: Input Box + Edit Button
-                    tabPriorityHtml = `
-                    <div class="d-flex align-items-center ms-2" onclick="event.stopPropagation()">
-                        <input type="number" 
-                               id="sb-priority-input-${safeSize}" 
-                               class="form-control form-control-sm text-center fw-bold border-primary" 
-                               style="width: 55px; height: 26px; font-size: 0.85rem; padding: 0.1rem;" 
-                               placeholder="Pri" 
-                               min="1" max="1500"
-                               value="${priorityVal}" 
-                               onchange="saveSizeBandPriority('${safeSize}', this.value)" 
-                               ${isTabLocked ? 'disabled' : ''}>
-                        <button id="sb-priority-btn-${safeSize}" 
-                                class="btn btn-sm btn-outline-danger p-0 ms-1" 
-                                style="width: 24px; height: 24px; display: ${isTabLocked ? 'inline-block' : 'none'}; line-height: 1;" 
-                                onclick="enableSizeBandEdit('${safeSize}'); event.stopPropagation();" 
-                                title="Edit Size Band Priority">
-                            <i class="bi bi-pencil-square" style="font-size: 0.75rem;"></i>
-                        </button>
-                    </div>`;
-                } else {
-                    // Viscor01: Plain View-Only Badge
-                    if (priorityVal !== "") {
-                        tabPriorityHtml = `<span class="badge bg-warning text-dark ms-2 fw-bold border border-dark" style="font-size: 0.85rem;">Pri: ${priorityVal}</span>`;
-                    }
-                }
-
+if (canEditPriority) {
+    // Programmer / Admin සඳහා Input box සහ Edit button
+    tabPriorityHtml = `
+    <div class="d-flex align-items-center ms-2" onclick="event.stopPropagation()">
+        <input type="number" 
+               id="sb-priority-input-${safeSize}" 
+               class="form-control form-control-sm text-center fw-bold border-primary" 
+               style="width: 55px; height: 26px; font-size: 0.85rem;" 
+               value="${priorityVal}" 
+               onchange="saveSizeBandPriority('${safeSize}', this.value)" 
+               ${isTabLocked ? 'disabled' : ''}>
+        <button id="sb-priority-btn-${safeSize}" 
+                class="btn btn-sm btn-outline-danger p-0 ms-1" 
+                style="width: 24px; height: 24px; display: ${isTabLocked ? 'inline-block' : 'none'};" 
+                onclick="enableSizeBandEdit('${safeSize}'); event.stopPropagation();">
+            <i class="bi bi-pencil-square" style="font-size: 0.75rem;"></i>
+        </button>
+    </div>`;
+} else {
+    // Viscor01 වැනි අනෙකුත් පරිශීලකයින් සඳහා Priority අංකය පැහැදිලිව පෙන්වීම
+    if (priorityVal !== "") {
+        tabPriorityHtml = `<span class="badge bg-warning text-dark ms-2 fw-bold border border-dark" style="font-size: 0.85rem;">Pri: ${priorityVal}</span>`;
+    }
+}
                 navHtml += `
                 <li class="nav-item" role="presentation">
                     <button class="nav-link ${first?'active':''} fw-bold border mb-2 me-2 d-flex align-items-center shadow-sm rounded-3" id="bp-tab-${safeSize}" data-bs-toggle="pill" data-bs-target="#bp-content-${safeSize}" type="button" role="tab">
