@@ -1318,7 +1318,7 @@
             });
         }
 
-        function renderBoardPlantTable() {
+       function renderBoardPlantTable() {
             let titleEl = document.getElementById('generic-tab-title');
             if(titleEl) titleEl.innerHTML = "<i class='bi bi-tools text-warning me-2'></i> Board Plant Stage Platform";
             
@@ -1384,11 +1384,11 @@
 
                         let priorityHTML = `<input type="text" class="form-control form-control-sm mx-auto text-center fw-bold border-secondary" style="width: 55px; font-size: 0.85rem;" placeholder="#" onchange="saveRowPriority(${p.id}, this.value)" value="${rowPriorityDisplay}" title="Row Priority (1, 2, 3...)">`;
                         
-                        // Board Plant Target Qty Snippet (applied here)
+                        // Fixed: userRole changed to currentRole
                         let qtyHTML = `
                         <div class="d-flex align-items-center justify-content-center gap-1">
                             <span class="fw-bold fs-6">${p.qty}</span>
-                            ${['programmer1', 'programmer2'].includes(userRole) ? `
+                            ${['programmer1', 'programmer2'].includes(currentRole) ? `
                                 <button class="btn btn-sm btn-outline-primary p-1 ms-2" 
                                     onclick="editQtyPrompt(${p.id}, ${p.qty})" 
                                     title="Edit Target Qty">
@@ -1428,7 +1428,6 @@
                 if(container) container.innerHTML = hasAnyRecords ? (navHtml + contentHtml) : "<p class='text-muted p-4 text-center border rounded bg-white'>No active jobs currently in Board Plant stage.</p>";
             });
         }
-        
         function showBoardPlantForm(id) {
             let row = document.getElementById(`job_card_row_${id}`);
             if(row) row.style.display = 'table-row';
