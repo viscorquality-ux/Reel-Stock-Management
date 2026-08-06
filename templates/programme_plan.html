@@ -1296,14 +1296,6 @@
                         
                         let qtyHTML = `<span class="badge bg-primary fs-6 px-3 py-1">${p.qty} Pcs</span>`;
                         
-                        if (currentRole === 'programmer1' || currentRole === 'programmer2') {
-                            priorityHTML = `
-                                <select class="form-select form-select-sm" onchange="saveRowPriority(${p.id}, this.value)">
-                                    <option value="">-</option>
-                                    <option value="1" ${p.row_priority=='1'?'selected':''}>1</option>
-                                    <option value="2" ${p.row_priority=='2'?'selected':''}>2</option>
-                                    <option value="3" ${p.row_priority=='3'?'selected':''}>3</option>
-                                </select>
                             `;
                             // Edit කිරීම සඳහා සකසන ලද QTY Display/Edit UI
                             qtyHTML = `
