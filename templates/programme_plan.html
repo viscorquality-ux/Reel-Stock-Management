@@ -1100,74 +1100,62 @@
         
         // QTY එක Update කිරීම සහ SR Request සඳහා අවශ්‍ය සියලුම Keys හා Events Trigger කිරීම
         function updateTargetQty(id) {
-    const inputEl = document.getElementById(`edit_qty_${id}`);
-    if (!inputEl) return;
-    const newQty = inputEl.value;
-    if (!newQty || parseInt(newQty) <= 0) {
-        alert("⚠️ Please enter a valid Target Quantity.");
-        return;
-    }
-    
-    // Plan Qty එක update කිරීම
-    fetch('/api/update_plan_qty', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-            id: id, 
-            plan_id: id, 
-            qty: parseInt(newQty), 
-            new_qty: parseInt(newQty)
-        })
-    })
-    .then(res => res.json())
-    .then(data => {
-        if(data.success) {
-            // Socket Events (දැනට පවතින ආකාරයටම)
-            if (typeof socket !== 'undefined' && socket.emit) {
-                socket.emit('update_sr_request', { id: id, plan_id: id, qty: parseInt(newQty) });
-                socket.emit('sr_request_updated', { id: id, plan_id: id, qty: parseInt(newQty) });
-                socket.emit('plan_updated', { id: id, plan_id: id, qty: parseInt(newQty) });
+            const inputEl = document.getElementById(`edit_qty_${id}`);
+            if (!inputEl) return;
+            const newQty = inputEl.value;
+            
+            if (!newQty || parseInt(newQty) <= 0) {
+                alert("⚠️ Please enter a valid Target Quantity.");
+                return;
             }
             
-            // 🆕 SR Request Weights අනිවාර්යයෙන් Update වීම සහතික කිරීමට Backend එකට වෙනම Request එකක් යැවීම
-            fetch('/api/update_sr_weights', {
+            // මෙහිදී ඔබගේ එකම 'update_plan_qty' API එකට Request එක යවයි.
+            // (මෙමගින් Plan Qty එක සහ SR Weights යන දෙකම එකවර Update වේ)
+            fetch('/api/update_plan_qty', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
-                    plan_id: id,
-                    new_qty: parseInt(newQty)
+                    id: id, 
+                    qty: parseInt(newQty)
                 })
-            }).then(srRes => srRes.json())
-              .then(srData => console.log("SR Update Response:", srData))
-              .catch(e => console.error("SR Update API Error:", e));
-            
-            // Auto-lock කිරීම (Edit Box එක වසා පෙන්වීම)
-            let displayContainer = document.getElementById(`bp_qty_display_container_${id}`);
-            let editContainer = document.getElementById(`bp_qty_edit_container_${id}`);
-            let badge = document.getElementById(`bp_qty_badge_${id}`);
-            
-            if(badge) badge.innerText = newQty + " Pcs";
-            
-            if(displayContainer && editContainer) {
-                editContainer.style.display = 'none';
-                displayContainer.style.display = 'flex';
-            }
-
-            alert("✅ Target Qty and related SR Request weights updated successfully!");
-            
-            // පසුබිමෙන් Data refresh කර ගැනීම 
-            fetch('/api/get_saved_plans').then(r=>r.json()).then(newData => {
-                globalAllPlans = newData;
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.success) {
+                    // Socket Events යැවීම
+                    if (typeof socket !== 'undefined' && socket.emit) {
+                        socket.emit('update_sr_request', { id: id, plan_id: id, qty: parseInt(newQty) });
+                        socket.emit('sr_request_updated', { id: id, plan_id: id, qty: parseInt(newQty) });
+                        socket.emit('plan_updated', { id: id, plan_id: id, qty: parseInt(newQty) });
+                    }
+                    
+                    // UI එක වෙනස් කිරීම (Edit Box එක වසා පෙන්වීම)
+                    let displayContainer = document.getElementById(`bp_qty_display_container_${id}`);
+                    let editContainer = document.getElementById(`bp_qty_edit_container_${id}`);
+                    let badge = document.getElementById(`bp_qty_badge_${id}`);
+                    
+                    if(badge) badge.innerText = newQty + " Pcs";
+                    
+                    if(displayContainer && editContainer) {
+                        editContainer.style.display = 'none';
+                        displayContainer.style.display = 'flex';
+                    }
+        
+                    alert("✅ Target Qty and related SR Request weights updated successfully!");
+                    
+                    // අවශ්‍ය නම් Data refresh කිරීම
+                    if (typeof fetchSavedPlans === 'function') {
+                        fetchSavedPlans(); // ඔබගේ දත්ත refresh කරන function එක
+                    }
+                } else {
+                    alert("❌ Error: " + (data.message || "Unauthorized or Failed to update."));
+                }
+            })
+            .catch(err => {
+                console.error("Error:", err);
+                alert("❌ Failed to update Target Qty. Please check connection.");
             });
-        } else {
-            alert("❌ Error: " + (data.message || "Failed to update Target Qty."));
         }
-    })
-    .catch(err => {
-        console.error("Error updating Target Qty:", err);
-        alert("❌ Failed to update Target Qty. Please check connection.");
-    });
-}
         function renderRuntimePlansTable() {
             fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
                 globalAllPlans = data;
