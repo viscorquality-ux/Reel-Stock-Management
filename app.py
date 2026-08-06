@@ -930,6 +930,10 @@ def reset_db_now():
 
 @app.route('/api/update_row_priority', methods=['POST'])
 def update_row_priority():
+    # --- PROGAMMER 01 හා 02 ට පමණක් Priority වෙනස් කිරීමට අවසරය ---
+    if session.get('role') not in ['programmer1', 'programmer2']:
+        return jsonify({'success': False, 'message': 'Unauthorized action'})
+        
     data = request.json
     plan = ProgrammePlan.query.get(data.get('id'))
     if plan:
@@ -1203,33 +1207,32 @@ def check_stock_detailed():
     papers_data = db.session.query(Reel.material_name).filter(Reel.status.in_(['Full', 'Used'])).distinct().all()
     return jsonify({'results': results, 'all_papers': [p.material_name for p in papers_data]})
 
-# --- IMPORTANT UPDATE: /api/update_plan_qty updated for Auto SR recalculation ---
 @app.route('/api/update_plan_qty', methods=['POST'])
 def update_plan_qty():
+    # --- PROGAMMER 01 හා 02 ට පමණක් Board Plant හිදී Target Qty වෙනස් කිරීමට අවසරය ---
+    if session.get('role') not in ['programmer1', 'programmer2']:
+        return jsonify({'success': False, 'message': 'Unauthorized action'})
+        
     data = request.json
     plan = ProgrammePlan.query.get(data.get('id'))
     if plan:
+        old_qty = plan.qty
         new_qty = int(data.get('qty', 0))
-        plan.qty = new_qty
         
-        # Update Pending SR Requests connected to this PO
-        srs = SRRequest.query.filter_by(po_number=plan.po_no).all()
-        for sr in srs:
-            if sr.status in ['Pending', 'Approved']:
+        # --- Qty එක වෙනස් වූ විට අනුපාතිකව (proportionally) SR Weight එක adjust කිරීම ---
+        if old_qty > 0 and new_qty > 0 and old_qty != new_qty:
+            plan.qty = new_qty
+            
+            srs = SRRequest.query.filter_by(po_number=plan.po_no, status='Pending').all()
+            for sr in srs:
                 sr.qty = new_qty
-                # Recalculate weights based on standard mathematical structure
-                calc_weight = ((sr.board_width * sr.board_length) * (sr.gsm / 1000.0)) / sr.cartoon_amount * new_qty
-                if sr.component_type == 'Corru':
-                    calc_weight *= 1.5
-                
-                # Adding standard 5% excess to match plan logic
-                excess = calc_weight * 0.05
-                sr.calculated_weight = round(calc_weight, 2)
-                sr.excess_weight = round(excess, 2)
-                sr.total_weight = round(calc_weight + excess, 2)
+                sr.calculated_weight = round((sr.calculated_weight / old_qty) * new_qty, 2)
+                sr.excess_weight = round((sr.excess_weight / old_qty) * new_qty, 2)
+                sr.total_weight = round((sr.total_weight / old_qty) * new_qty, 2)
                 
         db.session.commit()
-        return jsonify({'success': True, 'message': 'Qty and SR Requests updated successfully'})
+        return jsonify({'success': True})
+        
     return jsonify({'success': False, 'message': 'Plan not found'})
 
 @app.route('/api/transfer_order_identity', methods=['POST'])
@@ -1254,7 +1257,6 @@ def transfer_order():
         transfer_qty = safe_int(data.get('transfer_qty', 0))
         reason = data.get('reason', '')
         
-        # View log සඳහා transfer details සුරක්ෂිතව JSON ලෙස සකසා ගැනීම
         transfer_data = {
             "is_transfer": True,
             "prev_po": old_po,
@@ -1267,11 +1269,9 @@ def transfer_order():
         }
         transfer_json_str = json.dumps(transfer_data)
         
-        # දැනට අදාළ stage එකේ තිබෙන balance qty එක හඳුනාගැනීම
         current_qty = plan.balance_qty if plan.balance_qty > 0 else plan.qty
         
         if 0 < transfer_qty < current_qty:
-            # Partial Transfer (කොටසක් පමණක් transfer කිරීම)
             new_plan = ProgrammePlan(
                 po_no=new_po if new_po else plan.po_no,
                 customer_id=new_customer if new_customer else plan.customer_id,
@@ -1296,7 +1296,6 @@ def transfer_order():
             )
             db.session.add(new_plan)
             
-            # පරණ Order එකෙන් transfer කල qty එක අඩු කිරීම
             if plan.balance_qty > 0:
                 plan.balance_qty -= transfer_qty
             else:
@@ -1312,7 +1311,6 @@ def transfer_order():
             plan.transfer_info = original_transfer_msg
             
         else:
-            # Full Transfer (සම්පූර්ණ Order එකම transfer කිරීම)
             if new_po:
                 plan.po_no = new_po
             if new_customer:
@@ -1338,13 +1336,11 @@ def transfer_plan():
         new_status = data.get('status')
         form_type = data.get('form_type')
         
-        # Finished goods partial dispatch logic (Requirement 2)
         if new_status == 'Dispatched':
             dispatch_qty = safe_int(data.get('dispatch_qty', plan.finished_qty))
             actual_qty = plan.finished_qty if plan.finished_qty > 0 else plan.qty
             
             if 0 < dispatch_qty < actual_qty:
-                # Create a cloned row for the dispatched quantity
                 new_plan = ProgrammePlan(
                     po_no=plan.po_no, customer_id=plan.customer_id, product_code=plan.product_code,
                     selected_reel_size=plan.selected_reel_size, selected_ups=plan.selected_ups,
@@ -1358,7 +1354,6 @@ def transfer_plan():
                 )
                 db.session.add(new_plan)
                 
-                # Deduct from current record to keep balance in Finished Goods
                 if plan.finished_qty > 0:
                     plan.finished_qty -= dispatch_qty
                 plan.qty -= dispatch_qty
@@ -1366,7 +1361,6 @@ def transfer_plan():
                 db.session.commit()
                 return jsonify({'success': True})
             else:
-                # Full dispatch
                 plan.ad_number = data.get('ad_number', '')
                 plan.status = 'Dispatched'
                 db.session.commit()
@@ -1526,7 +1520,6 @@ def get_saved_plans():
             flute = "Sample"
         else:
             prod = CustomerProduct.query.filter_by(customer_id=p.customer_id, product_code=p.product_code).first()
-            # මෙහිදී Unknown වැටීම වළක්වා, තිබෙන අගයන් Fallback ලෙස ලබා දී ඇත
             c_name = prod.customer_name if prod else p.customer_id
             p_name = prod.product_name if prod else p.product_code
             ply_val = prod.ply if prod else 3
@@ -1557,7 +1550,6 @@ def get_saved_plans():
         })
     return jsonify(result)
 
-# --- IMPORTANT UPDATE: Fetching Flute and Cut Length values accurately to fix (N/A) bug ---
 @app.route('/api/get_historical_planning_records', methods=['GET'])
 def get_historical_planning_records():
     start_date = request.args.get('start_date')
@@ -1589,6 +1581,7 @@ def get_historical_planning_records():
     result = []
     
     for p in plans:
+        # --- (N/A) වැටීමේ ගැටළුව සඳහා නියමිත දත්ත CustomerProduct table එක හරහාම ලබා ගැනීම ---
         if p.status == 'Sample Memo':
             c_name = p.customer_id
             ply_val = 5 if '5PLY' in p.product_code else 3
@@ -1598,10 +1591,9 @@ def get_historical_planning_records():
             prod = CustomerProduct.query.filter_by(customer_id=p.customer_id, product_code=p.product_code).first()
             c_name = prod.customer_name if prod else p.customer_id
             
-            # Extracting correct values for accurate historical JSON rendering
             ply_val = prod.ply if prod else "-" 
             cut_length = get_cut_length(prod.cartoon_size, ply_val) if prod else "-"
-            flute = prod.flute if prod else "N/A"
+            flute = prod.flute if prod else "-"
 
         result.append({
             'id': p.id, 
@@ -1610,8 +1602,8 @@ def get_historical_planning_records():
             'selected_reel_size': p.selected_reel_size, 
             'qty': p.qty,
             'ply': ply_val, 
-            'cut_length': cut_length, 
-            'flute': flute,
+            'cut_length': cut_length,
+            'flute': flute,  # මෙය අලුතින් View Log එකට යවනු ලබයි
             'materials': json.loads(p.materials_json) if p.materials_json else [],
             'status': p.status,
             'ad_number': p.ad_number,
@@ -1620,7 +1612,7 @@ def get_historical_planning_records():
         })
         
     return jsonify(result)
-    
+
 @socketio.on('send_reel_request_packwell')
 def handle_packwell_request(data):
     emit('receive_packwell_alert', data, broadcast=True)
@@ -1676,7 +1668,6 @@ def api_get_all_history_logs():
 @app.route('/api/get_plan_history', methods=['GET'])
 def api_get_plan_history():
     try:
-        # Limit එක ඉවත් කර ඇත, එවිට සියලුම data Load වේ.
         plans = ProgrammePlan.query.order_by(ProgrammePlan.created_at.desc()).all()
         result = []
         for p in plans:
