@@ -1562,10 +1562,12 @@ def get_historical_planning_records():
             s_date = datetime.strptime(start_date, '%Y-%m-%d')
             e_date = datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1)
             query = query.filter(ProgrammePlan.created_at >= s_date, ProgrammePlan.created_at < e_date)
-        except Exception: pass
+        except Exception: 
+            pass
         
     plans = query.order_by(ProgrammePlan.created_at.desc()).all()
     result = []
+    
     for p in plans:
         if p.status == 'Sample Memo':
             c_name = p.customer_id
@@ -1574,19 +1576,27 @@ def get_historical_planning_records():
         else:
             prod = CustomerProduct.query.filter_by(customer_id=p.customer_id, product_code=p.product_code).first()
             c_name = prod.customer_name if prod else p.customer_id
+            
+            # --- 500 Error එක මගහරවා ගැනීමට මෙතැනට ply_val සහ cut_length ලබා දිය යුතුය ---
+            ply_val = p.ply if hasattr(p, 'ply') and p.ply else "-" 
+            cut_length = p.cut_length if hasattr(p, 'cut_length') and p.cut_length else "-"
 
         result.append({
-            'id': p.id, 'po_no': p.po_no, 'customer_name': c_name,
-            'selected_reel_size': p.selected_reel_size, 'qty': p.qty,
-            'ply': ply_val, 'cut_length': cut_length, 
+            'id': p.id, 
+            'po_no': p.po_no, 
+            'customer_name': c_name,
+            'selected_reel_size': p.selected_reel_size, 
+            'qty': p.qty,
+            'ply': ply_val, 
+            'cut_length': cut_length, 
             'materials': json.loads(p.materials_json) if p.materials_json else [],
             'status': p.status,
             'ad_number': p.ad_number,
             'transfer_info': p.transfer_info,
             'created_at': p.created_at.strftime('%Y-%m-%d %I:%M %p') if p.created_at else ""
         })
+        
     return jsonify(result)
-
 @socketio.on('send_reel_request_packwell')
 def handle_packwell_request(data):
     emit('receive_packwell_alert', data, broadcast=True)
