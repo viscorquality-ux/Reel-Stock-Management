@@ -1346,6 +1346,10 @@
     let titleEl = document.getElementById('generic-tab-title');
     if(titleEl) titleEl.innerHTML = "<i class='bi bi-tools text-warning me-2'></i> Board Plant Stage Platform";
     
+    // uiPriorities object එක තහවුරු කරගැනීම
+    if (typeof uiPriorities === 'undefined') window.uiPriorities = { bpTabs: {} };
+    if (!uiPriorities.bpTabs) uiPriorities.bpTabs = {};
+
     fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
         globalAllPlans = data;
         let hasAnyRecords = false;
@@ -1368,9 +1372,10 @@
                     <i class="bi bi-printer me-1"></i> Print Size Band
                 </button>` : '';
 
+            // Programmer ට පමණක් EDIT, viscor01 ඇතුළු අන් අයට VIEW (Badge එකක් ලෙස)
             let tabPriorityHtml = canEditPriority ? 
-                `<input type="text" class="form-control form-control-sm ms-2 p-0 text-center fw-bold border-primary" style="width: 48px; height: 26px; font-size: 0.85rem;" placeholder="Pri" onclick="event.stopPropagation()" onchange="saveSizeBandPriority('${safeSize}', this.value)" value="${priorityVal}" title="Set Priority (1, 2, 3...)">` : 
-                (priorityVal ? `<span class="badge bg-primary ms-2" style="font-size: 0.85rem;">Pri: ${priorityVal}</span>` : '');
+                `<input type="text" class="form-control form-control-sm ms-2 p-0 text-center fw-bold border-primary" style="width: 48px; height: 26px; font-size: 0.85rem;" placeholder="Pri" onclick="event.stopPropagation()" onchange="saveSizeBandPriority('${safeSize}', this.value)" value="${priorityVal}" title="Set Priority">` : 
+                `<span class="badge bg-warning text-dark ms-2 fw-bold" style="font-size: 0.85rem;" title="Size Band Priority">Pri: ${priorityVal || '-'}</span>`;
 
             navHtml += `
             <li class="nav-item" role="presentation">
@@ -1410,26 +1415,26 @@
                 let combinationSpecsString = (p.materials && Array.isArray(p.materials)) ? p.materials.map((m,i)=> `<span class="badge bg-light text-dark border me-1">L${i+1}: ${(m.gsm && !isNaN(m.gsm)) ? m.gsm : '-'} - ${m.name}</span>`).join('<br>') : '-';
                 let actHtml = canAct('Board Plant') ? `<button class="btn btn-sm btn-success fw-bold px-3 py-1 shadow-sm" onclick="showBoardPlantForm(${p.id})"><i class="bi bi-card-checklist me-1"></i> Create Job Card</button>` : `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
                 
-                // --- Auto-Lock සහ Input Priority Logic (Snippet 2) ---
+                // Row Priority Auto-Lock Logic: අගයක් තිබුණොත් විතරක් lock වේ. නැත්නම් Manual enter කරන්න පුළුවන්.
                 let currentPri = (p.row_priority !== null && p.row_priority !== undefined && p.row_priority !== "" && !isNaN(p.row_priority)) ? p.row_priority.toString() : "";
                 let isLocked = (currentPri !== "") ? "disabled" : "";
                 let btnDisplay = (currentPri !== "") ? "inline-block" : "none";
 
                 let priorityHTML = `
-                <div class="d-flex align-items-center justify-content-center">
+                <div class="d-flex align-items-center justify-content-center" onclick="event.stopPropagation()">
                     <input type="number" 
                            id="priority-input-${p.id}" 
                            class="form-control form-control-sm text-center fw-bold border-secondary" 
                            style="width: 55px; font-size: 0.85rem; padding: 0.25rem;" 
                            value="${currentPri}" 
-                           placeholder="Pri"
+                           placeholder="#"
                            min="1"
                            onchange="updatePriority(${p.id}, this.value)" 
                            ${isLocked}>
                     <button id="priority-edit-btn-${p.id}" 
                             class="btn btn-sm btn-outline-danger ms-1 p-1" 
                             style="display: ${btnDisplay}; line-height: 1;" 
-                            onclick="enablePriorityEdit(${p.id})" 
+                            onclick="enablePriorityEdit(${p.id}); event.stopPropagation();" 
                             title="Edit Priority">
                         <i class="bi bi-pencil-square"></i>
                     </button>
@@ -1478,6 +1483,68 @@
         if(container) container.innerHTML = hasAnyRecords ? (navHtml + contentHtml) : "<p class='text-muted p-4 text-center border rounded bg-white'>No active jobs currently in Board Plant stage.</p>";
     });
 }
+
+// 2. SIZE BAND PRIORITY SAVE FUNCTION
+window.saveSizeBandPriority = function(safeSize, value) {
+    if (!window.uiPriorities) window.uiPriorities = { bpTabs: {} };
+    if (!uiPriorities.bpTabs) uiPriorities.bpTabs = {};
+    
+    uiPriorities.bpTabs[safeSize] = value;
+
+    fetch('/api/save_size_band_priority', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ size_band: safeSize, priority: value, stage: 'Board Plant' })
+    }).catch(err => console.error("Error saving tab priority:", err));
+};
+
+// 3. ROW PRIORITY ENABLE EDIT FUNCTION
+window.enablePriorityEdit = function(planId) {
+    const inputElem = document.getElementById(`priority-input-${planId}`);
+    if (inputElem) {
+        inputElem.disabled = false; // Input box එක Unlock කරයි
+        inputElem.focus();          // Cursor එක අතුලට ගනී
+        inputElem.select();         // තියෙන අංකය Select කරගනී
+    }
+};
+
+// 4. ROW PRIORITY UPDATE & AUTO-LOCK FUNCTION
+window.updatePriority = function(planId, priorityValue) {
+    const inputElem = document.getElementById(`priority-input-${planId}`);
+    const editBtn = document.getElementById(`priority-edit-btn-${planId}`);
+    let trimmedVal = priorityValue.toString().trim();
+
+    // Data model එකේ අගය Update කිරීම
+    if (typeof globalAllPlans !== 'undefined') {
+        for (let size in globalAllPlans) {
+            let found = globalAllPlans[size].find(p => p.id == planId);
+            if (found) {
+                found.row_priority = trimmedVal;
+                break;
+            }
+        }
+    }
+
+    // Backend එකට Save කිරීම
+    if (typeof saveRowPriority === 'function') {
+        saveRowPriority(planId, trimmedVal);
+    } else {
+        fetch('/api/save_row_priority', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ plan_id: planId, priority: trimmedVal })
+        }).catch(err => console.error("Error saving row priority:", err));
+    }
+
+    // අංකයක් ඇතුළත් කළ විට පමණක් LOCK වී Edit Button එක පෙන්වයි
+    if (trimmedVal !== "") {
+        if (inputElem) inputElem.disabled = true;
+        if (editBtn) editBtn.style.display = "inline-block";
+    } else {
+        if (inputElem) inputElem.disabled = false;
+        if (editBtn) editBtn.style.display = "none";
+    }
+};
         function showBoardPlantForm(id) {
             let row = document.getElementById(`job_card_row_${id}`);
             if(row) row.style.display = 'table-row';
