@@ -1360,7 +1360,7 @@ function renderBoardPlantTable() {
     if (typeof uiPriorities === 'undefined') window.uiPriorities = { bpTabs: {} };
     if (!uiPriorities.bpTabs) uiPriorities.bpTabs = {};
 
-    // --- FIX 2: Refresh කළ සැනින් LocalStorage එකෙන් Saved Priorities Load කරගැනීම ---
+    // LocalStorage Read (Refresh කළත් Data නොමැකීමට)
     try {
         const savedLocalTabs = localStorage.getItem('bp_size_band_priorities');
         if (savedLocalTabs) {
@@ -1374,7 +1374,6 @@ function renderBoardPlantTable() {
         globalAllPlans = data;
         let hasAnyRecords = false;
 
-        // Backend එකෙන් Size Band Priorities පැමිණෙන්නේ නම් ඒවාද Merge කිරීම
         if (data.uiPriorities && data.uiPriorities.bpTabs) {
             window.uiPriorities.bpTabs = Object.assign({}, window.uiPriorities.bpTabs, data.uiPriorities.bpTabs);
             localStorage.setItem('bp_size_band_priorities', JSON.stringify(window.uiPriorities.bpTabs));
@@ -1391,8 +1390,6 @@ function renderBoardPlantTable() {
             
             hasAnyRecords = true;
             let safeSize = size.toString().replace('.', '_');
-            
-            // දැන් මෙහි Refresh කළද priorityVal එක ආරක්ෂිතව පවතී
             let priorityVal = uiPriorities.bpTabs[safeSize] || '';
             
             let printBtnHtml = (canEditPriority || currentRole === 'admin') ? 
@@ -1400,7 +1397,7 @@ function renderBoardPlantTable() {
                     <i class="bi bi-printer me-1"></i> Print Size Band
                 </button>` : '';
 
-            // Size Band Priority HTML Logic
+            // Size Band Priority HTML
             let tabPriorityHtml = "";
             let isTabLocked = (priorityVal !== "");
 
@@ -1425,7 +1422,6 @@ function renderBoardPlantTable() {
                     </button>
                 </div>`;
             } else {
-                // viscor01 ට පෙනෙන Badge එක (Pri: 1, Pri: 2, etc.)
                 if (priorityVal !== "") {
                     tabPriorityHtml = `<span class="badge bg-warning text-dark ms-2 fw-bold border border-dark" style="font-size: 0.85rem;">Pri: ${priorityVal}</span>`;
                 }
@@ -1461,20 +1457,17 @@ function renderBoardPlantTable() {
                                     <th class="no-print">Action</th>
                                 </tr>
                             </thead>
-                            <tbody class="small">
-            `;
+                            <tbody class="small">`;
 
             bpPlans.forEach(p => {
                 let sheetSizeCalculated = `${size} cm &times; ${p.cut_length || 'N/A'} cm`;
                 let combinationSpecsString = (p.materials && Array.isArray(p.materials)) ? p.materials.map((m,i)=> `<span class="badge bg-light text-dark border me-1">L${i+1}: ${(m.gsm && !isNaN(m.gsm)) ? m.gsm : '-'} - ${m.name}</span>`).join('<br>') : '-';
                 let actHtml = canAct('Board Plant') ? `<button class="btn btn-sm btn-success fw-bold px-3 py-1 shadow-sm" onclick="showBoardPlantForm(${p.id})"><i class="bi bi-card-checklist me-1"></i> Create Job Card</button>` : `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
                 
-                // --- ROW PRIORITY HTML (Programmer vs Viscor01) ---
                 let currentPri = (p.row_priority !== null && p.row_priority !== undefined && p.row_priority !== "" && !isNaN(p.row_priority)) ? p.row_priority.toString() : "";
                 let priorityHTML = "";
 
                 if (canEditPriority) {
-                    // Programmers: Input box + Edit Button (Auto-Lock logic)
                     let isRowLocked = (currentPri !== "");
                     priorityHTML = `
                     <div class="d-flex align-items-center justify-content-center" onclick="event.stopPropagation()">
@@ -1496,7 +1489,6 @@ function renderBoardPlantTable() {
                         </button>
                     </div>`;
                 } else {
-                    // viscor01: plain number අංකය පමණක් පෙන්වයි
                     priorityHTML = (currentPri !== "") 
                         ? `<span class="badge bg-primary fs-6 px-2 py-1">${currentPri}</span>` 
                         : `<span class="text-muted fw-bold">-</span>`;
@@ -1512,8 +1504,7 @@ function renderBoardPlantTable() {
                             <i class="bi bi-pencil-square"></i>
                         </button>
                     ` : ''}
-                </div>
-                `;
+                </div>`;
 
                 contentHtml += `
                 <tr>
@@ -1543,10 +1534,10 @@ function renderBoardPlantTable() {
 
         let container = document.getElementById('generic-stage-container');
         if(container) container.innerHTML = hasAnyRecords ? (navHtml + contentHtml) : "<p class='text-muted p-4 text-center border rounded bg-white'>No active jobs currently in Board Plant stage.</p>";
-    });
+    }).catch(err => console.error("API Fetch Error:", err));
 }
 
-// 2. SIZE BAND PRIORITY FUNCTIONS (EDIT, SAVE & AUTO-LOCK)
+// 2. HELPER FUNCTIONS
 window.enableSizeBandEdit = function(safeSize) {
     const inputElem = document.getElementById(`sb-priority-input-${safeSize}`);
     if (inputElem) {
@@ -1563,10 +1554,15 @@ window.saveSizeBandPriority = function(safeSize, value) {
     let trimmedVal = value.toString().trim();
     uiPriorities.bpTabs[safeSize] = trimmedVal;
 
+    try {
+        localStorage.setItem('bp_size_band_priorities', JSON.stringify(uiPriorities.bpTabs));
+    } catch(e) {
+        console.error("LocalStorage Save Error:", e);
+    }
+
     const inputElem = document.getElementById(`sb-priority-input-${safeSize}`);
     const editBtn = document.getElementById(`sb-priority-btn-${safeSize}`);
 
-    // අංකයක් ඇතුළත් කළ පසු Auto-Lock කර Edit Button එක පෙන්වයි
     if (trimmedVal !== "") {
         if (inputElem) inputElem.disabled = true;
         if (editBtn) editBtn.style.display = "inline-block";
@@ -1582,7 +1578,6 @@ window.saveSizeBandPriority = function(safeSize, value) {
     }).catch(err => console.error("Error saving tab priority:", err));
 };
 
-// 3. ROW PRIORITY FUNCTIONS (EDIT, SAVE & AUTO-LOCK)
 window.enablePriorityEdit = function(planId) {
     const inputElem = document.getElementById(`priority-input-${planId}`);
     if (inputElem) {
@@ -1597,7 +1592,6 @@ window.updatePriority = function(planId, priorityValue) {
     const editBtn = document.getElementById(`priority-edit-btn-${planId}`);
     let trimmedVal = priorityValue.toString().trim();
 
-    // Memory Object Update
     if (typeof globalAllPlans !== 'undefined') {
         for (let size in globalAllPlans) {
             if (Array.isArray(globalAllPlans[size])) {
@@ -1610,7 +1604,6 @@ window.updatePriority = function(planId, priorityValue) {
         }
     }
 
-    // Auto-Lock Logic
     if (trimmedVal !== "") {
         if (inputElem) inputElem.disabled = true;
         if (editBtn) editBtn.style.display = "inline-block";
@@ -1619,7 +1612,6 @@ window.updatePriority = function(planId, priorityValue) {
         if (editBtn) editBtn.style.display = "none";
     }
 
-    // Backend Persistence Call
     fetch('/api/save_row_priority', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
