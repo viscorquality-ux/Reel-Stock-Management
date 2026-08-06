@@ -1087,9 +1087,24 @@
             `);
             printWindow.document.close();
         }
-        
+        function enableBpQtyEdit(id) {
+            let displayContainer = document.getElementById(`bp_qty_display_container_${id}`);
+            let editContainer = document.getElementById(`bp_qty_edit_container_${id}`);
+            if (displayContainer && editContainer) {
+                displayContainer.style.display = 'none';
+                editContainer.style.display = 'flex';
+                let input = document.getElementById(`edit_qty_${id}`);
+                if (input) input.focus();
+            }
+        }
         function updateTargetQty(id) {
-            const newQty = document.getElementById(`edit_qty_${id}`).value;
+            const inputEl = document.getElementById(`edit_qty_${id}`);
+            if (!inputEl) return;
+            const newQty = inputEl.value;
+            if (!newQty || parseInt(newQty) <= 0) {
+                alert("⚠️ Please enter a valid Target Quantity.");
+                return;
+            }
             
             fetch('/api/update_plan_qty', {
                 method: 'POST',
@@ -1099,14 +1114,22 @@
             .then(res => res.json())
             .then(data => {
                 if(data.success) {
+                    if (typeof socket !== 'undefined' && socket.emit) {
+                        socket.emit('update_sr_request', { id: id, qty: newQty });
+                        socket.emit('sr_request_updated', { id: id, qty: newQty });
+                        socket.emit('plan_updated', { id: id, qty: newQty });
+                    }
                     alert("✅ Target Qty and related SR Request weights updated successfully!");
                     renderBoardPlantTable(); 
                 } else {
-                    alert("❌ Error: " + data.message);
+                    alert("❌ Error: " + (data.message || "Failed to update Target Qty."));
                 }
+            })
+            .catch(err => {
+                console.error("Error updating Target Qty:", err);
+                alert("❌ Failed to update Target Qty. Please check connection.");
             });
         }
-
         function renderRuntimePlansTable() {
             fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
                 globalAllPlans = data;
