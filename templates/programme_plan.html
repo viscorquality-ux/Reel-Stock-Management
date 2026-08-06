@@ -1097,6 +1097,8 @@
                 if (input) input.focus();
             }
         }
+        
+        // QTY එක Update කිරීම සහ SR Request සඳහා අවශ්‍ය සියලුම Keys හා Events Trigger කිරීම
         function updateTargetQty(id) {
             const inputEl = document.getElementById(`edit_qty_${id}`);
             if (!inputEl) return;
@@ -1109,18 +1111,40 @@
             fetch('/api/update_plan_qty', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({id: id, qty: newQty})
+                body: JSON.stringify({
+                    id: id, 
+                    plan_id: id, 
+                    qty: parseInt(newQty), 
+                    new_qty: parseInt(newQty)
+                })
             })
             .then(res => res.json())
             .then(data => {
                 if(data.success) {
                     if (typeof socket !== 'undefined' && socket.emit) {
-                        socket.emit('update_sr_request', { id: id, qty: newQty });
-                        socket.emit('sr_request_updated', { id: id, qty: newQty });
-                        socket.emit('plan_updated', { id: id, qty: newQty });
+                        socket.emit('update_sr_request', { id: id, plan_id: id, qty: parseInt(newQty) });
+                        socket.emit('sr_request_updated', { id: id, plan_id: id, qty: parseInt(newQty) });
+                        socket.emit('plan_updated', { id: id, plan_id: id, qty: parseInt(newQty) });
                     }
+                    
+                    // Auto-lock කිරීම (Edit Box එක වසා පෙන්වීම)
+                    let displayContainer = document.getElementById(`bp_qty_display_container_${id}`);
+                    let editContainer = document.getElementById(`bp_qty_edit_container_${id}`);
+                    let badge = document.getElementById(`bp_qty_badge_${id}`);
+                    
+                    if(badge) badge.innerText = newQty + " Pcs";
+                    
+                    if(displayContainer && editContainer) {
+                        editContainer.style.display = 'none';
+                        displayContainer.style.display = 'flex';
+                    }
+
                     alert("✅ Target Qty and related SR Request weights updated successfully!");
-                    renderBoardPlantTable(); 
+                    
+                    // පසුබිමෙන් Data refresh කර ගැනීම (table එක සම්පූර්ණයෙන්ම අලුත් වීම වළක්වා ගැනීමට)
+                    fetch('/api/get_saved_plans').then(r=>r.json()).then(newData => {
+                        globalAllPlans = newData;
+                    });
                 } else {
                     alert("❌ Error: " + (data.message || "Failed to update Target Qty."));
                 }
@@ -1279,11 +1303,18 @@
                                     <option value="3" ${p.row_priority=='3'?'selected':''}>3</option>
                                 </select>
                             `;
+                            // Edit කිරීම සඳහා සකසන ලද QTY Display/Edit UI
                             qtyHTML = `
-                                <div class="input-group input-group-sm mx-auto" style="width: 100px;">
-                                    <input type="number" class="form-control" value="${p.qty}" id="edit_qty_${p.id}">
-                                    <button class="btn btn-outline-success" onclick="updateTargetQty(${p.id})">
-                                        <i class="bi bi-check2"></i>
+                                <div class="d-flex align-items-center justify-content-center" id="bp_qty_display_container_${p.id}">
+                                    <span class="badge bg-primary fs-6 px-3 py-1 me-2" id="bp_qty_badge_${p.id}">${p.qty} Pcs</span>
+                                    <button type="button" class="btn btn-sm btn-outline-warning no-print" onclick="enableBpQtyEdit(${p.id})" title="Edit Target Qty">
+                                        <i class="bi bi-pencil-square"></i> Edit
+                                    </button>
+                                </div>
+                                <div class="input-group input-group-sm mx-auto" id="bp_qty_edit_container_${p.id}" style="width: 140px; display: none;">
+                                    <input type="number" class="form-control text-center fw-bold" value="${p.qty}" id="edit_qty_${p.id}">
+                                    <button type="button" class="btn btn-success" onclick="updateTargetQty(${p.id})">
+                                        <i class="bi bi-check2-circle"></i> Ok
                                     </button>
                                 </div>
                             `;
@@ -1319,7 +1350,7 @@
                 if(container) container.innerHTML = hasAnyRecords ? (navHtml + contentHtml) : "<p class='text-muted p-4 text-center border rounded bg-white'>No active jobs currently in Board Plant stage.</p>";
             });
         }
-
+        
         function showBoardPlantForm(id) {
             let row = document.getElementById(`job_card_row_${id}`);
             if(row) row.style.display = 'table-row';
