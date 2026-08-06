@@ -1203,15 +1203,34 @@ def check_stock_detailed():
     papers_data = db.session.query(Reel.material_name).filter(Reel.status.in_(['Full', 'Used'])).distinct().all()
     return jsonify({'results': results, 'all_papers': [p.material_name for p in papers_data]})
 
+# --- IMPORTANT UPDATE: /api/update_plan_qty updated for Auto SR recalculation ---
 @app.route('/api/update_plan_qty', methods=['POST'])
 def update_plan_qty():
     data = request.json
     plan = ProgrammePlan.query.get(data.get('id'))
     if plan:
-        plan.qty = int(data.get('qty', 0))
+        new_qty = int(data.get('qty', 0))
+        plan.qty = new_qty
+        
+        # Update Pending SR Requests connected to this PO
+        srs = SRRequest.query.filter_by(po_number=plan.po_no).all()
+        for sr in srs:
+            if sr.status in ['Pending', 'Approved']:
+                sr.qty = new_qty
+                # Recalculate weights based on standard mathematical structure
+                calc_weight = ((sr.board_width * sr.board_length) * (sr.gsm / 1000.0)) / sr.cartoon_amount * new_qty
+                if sr.component_type == 'Corru':
+                    calc_weight *= 1.5
+                
+                # Adding standard 5% excess to match plan logic
+                excess = calc_weight * 0.05
+                sr.calculated_weight = round(calc_weight, 2)
+                sr.excess_weight = round(excess, 2)
+                sr.total_weight = round(calc_weight + excess, 2)
+                
         db.session.commit()
-        return jsonify({'success': True})
-    return jsonify({'success': True, 'message': 'Order transferred successfully'})
+        return jsonify({'success': True, 'message': 'Qty and SR Requests updated successfully'})
+    return jsonify({'success': False, 'message': 'Plan not found'})
 
 @app.route('/api/transfer_order_identity', methods=['POST'])
 def transfer_order():
@@ -1538,6 +1557,7 @@ def get_saved_plans():
         })
     return jsonify(result)
 
+# --- IMPORTANT UPDATE: Fetching Flute and Cut Length values accurately to fix (N/A) bug ---
 @app.route('/api/get_historical_planning_records', methods=['GET'])
 def get_historical_planning_records():
     start_date = request.args.get('start_date')
@@ -1573,13 +1593,15 @@ def get_historical_planning_records():
             c_name = p.customer_id
             ply_val = 5 if '5PLY' in p.product_code else 3
             cut_length = 60.0
+            flute = "Sample"
         else:
             prod = CustomerProduct.query.filter_by(customer_id=p.customer_id, product_code=p.product_code).first()
             c_name = prod.customer_name if prod else p.customer_id
             
-            # --- 500 Error එක මගහරවා ගැනීමට මෙතැනට ply_val සහ cut_length ලබා දිය යුතුය ---
-            ply_val = p.ply if hasattr(p, 'ply') and p.ply else "-" 
-            cut_length = p.cut_length if hasattr(p, 'cut_length') and p.cut_length else "-"
+            # Extracting correct values for accurate historical JSON rendering
+            ply_val = prod.ply if prod else "-" 
+            cut_length = get_cut_length(prod.cartoon_size, ply_val) if prod else "-"
+            flute = prod.flute if prod else "N/A"
 
         result.append({
             'id': p.id, 
@@ -1589,6 +1611,7 @@ def get_historical_planning_records():
             'qty': p.qty,
             'ply': ply_val, 
             'cut_length': cut_length, 
+            'flute': flute,
             'materials': json.loads(p.materials_json) if p.materials_json else [],
             'status': p.status,
             'ad_number': p.ad_number,
@@ -1597,6 +1620,7 @@ def get_historical_planning_records():
         })
         
     return jsonify(result)
+    
 @socketio.on('send_reel_request_packwell')
 def handle_packwell_request(data):
     emit('receive_packwell_alert', data, broadcast=True)
