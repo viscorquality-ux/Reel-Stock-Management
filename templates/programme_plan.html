@@ -895,39 +895,35 @@
             });
         }
         function saveSizeBandPriority(size, val) {
-            window.saveSizeBandPriority = function(safeSize, value) {
-            if (!window.uiPriorities) window.uiPriorities = { bpTabs: {} };
-            if (!uiPriorities.bpTabs) uiPriorities.bpTabs = {};
-            
-            let trimmedVal = value.toString().trim();
-            uiPriorities.bpTabs[safeSize] = trimmedVal;
-        
-            // --- FIX 1: Refresh කරද්දී නැති නොවීමට LocalStorage එකේ Save කිරීම ---
-            try {
-                localStorage.setItem('bp_size_band_priorities', JSON.stringify(uiPriorities.bpTabs));
-            } catch(e) {
-                console.error("LocalStorage Save Error:", e);
-            }
-        
-            const inputElem = document.getElementById(`sb-priority-input-${safeSize}`);
-            const editBtn = document.getElementById(`sb-priority-btn-${safeSize}`);
-        
-            // Auto-Lock Logic
-            if (trimmedVal !== "") {
-                if (inputElem) inputElem.disabled = true;
-                if (editBtn) editBtn.style.display = "inline-block";
-            } else {
-                if (inputElem) inputElem.disabled = false;
-                if (editBtn) editBtn.style.display = "none";
-            }
-        
-            // Backend එකට Save කිරීම
-            fetch('/api/save_size_band_priority', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ size_band: safeSize, priority: trimmedVal, stage: 'Board Plant' })
-            }).catch(err => console.error("Error saving tab priority:", err));
-        };
+    if (!window.uiPriorities) window.uiPriorities = { bpTabs: {} };
+    if (!uiPriorities.bpTabs) uiPriorities.bpTabs = {};
+    
+    let trimmedVal = val.toString().trim();
+    uiPriorities.bpTabs[size] = trimmedVal;
+
+    try {
+        localStorage.setItem('bp_size_band_priorities', JSON.stringify(uiPriorities.bpTabs));
+    } catch(e) {
+        console.error("LocalStorage Save Error:", e);
+    }
+
+    const inputElem = document.getElementById(`sb-priority-input-${size}`);
+    const editBtn = document.getElementById(`sb-priority-btn-${size}`);
+
+    if (trimmedVal !== "") {
+        if (inputElem) inputElem.disabled = true;
+        if (editBtn) editBtn.style.display = "inline-block";
+    } else {
+        if (inputElem) inputElem.disabled = false;
+        if (editBtn) editBtn.style.display = "none";
+    }
+
+    fetch('/api/save_size_band_priority', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ size_band: size, priority: trimmedVal, stage: 'Board Plant' })
+    }).catch(err => console.error("Error saving tab priority:", err));
+}
         function enablePriorityEdit(planId) {
             const selectElement = document.getElementById(`priority-select-${planId}`);
             const editButton = document.getElementById(`priority-edit-btn-${planId}`);
