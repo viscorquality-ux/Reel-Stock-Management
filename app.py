@@ -991,47 +991,30 @@ def add_product():
         return redirect(url_for('add_product'))
 
     return render_template('add_product.html', user_role=user_role)
-@app.route('/api/update_size_priority', methods=['POST'])
-def update_size_priority():
-    data = request.json
+@app.route('/api/save_size_band_priority', methods=['POST'])
+def save_size_band_priority():
+    if 'role' not in session:
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
     
-    # Frontend එකෙන් එන දත්ත ලබා ගැනීම
-    size_band_val = data.get('size_band')
-    priority_val = data.get('priority')
+    data = request.get_json()
+    size_band = data.get('size_band')
+    priority = data.get('priority')
     
-    # Size band එකක් එවා නැත්නම් error එකක් යැවීම
-    if not size_band_val:
-        return jsonify({"success": False, "message": "Size band is required"}), 400
+    if not size_band:
+        return jsonify({'success': False, 'message': 'Invalid Size Band'}), 400
         
     try:
-        # 1. Database එකෙන් අදාළ Size Band record එක තිබේදැයි පරීක්ෂා කිරීම
-        record = SizePriority.query.filter_by(size_band=size_band_val).first()
-        
-        if record:
-            # 2. Record එකක් දැනටමත් තිබේ නම්, අලුත් Priority අගය Update කිරීම
-            record.priority = priority_val
+        existing = SizePriority.query.filter_by(size_band=size_band).first()
+        if existing:
+            existing.priority = priority
         else:
-            # 3. Record එකක් නැත්නම්, අලුතින් Record එකක් Create කිරීම
-            new_record = SizePriority(size_band=size_band_val, priority=priority_val)
-            db.session.add(new_record)
-        
-        # 4. වෙනස්කම් Database එකට Save කිරීම
+            new_sp = SizePriority(size_band=size_band, priority=priority)
+            db.session.add(new_sp)
         db.session.commit()
-        
-        return jsonify({
-            "success": True, 
-            "message": f"Priority for size '{size_band_val}' updated successfully"
-        })
-        
+        return jsonify({'success': True})
     except Exception as e:
-        # 5. යම් දෝෂයක් (Error) ආවොත් Save වීම නවතා (Rollback) Error message එක යැවීම
         db.session.rollback()
-        print(f"Database error updating size priority: {e}") # Terminal එකේ error එක බැලීමට
-        
-        return jsonify({
-            "success": False, 
-            "message": "An error occurred while saving to the database"
-        }), 500
+        return jsonify({'success': False, 'message': str(e)}), 500
 @app.route('/programme_plan')
 def programme_plan():
     if 'role' not in session: return redirect(url_for('login'))
