@@ -499,6 +499,16 @@
                 body: JSON.stringify({id: id, priority: val})
             }).then(r=>r.json()).then(res => { if(!res.success) alert("Failed to update Row Priority."); });
         }
+        const userRole = document.getElementById('loggedRole').innerText.trim().toLowerCase();
+        let priorityHTML = row.row_priority; // සාමාන්‍ය පරිශීලකයින්ට නිකම්ම text එක පමණක් පෙන්වීමට
+
+        if (userRole === 'programmer1' || userRole === 'programmer2') {
+            priorityHTML = `
+                <select onchange="updatePriority(${row.id}, this.value)">
+                    <!-- ඔබේ options මෙතැන යොදන්න -->
+                </select>
+            `;
+        }
 
         function closeFormRow(rowId) {
             let row = document.getElementById(rowId);
@@ -1088,6 +1098,25 @@
             `);
             printWindow.document.close();
         }
+        function updateTargetQty(id) {
+                const newQty = document.getElementById(`edit_qty_${id}`).value;
+                
+                fetch('/api/update_plan_qty', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({id: id, qty: newQty})
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if(data.success) {
+                        alert("✅ Target Qty and related SR Request weights updated successfully!");
+                        // මෙහිදී ඔබගේ Board Plant Table එක Refresh කරන function එක කතා කරන්න
+                        // උදා: renderBoardPlantTable(); 
+                    } else {
+                        alert("❌ Error: " + data.message);
+                    }
+                });
+            }
 
         function renderRuntimePlansTable() {
             fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
@@ -1254,7 +1283,20 @@
                 let container = document.getElementById('generic-stage-container');
                 if(container) container.innerHTML = hasAnyRecords ? (navHtml + contentHtml) : "<p class='text-muted p-4 text-center border rounded bg-white'>No active jobs currently in Board Plant stage.</p>";
             });
-        }
+            const userRole = document.getElementById('loggedRole').innerText.trim().toLowerCase();
+            let qtyHTML = row.qty;
+            
+            // programmer1 සහ programmer2 ට පමණක් මෙය දිස්වන පරිදි සකසන්න
+            if (userRole === 'programmer1' || userRole === 'programmer2') {
+                qtyHTML = `
+                    <div class="input-group input-group-sm" style="width: 100px;">
+                        <input type="number" class="form-control" value="${row.qty}" id="edit_qty_${row.id}">
+                        <button class="btn btn-outline-success" onclick="updateTargetQty(${row.id})">
+                            <i class="bi bi-check2"></i>
+                        </button>
+                    </div>
+                `;
+            } 
 
         function showBoardPlantForm(id) {
             let row = document.getElementById(`job_card_row_${id}`);
