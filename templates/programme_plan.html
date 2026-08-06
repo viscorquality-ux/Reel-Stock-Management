@@ -894,7 +894,97 @@
                 }
             });
         }
+        function enablePriorityEdit(planId) {
+            const selectElement = document.getElementById(`priority-select-${planId}`);
+            const editButton = document.getElementById(`priority-edit-btn-${planId}`);
+            
+            if (selectElement) {
+                selectElement.disabled = false;
+                selectElement.focus();
+            }
+            if (editButton) {
+                editButton.style.display = 'none';
+            }
+        }
 
+        // Priority Update & Auto-Lock Function
+        function updatePriority(planId, priorityValue) {
+            if (!['programmer1', 'programmer2'].includes(userRole)) {
+                alert("Unauthorized Action. Only Programmers can change priority.");
+                return;
+            }
+
+            fetch('/api/update_row_priority', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: planId, priority: priorityValue })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    const selectElement = document.getElementById(`priority-select-${planId}`);
+                    const editButton = document.getElementById(`priority-edit-btn-${planId}`);
+
+                    // Lock if a valid priority is selected
+                    if (priorityValue !== "" && priorityValue !== "None") {
+                        if (selectElement) selectElement.disabled = true;
+                        if (editButton) editButton.style.display = 'inline-block';
+                    } else {
+                        // Keep unlocked if 'None' is selected
+                        if (selectElement) selectElement.disabled = false;
+                        if (editButton) editButton.style.display = 'none';
+                    }
+                    
+                    // Note: Optional visual feedback alert
+                    // alert("Priority Saved Successfully!");
+                    
+                } else {
+                    alert("Error updating priority: " + data.message);
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert("Error connecting to server.");
+            });
+        }
+
+        // ==========================================
+        // Board Plant Target Qty Editing Logic
+        // ==========================================
+        function editQtyPrompt(planId, currentQty) {
+            if (!['programmer1', 'programmer2'].includes(userRole)) {
+                alert("Unauthorized Action. Only Programmers can edit Target Qty.");
+                return;
+            }
+            
+            const newQty = prompt("Enter New Target Quantity:", currentQty);
+            
+            if (newQty !== null && newQty !== "" && !isNaN(newQty)) {
+                fetch('/api/update_plan_qty', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: planId, qty: parseInt(newQty) })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        alert("Target Quantity Updated Successfully!");
+                        // Refresh the table (assuming a global load function exists, or reloading)
+                        if (typeof renderBoardPlantTable === 'function') {
+                            renderBoardPlantTable();
+                        } else {
+                            location.reload();
+                        }
+                    } else {
+                        alert("Error updating quantity: " + data.message);
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    alert("Error connecting to server.");
+                });
+            }
+        }
         function saveQty(id) {
             let input = document.getElementById(`qty_input_${id}`);
             let val = input.value;
