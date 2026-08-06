@@ -2394,10 +2394,10 @@
     tableBody.innerHTML = '<tr><td colspan="9" class="text-muted py-4"><div class="spinner-border spinner-border-sm text-primary me-2"></div>Plan History Audit Logs පූරණය වෙමින් පවතී...</td></tr>';
 
     // API URL එක සැකසීම
-    let fetchUrl = '/api/get_historical_planning_records';;
+    let fetchUrl = '/api/get_historical_planning_records';
     const params = new URLSearchParams();
-    if (startDate) params.append('start', startDate);
-    if (endDate) params.append('end', endDate);
+    if (startDate) params.append('start_date', startDate); 
+    if (endDate) params.append('end_date', endDate);
     if (params.toString()) fetchUrl += `?${params.toString()}`;
 
     fetch(fetchUrl)
