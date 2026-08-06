@@ -894,6 +894,30 @@
                 }
             });
         }
+        function saveSizeBandPriority(size, val) {
+            // UI එකෙහි අගය update කිරීම
+            uiPriorities.bpTabs[size] = val; 
+            
+            // Backend API එකට අලුත් priority අගය යැවීම
+            fetch('/api/update_size_priority', {
+                method: 'POST', 
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ size_band: size, priority: val })
+            })
+            .then(r => r.json())
+            .then(res => {
+                if(res.success) {
+                    console.log(`Size ${size} priority successfully updated to ${val}`);
+                    // සාර්ථකව save වූ බව පෙන්වීමට අවශ්‍ය නම් alert එකක් දැමිය හැක
+                } else {
+                    alert("❌ Failed to update Size Tab Priority.");
+                }
+            })
+            .catch(err => {
+                console.error("Error saving priority:", err);
+                alert("❌ Error connecting to server while saving priority.");
+            });
+        }
         function enablePriorityEdit(planId) {
             const selectElement = document.getElementById(`priority-select-${planId}`);
             const editButton = document.getElementById(`priority-edit-btn-${planId}`);
@@ -1328,7 +1352,7 @@
                 
                 let navHtml = '<ul class="nav nav-pills mb-3" id="bp-size-tabs" role="tablist">';
                 let contentHtml = '<div class="tab-content" id="bp-size-tabsContent">';
-                
+                let canEditPriority = ['programmer1', 'programmer2'].includes(currentRole);
                 let first = true;
                 for (const [size, plans] of Object.entries(data)) {
                     let bpPlans = plans.filter(p => p.status === 'Board Plant');
@@ -1342,7 +1366,9 @@
                         `<button class="btn btn-sm btn-outline-light no-print py-1" onclick="printSelectedBand('bp_print_band_${safeSize}')">
                             <i class="bi bi-printer me-1"></i> Print Size Band
                         </button>` : '';
-                    
+                    let tabPriorityHtml = canEditPriority ? 
+                        `<input type="text" class="form-control form-control-sm ms-2 p-0 text-center fw-bold border-primary" style="width: 48px; height: 26px; font-size: 0.85rem;" placeholder="Pri" onclick="event.stopPropagation()" onchange="saveSizeBandPriority('${safeSize}', this.value)" value="${priorityVal}" title="Set Priority (1, 2, 3...)">` : 
+                        (priorityVal ? `<span class="badge bg-primary ms-2" style="font-size: 0.85rem;">Pri: ${priorityVal}</span>` : '');
                     navHtml += `
                     <li class="nav-item" role="presentation">
                         <button class="nav-link ${first?'active':''} fw-bold border mb-2 me-2 d-flex align-items-center shadow-sm rounded-3" id="bp-tab-${safeSize}" data-bs-toggle="pill" data-bs-target="#bp-content-${safeSize}" type="button" role="tab">
