@@ -1343,117 +1343,141 @@
         }
 
        function renderBoardPlantTable() {
-            let titleEl = document.getElementById('generic-tab-title');
-            if(titleEl) titleEl.innerHTML = "<i class='bi bi-tools text-warning me-2'></i> Board Plant Stage Platform";
+    let titleEl = document.getElementById('generic-tab-title');
+    if(titleEl) titleEl.innerHTML = "<i class='bi bi-tools text-warning me-2'></i> Board Plant Stage Platform";
+    
+    fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
+        globalAllPlans = data;
+        let hasAnyRecords = false;
+        
+        let navHtml = '<ul class="nav nav-pills mb-3" id="bp-size-tabs" role="tablist">';
+        let contentHtml = '<div class="tab-content" id="bp-size-tabsContent">';
+        let canEditPriority = ['programmer1', 'programmer2'].includes(currentRole);
+        let first = true;
+
+        for (const [size, plans] of Object.entries(data)) {
+            let bpPlans = plans.filter(p => p.status === 'Board Plant');
+            if (bpPlans.length === 0) continue;
             
-            fetch('/api/get_saved_plans').then(r=>r.json()).then(data => {
-                globalAllPlans = data;
-                let hasAnyRecords = false;
+            hasAnyRecords = true;
+            let safeSize = size.toString().replace('.', '_');
+            let priorityVal = uiPriorities.bpTabs[safeSize] || '';
+            
+            let printBtnHtml = (currentRole === 'programmer1' || currentRole === 'programmer2' || currentRole === 'admin') ? 
+                `<button class="btn btn-sm btn-outline-light no-print py-1" onclick="printSelectedBand('bp_print_band_${safeSize}')">
+                    <i class="bi bi-printer me-1"></i> Print Size Band
+                </button>` : '';
+
+            let tabPriorityHtml = canEditPriority ? 
+                `<input type="text" class="form-control form-control-sm ms-2 p-0 text-center fw-bold border-primary" style="width: 48px; height: 26px; font-size: 0.85rem;" placeholder="Pri" onclick="event.stopPropagation()" onchange="saveSizeBandPriority('${safeSize}', this.value)" value="${priorityVal}" title="Set Priority (1, 2, 3...)">` : 
+                (priorityVal ? `<span class="badge bg-primary ms-2" style="font-size: 0.85rem;">Pri: ${priorityVal}</span>` : '');
+
+            navHtml += `
+            <li class="nav-item" role="presentation">
+                <button class="nav-link ${first?'active':''} fw-bold border mb-2 me-2 d-flex align-items-center shadow-sm rounded-3" id="bp-tab-${safeSize}" data-bs-toggle="pill" data-bs-target="#bp-content-${safeSize}" type="button" role="tab">
+                    <i class="bi bi-disc me-1 text-primary"></i> Size: ${size} cm
+                    ${tabPriorityHtml}
+                </button>
+            </li>`;
+
+            contentHtml += `
+            <div class="tab-pane fade ${first?'show active':''}" id="bp-content-${safeSize}" role="tabpanel">
+                <div class="card mb-4 border-0 shadow-sm" id="bp_print_band_${safeSize}">
+                    <div class="card-header bg-dark text-white fw-bold py-2.5 d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-layers-fill text-warning me-2"></i> Reel Size Band Platform: <strong>${size} cm</strong></span>
+                        ${printBtnHtml}
+                    </div>
+                    <div class="card-body p-0 table-responsive">
+                        <table class="table table-hover table-bordered align-middle text-center mb-0">
+                            <thead class="table-secondary text-uppercase small font-monospace">
+                                <tr>
+                                    <th class="no-print" style="width: 100px;">Pri</th>
+                                    <th>PO Number</th>
+                                    <th>Customer Name</th>
+                                    <th>Full Sheet Dimension</th>
+                                    <th>Flute</th>
+                                    <th>Ply</th>
+                                    <th>Combination Build</th>
+                                    <th>Target Qty</th>
+                                    <th class="no-print">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody class="small">
+            `;
+
+            bpPlans.forEach(p => {
+                let sheetSizeCalculated = `${size} cm &times; ${p.cut_length || 'N/A'} cm`;
+                let combinationSpecsString = (p.materials && Array.isArray(p.materials)) ? p.materials.map((m,i)=> `<span class="badge bg-light text-dark border me-1">L${i+1}: ${(m.gsm && !isNaN(m.gsm)) ? m.gsm : '-'} - ${m.name}</span>`).join('<br>') : '-';
+                let actHtml = canAct('Board Plant') ? `<button class="btn btn-sm btn-success fw-bold px-3 py-1 shadow-sm" onclick="showBoardPlantForm(${p.id})"><i class="bi bi-card-checklist me-1"></i> Create Job Card</button>` : `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
                 
-                let navHtml = '<ul class="nav nav-pills mb-3" id="bp-size-tabs" role="tablist">';
-                let contentHtml = '<div class="tab-content" id="bp-size-tabsContent">';
-                let canEditPriority = ['programmer1', 'programmer2'].includes(currentRole);
-                let first = true;
-                for (const [size, plans] of Object.entries(data)) {
-                    let bpPlans = plans.filter(p => p.status === 'Board Plant');
-                    if (bpPlans.length === 0) continue;
-                    
-                    hasAnyRecords = true;
-                    let safeSize = size.toString().replace('.', '_');
-                    let priorityVal = uiPriorities.bpTabs[safeSize] || '';
-                    
-                    let printBtnHtml = (currentRole === 'programmer1' || currentRole === 'programmer2' || currentRole === 'admin') ? 
-                        `<button class="btn btn-sm btn-outline-light no-print py-1" onclick="printSelectedBand('bp_print_band_${safeSize}')">
-                            <i class="bi bi-printer me-1"></i> Print Size Band
-                        </button>` : '';
-                    let tabPriorityHtml = canEditPriority ? 
-                        `<input type="text" class="form-control form-control-sm ms-2 p-0 text-center fw-bold border-primary" style="width: 48px; height: 26px; font-size: 0.85rem;" placeholder="Pri" onclick="event.stopPropagation()" onchange="saveSizeBandPriority('${safeSize}', this.value)" value="${priorityVal}" title="Set Priority (1, 2, 3...)">` : 
-                        (priorityVal ? `<span class="badge bg-primary ms-2" style="font-size: 0.85rem;">Pri: ${priorityVal}</span>` : '');
-                    navHtml += `
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link ${first?'active':''} fw-bold border mb-2 me-2 d-flex align-items-center shadow-sm rounded-3" id="bp-tab-${safeSize}" data-bs-toggle="pill" data-bs-target="#bp-content-${safeSize}" type="button" role="tab">
-                            <i class="bi bi-disc me-1 text-primary"></i> Size: ${size} cm
-                            <input type="text" class="form-control form-control-sm ms-2 p-0 text-center fw-bold border-primary" style="width: 48px; height: 26px; font-size: 0.85rem;" placeholder="Pri" onclick="event.stopPropagation()" onchange="uiPriorities.bpTabs['${safeSize}'] = this.value" value="${priorityVal}" title="Set Priority (1, 2, 3...)">
+                // --- Auto-Lock සහ Input Priority Logic (Snippet 2) ---
+                let currentPri = (p.row_priority !== null && p.row_priority !== undefined && p.row_priority !== "" && !isNaN(p.row_priority)) ? p.row_priority.toString() : "";
+                let isLocked = (currentPri !== "") ? "disabled" : "";
+                let btnDisplay = (currentPri !== "") ? "inline-block" : "none";
+
+                let priorityHTML = `
+                <div class="d-flex align-items-center justify-content-center">
+                    <input type="number" 
+                           id="priority-input-${p.id}" 
+                           class="form-control form-control-sm text-center fw-bold border-secondary" 
+                           style="width: 55px; font-size: 0.85rem; padding: 0.25rem;" 
+                           value="${currentPri}" 
+                           placeholder="Pri"
+                           min="1"
+                           onchange="updatePriority(${p.id}, this.value)" 
+                           ${isLocked}>
+                    <button id="priority-edit-btn-${p.id}" 
+                            class="btn btn-sm btn-outline-danger ms-1 p-1" 
+                            style="display: ${btnDisplay}; line-height: 1;" 
+                            onclick="enablePriorityEdit(${p.id})" 
+                            title="Edit Priority">
+                        <i class="bi bi-pencil-square"></i>
+                    </button>
+                </div>`;
+
+                let qtyHTML = `
+                <div class="d-flex align-items-center justify-content-center gap-1">
+                    <span class="fw-bold fs-6">${p.qty}</span>
+                    ${['programmer1', 'programmer2'].includes(currentRole) ? `
+                        <button class="btn btn-sm btn-outline-primary p-1 ms-2" 
+                            onclick="editQtyPrompt(${p.id}, ${p.qty})" 
+                            title="Edit Target Qty">
+                            <i class="bi bi-pencil-square"></i>
                         </button>
-                    </li>`;
+                    ` : ''}
+                </div>
+                `;
 
-                    contentHtml += `
-                    <div class="tab-pane fade ${first?'show active':''}" id="bp-content-${safeSize}" role="tabpanel">
-                        <div class="card mb-4 border-0 shadow-sm" id="bp_print_band_${safeSize}">
-                            <div class="card-header bg-dark text-white fw-bold py-2.5 d-flex justify-content-between align-items-center">
-                                <span><i class="bi bi-layers-fill text-warning me-2"></i> Reel Size Band Platform: <strong>${size} cm</strong></span>
-                                ${printBtnHtml}
-                            </div>
-                            <div class="card-body p-0 table-responsive">
-                                <table class="table table-hover table-bordered align-middle text-center mb-0">
-                                    <thead class="table-secondary text-uppercase small font-monospace">
-                                        <tr>
-                                            <th class="no-print" style="width: 70px;">Pri</th>
-                                            <th>PO Number</th>
-                                            <th>Customer Name</th>
-                                            <th>Full Sheet Dimension</th>
-                                            <th>Flute</th>
-                                            <th>Ply</th>
-                                            <th>Combination Build</th>
-                                            <th>Target Qty</th>
-                                            <th class="no-print">Action</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="small">
-                    `;
-
-                    bpPlans.forEach(p => {
-                        let sheetSizeCalculated = `${size} cm &times; ${p.cut_length || 'N/A'} cm`;
-                        let combinationSpecsString = (p.materials && Array.isArray(p.materials)) ? p.materials.map((m,i)=> `<span class="badge bg-light text-dark border me-1">L${i+1}: ${(m.gsm && !isNaN(m.gsm)) ? m.gsm : '-'} - ${m.name}</span>`).join('<br>') : '-';
-                        let actHtml = canAct('Board Plant') ? `<button class="btn btn-sm btn-success fw-bold px-3 py-1 shadow-sm" onclick="showBoardPlantForm(${p.id})"><i class="bi bi-card-checklist me-1"></i> Create Job Card</button>` : `<span class="badge bg-secondary px-3 py-2">View Only</span>`;
-                        let rowPriorityDisplay = (p.row_priority !== null && p.row_priority !== undefined && !isNaN(p.row_priority)) ? p.row_priority : '';
-
-                        let priorityHTML = `<input type="text" class="form-control form-control-sm mx-auto text-center fw-bold border-secondary" style="width: 55px; font-size: 0.85rem;" placeholder="#" onchange="saveRowPriority(${p.id}, this.value)" value="${rowPriorityDisplay}" title="Row Priority (1, 2, 3...)">`;
-                        
-                        // Fixed: userRole changed to currentRole
-                        let qtyHTML = `
-                        <div class="d-flex align-items-center justify-content-center gap-1">
-                            <span class="fw-bold fs-6">${p.qty}</span>
-                            ${['programmer1', 'programmer2'].includes(currentRole) ? `
-                                <button class="btn btn-sm btn-outline-primary p-1 ms-2" 
-                                    onclick="editQtyPrompt(${p.id}, ${p.qty})" 
-                                    title="Edit Target Qty">
-                                    <i class="bi bi-pencil-square"></i>
-                                </button>
-                            ` : ''}
-                        </div>
-                        `;
-
-                        contentHtml += `
-                        <tr>
-                            <td class="no-print" onclick="event.stopPropagation()">
-                                ${priorityHTML}
-                            </td>
-                            <td class="fw-bold text-primary font-monospace fs-6">${p.po_no}</td>
-                            <td class="fw-semibold text-start">${p.customer_name}</td>
-                            <td class="fw-bold text-danger font-monospace bg-light">${sheetSizeCalculated}</td>
-                            <td><span class="badge bg-info text-dark font-monospace">${p.flute || '-'}</span></td>
-                            <td><span class="badge bg-dark">${p.ply} Ply</span></td>
-                            <td class="text-start font-monospace">${combinationSpecsString}</td>
-                            <td>${qtyHTML}</td>
-                            <td class="no-print">${actHtml}</td>
-                        </tr>
-                        <tr id="job_card_row_${p.id}" style="display:none;" class="no-print">
-                            <td colspan="9" class="p-0 border-0 position-relative" id="job_card_container_${p.id}"></td>
-                        </tr>`;
-                    });
-
-                    contentHtml += `</tbody></table></div></div></div>`;
-                    first = false;
-                }
-                
-                navHtml += '</ul>';
-                contentHtml += '</div>';
-
-                let container = document.getElementById('generic-stage-container');
-                if(container) container.innerHTML = hasAnyRecords ? (navHtml + contentHtml) : "<p class='text-muted p-4 text-center border rounded bg-white'>No active jobs currently in Board Plant stage.</p>";
+                contentHtml += `
+                <tr>
+                    <td class="no-print" onclick="event.stopPropagation()">
+                        ${priorityHTML}
+                    </td>
+                    <td class="fw-bold text-primary font-monospace fs-6">${p.po_no}</td>
+                    <td class="fw-semibold text-start">${p.customer_name}</td>
+                    <td class="fw-bold text-danger font-monospace bg-light">${sheetSizeCalculated}</td>
+                    <td><span class="badge bg-info text-dark font-monospace">${p.flute || '-'}</span></td>
+                    <td><span class="badge bg-dark">${p.ply} Ply</span></td>
+                    <td class="text-start font-monospace">${combinationSpecsString}</td>
+                    <td>${qtyHTML}</td>
+                    <td class="no-print">${actHtml}</td>
+                </tr>
+                <tr id="job_card_row_${p.id}" style="display:none;" class="no-print">
+                    <td colspan="9" class="p-0 border-0 position-relative" id="job_card_container_${p.id}"></td>
+                </tr>`;
             });
+
+            contentHtml += `</tbody></table></div></div></div>`;
+            first = false;
         }
+        
+        navHtml += '</ul>';
+        contentHtml += '</div>';
+
+        let container = document.getElementById('generic-stage-container');
+        if(container) container.innerHTML = hasAnyRecords ? (navHtml + contentHtml) : "<p class='text-muted p-4 text-center border rounded bg-white'>No active jobs currently in Board Plant stage.</p>";
+    });
+}
         function showBoardPlantForm(id) {
             let row = document.getElementById(`job_card_row_${id}`);
             if(row) row.style.display = 'table-row';
