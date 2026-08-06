@@ -1220,16 +1220,36 @@ def update_plan_qty():
         new_qty = int(data.get('qty', 0))
         
         # --- Qty එක වෙනස් වූ විට අනුපාතිකව (proportionally) SR Weight එක adjust කිරීම ---
-        if old_qty > 0 and new_qty > 0 and old_qty != new_qty:
+        if new_qty > 0 and old_qty != new_qty:
             plan.qty = new_qty
             
-            srs = SRRequest.query.filter_by(po_number=plan.po_no, status='Pending').all()
+            # FIX: Pending සහ Approved අවස්ථා දෙකේදීම Update වීමට සහ old_qty 0 වන අවස්ථාව හැසිරවීම.
+            srs = SRRequest.query.filter(
+                SRRequest.po_number == plan.po_no,
+                SRRequest.status.in_(['Pending', 'Approved'])
+            ).all()
+            
             for sr in srs:
-                sr.qty = new_qty
-                sr.calculated_weight = round((sr.calculated_weight / old_qty) * new_qty, 2)
-                sr.excess_weight = round((sr.excess_weight / old_qty) * new_qty, 2)
-                sr.total_weight = round((sr.total_weight / old_qty) * new_qty, 2)
-                
+                if old_qty > 0:
+                    sr.qty = new_qty
+                    sr.calculated_weight = round((sr.calculated_weight / old_qty) * new_qty, 2)
+                    sr.excess_weight = round((sr.excess_weight / old_qty) * new_qty, 2)
+                    sr.total_weight = round((sr.total_weight / old_qty) * new_qty, 2)
+                else:
+                    sr.qty = new_qty
+                    prod = CustomerProduct.query.filter_by(customer_id=plan.customer_id, product_code=plan.product_code).first()
+                    ply_val = prod.ply if prod else (5 if '5PLY' in plan.product_code else 3)
+                    cut_length = get_cut_length(prod.cartoon_size, ply_val) if prod else 60.0
+
+                    calc_weight = (plan.selected_reel_size * cut_length * (sr.gsm / 10000.0) * new_qty) / 1000.0
+                    if sr.component_type == 'Corru':
+                        calc_weight *= 1.5
+                    
+                    excess = calc_weight * 0.05
+                    sr.calculated_weight = round(calc_weight, 2)
+                    sr.excess_weight = round(excess, 2)
+                    sr.total_weight = round(calc_weight + excess, 2)
+                    
         db.session.commit()
         return jsonify({'success': True})
         
