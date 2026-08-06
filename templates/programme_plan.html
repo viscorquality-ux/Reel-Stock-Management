@@ -1535,7 +1535,7 @@ function renderBoardPlantTable() {
         let container = document.getElementById('generic-stage-container');
         if(container) container.innerHTML = hasAnyRecords ? (navHtml + contentHtml) : "<p class='text-muted p-4 text-center border rounded bg-white'>No active jobs currently in Board Plant stage.</p>";
     }).catch(err => console.error("API Fetch Error:", err));
-}
+};
 
 // 2. HELPER FUNCTIONS
 window.enableSizeBandEdit = function(safeSize) {
