@@ -2543,6 +2543,66 @@
             tableBody.innerHTML = `<tr><td colspan="9" class="text-danger py-4"><i class="bi bi-exclamation-octagon me-1"></i> ${error.message}</td></tr>`;
         });
         }
+        // --- 1. Target Qty Auto-Update Function ---
+        function updatePlanQty(id) {
+            let newQty = document.getElementById(`edit_qty_${id}`).value;
+            if(!newQty || isNaN(newQty) || newQty <= 0) {
+                alert("කරුණාකර නිවැරදි ප්‍රමාණයක් ඇතුලත් කරන්න.");
+                return;
+            }
+            
+            if(confirm(`Are you sure you want to change Target Qty to ${newQty} ?\nThis will Auto-Adjust all connected SR Request Weights.`)) {
+                fetch('/api/update_plan_qty', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: id, qty: newQty })
+                }).then(res => res.json()).then(data => {
+                    if(data.success) {
+                        alert("✅ Target Quantity & Associated SR Requests Successfully Updated.");
+                        // Board Plant Table Refresh
+                        if(typeof renderBoardPlantTable === 'function') renderBoardPlantTable();
+                    } else {
+                        alert("❌ Error Updating Qty");
+                    }
+                }).catch(err => {
+                    console.error(err);
+                    alert("❌ System Error occurred");
+                });
+            }
+        }
+        
+        // --- 2. Board Plant Table Rendering Logic (Snippet Update) ---
+        // ඔබගේ renderBoardPlantTable() function එක තුල Table rows හදන තැන (loop එක ඇතුලේ) පහත කොටස් පාවිච්චි කරන්න.
+        // විශේෂයෙන්ම 'isProgrammer' check එක මගින් Dropdown එක Disable කිරීම හා Input field එක පෙන්වීම පාලනය කර ඇත.
+        
+        function generateBoardPlantRow(plan) {
+            // Current Role Check 
+            let role = document.getElementById('loggedRole').innerText.trim().toLowerCase();
+            let isProgrammer = (role === 'programmer1' || role === 'programmer2' || role === 'admin');
+            
+            // Priority Selector HTML (Disabled if not Programmer/Admin)
+            let prioritySelect = `<select class="form-select form-select-sm border-0 bg-transparent fw-bold text-center" onchange="updatePriority(${plan.id}, this.value)" ${isProgrammer ? '' : 'disabled'}>
+                <option value="High" ${plan.row_priority === 'High' ? 'selected' : ''}>High</option>
+                <option value="Medium" ${plan.row_priority === 'Medium' ? 'selected' : ''}>Medium</option>
+                <option value="Low" ${plan.row_priority === 'Low' ? 'selected' : ''}>Low</option>
+            </select>`;
+        
+            // Target Qty HTML (Editable only if Programmer/Admin)
+            let qtyHtml = `<span class="fw-bold">${plan.qty}</span>`;
+            if (isProgrammer) {
+                qtyHtml = `
+                    <div class="input-group input-group-sm mx-auto" style="width: 100px;">
+                        <input type="number" class="form-control text-center px-1" id="edit_qty_${plan.id}" value="${plan.qty}">
+                        <button class="btn btn-outline-success px-2" onclick="updatePlanQty(${plan.id})" title="Update Qty & SR">
+                            <i class="bi bi-check-circle-fill"></i>
+                        </button>
+                    </div>
+                `;
+            }
+        
+            // Return the row string (මේක ඔබගේ පවතින Table එකේ Pattern එකට ගලපගන්න පුළුවන්)
+            // <td>${prioritySelect}</td> සහ <td>${qtyHtml}</td> ලෙස භාවිතා කරන්න.
+        }
     </script>
 </body>
 </html>
